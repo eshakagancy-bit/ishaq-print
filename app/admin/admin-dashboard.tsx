@@ -3,6 +3,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { MEDIA_PROXY_PATH_PREFIX, normalizeMediaUrl } from "../../lib/media-url";
 import { defaultHeroSettings, defaultSiteSettings, type HeroSettings, type HeroSlide, type SiteSettings, type StoredProduct } from "../site-defaults";
 
 const categories = [
@@ -53,8 +54,16 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     fetch("/api/site").then(async (response) => {
       const data = await response.json() as { error?: string; settings?: Partial<SiteSettings>; products?: StoredProduct[] };
       if (!response.ok) throw new Error(data.error || "تعذر التحميل");
-      setSettings({ ...defaultSiteSettings, ...data.settings });
-      setProducts(Array.isArray(data.products) ? data.products : []);
+      const nextSettings = { ...defaultSiteSettings, ...data.settings };
+      setSettings({
+        ...nextSettings,
+        logoImage: normalizeMediaUrl(nextSettings.logoImage),
+        heroImage: normalizeMediaUrl(nextSettings.heroImage),
+        featureImage: normalizeMediaUrl(nextSettings.featureImage),
+      });
+      setProducts(Array.isArray(data.products)
+        ? data.products.map((product) => ({ ...product, image: normalizeMediaUrl(product.image) }))
+        : []);
       setStatus("تم تحميل البيانات");
     }).catch((error) => setStatus(error instanceof Error ? error.message : "تعذر تحميل البيانات"));
   }, []);
@@ -63,7 +72,9 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     fetch("/api/admin/hero-slides").then(async (response) => {
       const data = await response.json() as { error?: string; slides?: HeroSlide[]; settings?: Partial<HeroSettings> };
       if (!response.ok) throw new Error(data.error || "تعذر تحميل بيانات البانر");
-      setHeroSlides(Array.isArray(data.slides) ? data.slides : []);
+      setHeroSlides(Array.isArray(data.slides)
+        ? data.slides.map((slide) => ({ ...slide, imageUrl: normalizeMediaUrl(slide.imageUrl) }))
+        : []);
       setHeroSettings({ ...defaultHeroSettings, ...data.settings });
     }).catch((error) => setStatus(error instanceof Error ? error.message : "تعذر تحميل بيانات البانر"));
   }, []);
@@ -71,15 +82,18 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const updateSetting = (key: keyof SiteSettings, value: string) => setSettings((current) => ({ ...current, [key]: value }));
 
   const queueMediaRemoval = (url: string) => {
-    if (url.startsWith("https://")) pendingMediaDeletes.current.add(url);
+    const normalizedUrl = normalizeMediaUrl(url);
+    if (normalizedUrl.startsWith(MEDIA_PROXY_PATH_PREFIX) || url.startsWith("https://")) {
+      pendingMediaDeletes.current.add(normalizedUrl);
+    }
   };
 
   const activeMediaUrls = (nextSettings = settings, nextProducts = products, nextHeroSlides = heroSlides) => new Set([
-    nextSettings.logoImage,
-    nextSettings.heroImage,
-    nextSettings.featureImage,
-    ...nextProducts.map((product) => product.image),
-    ...nextHeroSlides.map((slide) => slide.imageUrl),
+    normalizeMediaUrl(nextSettings.logoImage),
+    normalizeMediaUrl(nextSettings.heroImage),
+    normalizeMediaUrl(nextSettings.featureImage),
+    ...nextProducts.map((product) => normalizeMediaUrl(product.image)),
+    ...nextHeroSlides.map((slide) => normalizeMediaUrl(slide.imageUrl)),
   ].filter(Boolean));
 
   const flushPendingMediaDeletes = async (activeUrls: Set<string>) => {
@@ -128,8 +142,9 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       const data = await response.json() as { error?: string; url?: string };
       if (!response.ok) throw new Error(data.error || "تعذر رفع الصورة");
       if (!data.url) throw new Error("لم يُرجع الخادم رابط الصورة");
-      if (currentUrl && currentUrl !== data.url) queueMediaRemoval(currentUrl);
-      onUploaded(data.url);
+      const uploadedUrl = normalizeMediaUrl(data.url);
+      if (currentUrl && normalizeMediaUrl(currentUrl) !== uploadedUrl) queueMediaRemoval(currentUrl);
+      onUploaded(uploadedUrl);
       setStatus("تم رفع الصورة، اضغط حفظ جميع التعديلات");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "تعذر رفع الصورة");
@@ -189,7 +204,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       const data = await response.json() as { error?: string; slide?: HeroSlide };
       if (!response.ok) throw new Error(data.error || "تعذر حفظ الشريحة");
       if (!data.slide) throw new Error("لم يُرجع الخادم بيانات الشريحة");
-      const savedSlide = data.slide;
+      const savedSlide = { ...data.slide, imageUrl: normalizeMediaUrl(data.slide.imageUrl) };
       const nextSlides = (editingHeroId
         ? heroSlides.map((slide) => slide.id === editingHeroId ? savedSlide : slide)
         : [...heroSlides, savedSlide]
@@ -315,7 +330,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         <div className="hero-slides-table" role="table" aria-label="جدول شرائح البانر">
           <div className="hero-slides-row hero-slides-header" role="row"><span>الصورة</span><span>العنوان</span><span>الحالة</span><span>الترتيب</span><span>تعديل</span><span>حذف</span></div>
           {heroSlides.map((slide) => <div className="hero-slides-row" role="row" key={slide.id}>
-            <span><img src={slide.imageUrl || "/brand/eshak-logo.png"} alt={slide.imageAlt || slide.title} /></span>
+            <span><img src={normalizeMediaUrl(slide.imageUrl) || "/brand/eshak-logo.png"} alt={slide.imageAlt || slide.title} /></span>
             <b>{slide.title}</b>
             <span className={slide.isActive ? "hero-state active" : "hero-state"}>{slide.isActive ? "ظاهرة" : "مخفية"}</span>
             <span>{slide.displayOrder}</span>
@@ -363,13 +378,13 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => setProductForm({ ...productForm, image: url }), "products")} onRemove={() => removeImage(productForm.image, () => setProductForm({ ...productForm, image: "" }))} />
         <div className="product-editor-actions"><button type="submit">{editingId ? "تجهيز التعديل" : "إضافة للقائمة"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); }}>تفريغ</button></div>
       </form>
-      <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={product.image || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}</span></div><button onClick={() => editProduct(product)}>تعديل</button><button className="delete-product" onClick={() => { queueMediaRemoval(product.image); setProducts((current) => current.filter((item) => item.id !== product.id)); setStatus("تم حذف المنتج من القائمة، اضغط حفظ جميع التعديلات"); }}>حذف</button></article>)}</div>
+      <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}</span></div><button onClick={() => editProduct(product)}>تعديل</button><button className="delete-product" onClick={() => { queueMediaRemoval(product.image); setProducts((current) => current.filter((item) => item.id !== product.id)); setStatus("تم حذف المنتج من القائمة، اضغط حفظ جميع التعديلات"); }}>حذف</button></article>)}</div>
     </section>}
   </main>;
 }
 
 function ImageField({ value, onUpload, onRemove, label = "الصورة", actionText = "اختيار صورة من الجهاز" }: { value: string; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; label?: string; actionText?: string }) {
-  return <div className="real-image-control"><label className="real-image-field">{label}{value && <img src={value} alt="معاينة" />}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={onUpload} /><span>{actionText}</span></label>{value && <button type="button" className="media-remove-button" onClick={onRemove}>حذف الصورة</button>}</div>;
+  return <div className="real-image-control"><label className="real-image-field">{label}{value && <img src={normalizeMediaUrl(value)} alt="معاينة" />}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={onUpload} /><span>{actionText}</span></label>{value && <button type="button" className="media-remove-button" onClick={onRemove}>حذف الصورة</button>}</div>;
 }
 
 function ImageEditor({ title, value, onUpload, onRemove }: { title: string; value: string; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onRemove: () => void }) {

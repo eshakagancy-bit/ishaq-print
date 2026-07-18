@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { normalizeMediaUrl } from "../lib/media-url";
 import { defaultHeroSettings, defaultHeroSlides, defaultSiteSettings, type HeroSettings, type HeroSlide, type SiteSettings } from "./site-defaults";
 
 type Product = {
@@ -206,8 +207,22 @@ export default function Home() {
     fetch("/api/site").then(async (response) => {
       if (!response.ok) throw new Error("تعذر تحميل بيانات الموقع");
       const data = await response.json() as { settings?: SiteSettings; products?: Product[] };
-      if (data.settings) setSettings({ ...defaultSiteSettings, ...data.settings });
-      if (Array.isArray(data.products)) setProducts(data.products.map((product) => ({ ...product, category: product.category || "printers" })));
+      if (data.settings) {
+        const nextSettings = { ...defaultSiteSettings, ...data.settings };
+        setSettings({
+          ...nextSettings,
+          logoImage: normalizeMediaUrl(nextSettings.logoImage),
+          heroImage: normalizeMediaUrl(nextSettings.heroImage),
+          featureImage: normalizeMediaUrl(nextSettings.featureImage),
+        });
+      }
+      if (Array.isArray(data.products)) {
+        setProducts(data.products.map((product) => ({
+          ...product,
+          image: normalizeMediaUrl(product.image),
+          category: product.category || "printers",
+        })));
+      }
     }).catch(() => undefined);
   }, []);
 
@@ -216,7 +231,10 @@ export default function Home() {
       const data = await response.json() as { slides?: HeroSlide[]; settings?: HeroSettings };
       if (!response.ok) throw new Error("تعذر تحميل شرائح البانر");
       if (Array.isArray(data.slides) && data.slides.length) {
-        setHeroSlides(data.slides);
+        setHeroSlides(data.slides.map((slide) => ({
+          ...slide,
+          imageUrl: normalizeMediaUrl(slide.imageUrl),
+        })));
         setActiveHeroSlide(0);
       }
       if (data.settings) setHeroSettings({ ...defaultHeroSettings, ...data.settings });
@@ -297,7 +315,7 @@ export default function Home() {
 
       <header className="header">
         <div className="container nav-wrap">
-          <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية"><img src={settings.logoImage} alt="شعار وكالة إسحاق العالمية" width="190" height="78" /></a>
+          <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية"><img src={normalizeMediaUrl(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width="190" height="78" /></a>
           <nav className={menuOpen ? "nav-links open" : "nav-links"} aria-label="التنقل الرئيسي">
             <a href="#home" onClick={() => setMenuOpen(false)}>الرئيسية</a>
             <a href="#categories" onClick={() => setMenuOpen(false)}>الأقسام</a>
@@ -330,7 +348,7 @@ export default function Home() {
         <div className="hero-slide-stage">
           {heroSlides.map((slide, index) => (
             <article key={slide.title} className={index === activeHeroSlide ? "hero-slide active" : "hero-slide"} aria-hidden={index !== activeHeroSlide}>
-              <div className="hero-slide-bg" style={{ backgroundImage: `url(${slide.imageUrl})` }}></div>
+              <div className="hero-slide-bg" style={{ backgroundImage: `url(${normalizeMediaUrl(slide.imageUrl)})` }}></div>
             </article>
           ))}
         </div>
@@ -363,7 +381,7 @@ export default function Home() {
           </div>
           <div className="hero-visual">
             <div className="brand-pill">{activeHero.badgeText}</div><div className="printer-halo"></div>
-            <img src={activeHero.imageUrl} alt={activeHero.imageAlt || activeHero.title} width="820" height="640" className="hero-printer" />
+            <img src={normalizeMediaUrl(activeHero.imageUrl)} alt={activeHero.imageAlt || activeHero.title} width="820" height="640" className="hero-printer" />
           </div>
         </div>
         {heroSettings.showArrows && <><button className="hero-arrow hero-arrow-next" type="button" onClick={() => changeHeroSlide(1)} aria-label="الشريحة التالية">›</button>
@@ -407,13 +425,13 @@ export default function Home() {
         <div className="section-heading"><div><span className="section-kicker">{activeCategory === "printers" ? "طابعات إبسون فقط" : "منتجات القسم"}</span><h2>{currentCategory.name}</h2><p>{currentCategory.description}.</p></div><a className="specialist-heading-link" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer"><span>●</span> واتساب المختص: <b dir="ltr">{categoryContacts[activeCategory].replace("967", "")}</b></a></div>
         {activeCategory === "printers" && <div className="filters" role="group" aria-label="تصنيف طابعات إبسون">{["الكل", "A4", "A3", "متعددة الوظائف", "طباعة فقط"].map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div>}
         {visibleProducts.length ? <div className="product-grid">{visibleProducts.map((product) => <article className="product-card" key={product.id}>
-          <div className="product-image">{product.badge && <span className="product-badge">{product.badge}</span>}<button className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label="إضافة إلى المفضلة">♥</button><img src={product.image} alt={product.name} width="560" height="440" loading="lazy" /><button className="quick-view" onClick={() => setSelected(product)}>عرض سريع</button></div>
+          <div className="product-image">{product.badge && <span className="product-badge">{product.badge}</span>}<button className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label="إضافة إلى المفضلة">♥</button><img src={normalizeMediaUrl(product.image)} alt={product.name} width="560" height="440" loading="lazy" /><button className="quick-view" onClick={() => setSelected(product)}>عرض سريع</button></div>
           <div className="product-body"><span className="product-family">{product.family}</span><h3>{product.name}</h3><p>{product.description}</p><div className="product-tags"><span>{product.size}</span><span>{product.type}</span></div><div className="product-footer"><div className="price"><small>السعر</small><strong>{product.price || "اطلب عرض سعر"}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
         </article>)}</div> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم من لوحة التحكم."}</p><div className="empty-actions"><button onClick={() => { setQuery(""); setFilter("الكل"); }}>{query ? "عرض جميع المنتجات" : "تحديث القسم"}</button></div></div>}
       </div></section>
 
       <section className="feature-band"><div className="container feature-band-inner">
-        <div className="feature-image"><div className="cyan-disc"></div><img src={settings.featureImage} alt="صورة البانر الدعائي" width="640" height="640" loading="lazy" /></div>
+        <div className="feature-image"><div className="cyan-disc"></div><img src={normalizeMediaUrl(settings.featureImage)} alt="صورة البانر الدعائي" width="640" height="640" loading="lazy" /></div>
         <div className="feature-copy"><span className="eyebrow dark">{settings.featureEyebrow}</span><h2>{settings.featureTitle}</h2><p>{settings.featureDescription}</p><ul><li><b>اختيار دقيق</b><span>ترشيح الموديل حسب احتياجك الفعلي.</span></li><li><b>توريد وتجهيز</b><span>تجهيز الطابعة وربطها ببيئة العمل.</span></li><li><b>دعم مستمر</b><span>مساندة فنية ومستلزمات تشغيل أصلية.</span></li></ul><a className="primary-btn" href={specialistWaLink("printers")} target="_blank" rel="noreferrer">تواصل مع مختص الطابعات <span>←</span></a></div>
       </div></section>
 
@@ -446,14 +464,14 @@ export default function Home() {
       <section className="contact-banner" id="contact"><div className="container contact-banner-inner"><div><span>{settings.contactKicker}</span><h2>{settings.contactTitle}</h2></div><div className="contact-actions"><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">واتساب: {settings.generalWhatsapp.replace("967", "")}</a><a href={`tel:+${customerPhone}`} className="outline" dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم نسخ الرقم ✓" : "نسخ الرقم"}</button></div></div></section>
 
       <footer><div className="container footer-grid">
-        <div className="footer-brand"><img src={settings.logoImage} alt="وكالة إسحاق العالمية" width="210" height="90" loading="lazy" /><p>حلول تقنية وتجارية وتجهيزات موثوقة للأفراد والشركات والمؤسسات في اليمن.</p></div>
+        <div className="footer-brand"><img src={normalizeMediaUrl(settings.logoImage)} alt="وكالة إسحاق العالمية" width="210" height="90" loading="lazy" /><p>حلول تقنية وتجارية وتجهيزات موثوقة للأفراد والشركات والمؤسسات في اليمن.</p></div>
         <div><h3>روابط سريعة</h3><a href="#home">الرئيسية</a><a href="#categories">جميع الأقسام</a><a href="#maintenance">الصيانة</a><a href="#products">طابعات EPSON</a><a href="#services">خدماتنا</a></div>
         <div><h3>تواصل معنا</h3><a href={`tel:+${customerPhone}`} dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button className="footer-copy-phone" type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم النسخ ✓" : "نسخ الرقم"}</button><a href={`tel:${settings.salesPhone}`}>{settings.salesPhone}</a><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">{settings.generalWhatsapp.replace("967", "")}</a><p>{settings.address}</p></div>
         <div><h3>أوقات العمل</h3><p>{settings.workDays}</p><p>{settings.workHours}</p><span className="open-label">● متاحون الآن</span></div>
       </div><div className="container copyright"><span>© 2026 وكالة إسحاق العالمية. جميع الحقوق محفوظة.</span><span>EPSON وWorkForce علامات تجارية لأصحابها.</span></div></footer>
 
       <a className="whatsapp-float" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer" aria-label={`تواصل مع مختص قسم ${currentCategory.name}`}>مختص القسم <span>◉</span></a>
-      {selected && <div className="modal-backdrop" onMouseDown={() => setSelected(null)}><div className="product-modal" role="dialog" aria-modal="true" aria-label={`تفاصيل ${selected.name}`} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="إغلاق">×</button><div className="modal-image"><img src={selected.image} alt={selected.name} width="700" height="600" /></div><div className="modal-content"><span className="product-family">{selected.family}</span><h2>{selected.name}</h2><p>{selected.description}</p><div className="modal-specs">{selected.features.map((feature) => <span key={feature}>✓ {feature}</span>)}</div><a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div>}
+      {selected && <div className="modal-backdrop" onMouseDown={() => setSelected(null)}><div className="product-modal" role="dialog" aria-modal="true" aria-label={`تفاصيل ${selected.name}`} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="إغلاق">×</button><div className="modal-image"><img src={normalizeMediaUrl(selected.image)} alt={selected.name} width="700" height="600" /></div><div className="modal-content"><span className="product-family">{selected.family}</span><h2>{selected.name}</h2><p>{selected.description}</p><div className="modal-specs">{selected.features.map((feature) => <span key={feature}>✓ {feature}</span>)}</div><a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div>}
     </main>
   );
 }

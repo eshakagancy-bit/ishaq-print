@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./supabase-server";
+import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "./media-url";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
@@ -67,12 +68,26 @@ function normalizeFeatures(value: unknown) {
   return [];
 }
 
+function normalizeStoredMediaUrl(value: string) {
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET;
+  return normalizeMediaUrl(value, bucket);
+}
+
+function normalizeSiteSettingsMedia(settings: SiteSettings): SiteSettings {
+  return {
+    ...settings,
+    logoImage: normalizeStoredMediaUrl(settings.logoImage),
+    heroImage: normalizeStoredMediaUrl(settings.heroImage),
+    featureImage: normalizeStoredMediaUrl(settings.featureImage),
+  };
+}
+
 function productToRow(product: StoredProduct, index: number): ProductRow {
   return {
     id: product.id,
     name: product.name,
     family: product.family,
-    image: product.image,
+    image: normalizeStoredMediaUrl(product.image),
     category: product.category,
     type: product.type,
     size: product.size,
@@ -89,7 +104,7 @@ function productFromRow(row: ProductRow): StoredProduct {
     id: Number(row.id),
     name: row.name,
     family: row.family,
-    image: row.image,
+    image: normalizeStoredMediaUrl(row.image),
     category: row.category,
     type: row.type,
     size: row.size,
@@ -107,7 +122,7 @@ function heroSlideToRow(slide: Omit<HeroSlide, "id"> | HeroSlide) {
     subtitle: slide.subtitle,
     description: slide.description,
     badge_text: slide.badgeText,
-    image_url: slide.imageUrl,
+    image_url: normalizeStoredMediaUrl(slide.imageUrl),
     image_alt: slide.imageAlt,
     primary_button_text: slide.primaryButtonText,
     primary_button_url: slide.primaryButtonUrl,
@@ -126,7 +141,7 @@ function heroSlideFromRow(row: HeroSlideRow): HeroSlide {
     subtitle: row.subtitle,
     description: row.description,
     badgeText: row.badge_text,
-    imageUrl: row.image_url,
+    imageUrl: normalizeStoredMediaUrl(row.image_url),
     imageAlt: row.image_alt,
     primaryButtonText: row.primary_button_text,
     primaryButtonUrl: row.primary_button_url,
@@ -191,7 +206,7 @@ export async function getSiteData() {
   databaseError("تعذر تحميل المنتجات", productsResult.error);
 
   return {
-    settings: (settingsResult.data?.payload ?? defaultSiteSettings) as SiteSettings,
+    settings: normalizeSiteSettingsMedia((settingsResult.data?.payload ?? defaultSiteSettings) as SiteSettings),
     products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
   };
 }
@@ -199,7 +214,7 @@ export async function getSiteData() {
 export async function replaceSiteData(settings: SiteSettings, products: StoredProduct[]) {
   const client = getSupabaseAdmin();
   const result = await client.rpc("replace_site_data", {
-    p_settings: settings,
+    p_settings: normalizeSiteSettingsMedia(settings),
     p_products: products.map(productToRow),
   });
   databaseError("تعذر حفظ بيانات الموقع", result.error);

@@ -1,4 +1,5 @@
 import { defaultHeroSettings, type HeroSettings } from "../../../site-defaults";
+import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "../../../../lib/media-url";
 
 export type HeroSlideInput = {
   title: string;
@@ -56,7 +57,10 @@ export function normalizeHeroSlideInput(value: unknown): HeroSlideInput {
     subtitle: text(input.subtitle, 120),
     description: text(input.description, 900),
     badgeText: text(input.badgeText ?? input.badge_text, 120),
-    imageUrl: text(input.imageUrl ?? input.image_url, 1000),
+    imageUrl: normalizeMediaUrl(
+      text(input.imageUrl ?? input.image_url, 1000),
+      process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
+    ),
     imageAlt: text(input.imageAlt ?? input.image_alt, 220),
     primaryButtonText: text(input.primaryButtonText ?? input.primary_button_text, 120),
     primaryButtonUrl: text(input.primaryButtonUrl ?? input.primary_button_url, 1000),

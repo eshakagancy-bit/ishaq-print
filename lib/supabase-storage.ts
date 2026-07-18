@@ -1,10 +1,15 @@
 import { getSupabaseAdmin } from "./supabase-server";
+import {
+  MEDIA_PROXY_PATH_PREFIX,
+  decodeMediaStoragePath,
+  mediaUrlFromStoragePath,
+  supabasePublicMediaStoragePath,
+} from "./media-url";
 
 const defaultBucket = "site-media";
 
 type StorageContext = {
   bucket: string;
-  publicPathPrefix: string;
   supabaseUrl: string;
 };
 
@@ -30,7 +35,6 @@ function getStorageContext(): StorageContext {
 
   return {
     bucket,
-    publicPathPrefix: `/storage/v1/object/public/${bucket}/`,
     supabaseUrl,
   };
 }
@@ -49,30 +53,24 @@ export async function uploadImage(file: File, folder: string) {
   });
   if (error) throw new Error(`تعذر رفع الصورة إلى Supabase: ${error.message}`);
 
-  const { data } = client.storage.from(bucket).getPublicUrl(path);
-  return { path, url: data.publicUrl };
+  return { path, url: mediaUrlFromStoragePath(path) };
 }
 
 export async function deleteImageByPublicUrl(publicUrl: string) {
-  const { bucket, publicPathPrefix, supabaseUrl } = getStorageContext();
+  const { bucket, supabaseUrl } = getStorageContext();
   const client = getSupabaseAdmin();
 
-  let parsed: URL;
-  try {
-    parsed = new URL(publicUrl);
-  } catch {
-    return false;
+  const value = publicUrl.trim();
+  let path: string | null;
+  if (value.startsWith(MEDIA_PROXY_PATH_PREFIX)) {
+    const queryIndex = value.search(/[?#]/);
+    const pathname = queryIndex === -1 ? value : value.slice(0, queryIndex);
+    path = decodeMediaStoragePath(pathname.slice(MEDIA_PROXY_PATH_PREFIX.length));
+  } else {
+    path = supabasePublicMediaStoragePath(value, bucket, supabaseUrl);
   }
 
-  if (parsed.origin !== supabaseUrl || !parsed.pathname.startsWith(publicPathPrefix)) return false;
-  const encodedPath = parsed.pathname.slice(publicPathPrefix.length);
-  let path: string;
-  try {
-    path = encodedPath.split("/").map(decodeURIComponent).join("/");
-  } catch {
-    return false;
-  }
-  if (!path || path.includes("..")) return false;
+  if (!path) return false;
 
   const { error } = await client.storage.from(bucket).remove([path]);
   if (error) throw new Error(`تعذر حذف الصورة من Supabase: ${error.message}`);

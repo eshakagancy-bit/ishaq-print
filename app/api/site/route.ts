@@ -1,4 +1,5 @@
 import { getSiteData, replaceSiteData } from "../../../lib/site-database";
+import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "../../../lib/media-url";
 import { requireAdminApi } from "../../admin-auth";
 import { defaultSiteSettings, type SiteSettings, type StoredProduct } from "../../site-defaults";
 
@@ -7,10 +8,17 @@ export const dynamic = "force-dynamic";
 
 function normalizeSettings(value: unknown): SiteSettings {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  return Object.fromEntries(Object.entries(defaultSiteSettings).map(([key, fallback]) => [
+  const settings = Object.fromEntries(Object.entries(defaultSiteSettings).map(([key, fallback]) => [
     key,
     typeof input[key] === "string" ? String(input[key]).slice(0, 2000) : fallback,
   ])) as SiteSettings;
+  const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET;
+  return {
+    ...settings,
+    logoImage: normalizeMediaUrl(settings.logoImage, bucket),
+    heroImage: normalizeMediaUrl(settings.heroImage, bucket),
+    featureImage: normalizeMediaUrl(settings.featureImage, bucket),
+  };
 }
 
 function normalizeProduct(value: unknown, index: number): StoredProduct | null {
@@ -23,7 +31,10 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     id: Number.isSafeInteger(Number(input.id)) && Number(input.id) > 0 ? Number(input.id) : Date.now() + index,
     name,
     family: String(input.family ?? "").trim().slice(0, 120),
-    image: String(input.image ?? "/brand/eshak-logo.png").trim().slice(0, 1000),
+    image: normalizeMediaUrl(
+      String(input.image ?? "/brand/eshak-logo.png").trim().slice(0, 1000),
+      process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
+    ),
     category,
     type: String(input.type ?? "").trim().slice(0, 100),
     size: String(input.size ?? "").trim().slice(0, 100),
