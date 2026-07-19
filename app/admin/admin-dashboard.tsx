@@ -3,7 +3,9 @@
 
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { MAX_IMAGE_UPLOAD_BYTES, isSupportedImageMimeType } from "../../lib/image-file-validation";
 import { MEDIA_PROXY_PATH_PREFIX, normalizeMediaUrl } from "../../lib/media-url";
+import { optimizeImageForUpload } from "../image-upload-optimizer";
 import { defaultHeroSettings, defaultSiteSettings, type HeroSettings, type HeroSlide, type SiteSettings, type StoredProduct } from "../site-defaults";
 
 const categories = [
@@ -121,16 +123,26 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     onUploaded: (url: string) => void,
     folder: "logos" | "banners" | "products" | "general" = "general",
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setStatus("الملف المختار ليس صورة");
-      event.target.value = "";
+    const input = event.currentTarget;
+    const selectedFile = input.files?.[0];
+    if (!selectedFile) return;
+    if (!isSupportedImageMimeType(selectedFile.type)) {
+      setStatus("نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WebP أو GIF");
+      input.value = "";
       return;
     }
-    if (file.size > 4 * 1024 * 1024) {
-      setStatus("حجم الصورة يجب ألا يتجاوز 4MB");
-      event.target.value = "";
+
+    setStatus(selectedFile.type === "image/gif" ? "جاري تجهيز الصورة..." : "جاري ضغط وتجهيز الصورة...");
+    let file = selectedFile;
+    try {
+      file = await optimizeImageForUpload(selectedFile);
+    } catch {
+      file = selectedFile;
+    }
+
+    if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      setStatus("حجم الصورة يجب ألا يتجاوز 4MB بعد المعالجة");
+      input.value = "";
       return;
     }
     setStatus("جاري رفع الصورة...");
@@ -149,7 +161,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "تعذر رفع الصورة");
     }
-    event.target.value = "";
+    input.value = "";
   };
 
   const removeImage = (url: string, onRemoved: () => void) => {
