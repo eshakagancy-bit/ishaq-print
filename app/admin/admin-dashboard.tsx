@@ -10,6 +10,8 @@ import { businessWeekdays, formatArabicBusinessHours, normalizeBusinessTime, san
 import { PRINTER_CATEGORIES, getPrinterCategoryLabel, isPrinterCategory, resolvePrinterCategory } from "../printer-categories";
 import {
   BOOLEAN_SPECIFICATION_FIELDS,
+  DUPLEX_MODE_OPTIONS,
+  ECOTANK_BOOLEAN_SPECIFICATION_FIELDS,
   INK_TYPE_OPTIONS,
   LQ_INTERFACE_SPECIFICATION_FIELDS,
   PAPER_SIZE_OPTIONS,
@@ -22,7 +24,9 @@ import {
   SPEED_UNIT_OPTIONS,
   TRI_STATE_OPTIONS,
   createEmptyPrinterSpecifications,
+  duplexModeToFormValue,
   formValueToTriState,
+  formValueToDuplexMode,
   suggestPrinterFamily,
   triStateToFormValue,
   type PriceMode,
@@ -40,7 +44,7 @@ const categories = [
 
 const emptyProduct: StoredProduct = {
   id: 0, name: "", family: "", image: "", category: "printers", type: "", size: "",
-  printerCategory: undefined, badge: "", price: "", description: "", features: [], specifications: createEmptyPrinterSpecifications(),
+  printerCategory: undefined, badge: "", price: "", description: "", features: [], specifications: undefined,
 };
 
 const emptyHeroSlide: HeroSlide = {
@@ -605,6 +609,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 function PrinterSpecificationsEditor({ product, onChange }: { product: StoredProduct; onChange: (patch: Partial<StoredProduct>) => void }) {
   const specifications = product.specifications ?? createEmptyPrinterSpecifications();
   const isLq = product.printerCategory === "lq";
+  const isEcoTank = product.printerCategory === "ecotank" || product.printerCategory === "ecotank-6-color";
   const updateSpecifications = (patch: Partial<PrinterSpecifications>) => onChange({
     specifications: { ...specifications, ...patch },
   });
@@ -614,7 +619,9 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
   };
   const numberOrNull = (value: string) => value === "" ? null : Number(value);
   const connectionFields = BOOLEAN_SPECIFICATION_FIELDS.slice(0, 4);
-  const propertyFields = BOOLEAN_SPECIFICATION_FIELDS.slice(4).filter((field) => !isLq || (field.key !== "scanner" && field.key !== "adf"));
+  const propertyFields = BOOLEAN_SPECIFICATION_FIELDS.slice(4).filter((field) =>
+    (!isLq || (field.key !== "scanner" && field.key !== "adf")) && (!isEcoTank || field.key !== "duplex")
+  );
 
   return <fieldset className="printer-specifications-editor">
     <legend>المواصفات المنظمة</legend>
@@ -633,13 +640,17 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
     <div className="admin-option-group"><span>الوظائف</span><div className="admin-options-grid">{PRINTER_FUNCTION_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.functions.includes(option)} onChange={() => toggleListValue("functions", option)} /> {option}</label>)}</div></div>
 
     <div className="admin-option-group"><span>الاتصال</span><div className="admin-tristate-grid">{connectionFields.map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div>
+    {isEcoTank && <div className="admin-option-group"><span>اتصال EcoTank</span><div className="admin-tristate-grid"><TriStateField label={ECOTANK_BOOLEAN_SPECIFICATION_FIELDS[0].label} value={specifications.wifiDirect} onChange={(value) => updateSpecifications({ wifiDirect: value })} /></div></div>}
     <div className="admin-option-group"><span>الخصائص</span><div className="admin-tristate-grid">{propertyFields.map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div>
+
+    {isEcoTank && <><label>وضع الدوبلكس<select value={duplexModeToFormValue(specifications.duplexMode)} onChange={(event) => updateSpecifications({ duplexMode: formValueToDuplexMode(event.target.value) })}>{DUPLEX_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><div className="admin-option-group"><span>وسائط EcoTank</span><div className="admin-tristate-grid">{ECOTANK_BOOLEAN_SPECIFICATION_FIELDS.slice(1).map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div></>}
 
     <div className="admin-three-columns">
       {!isLq && <label>عدد الألوان<input type="number" min="0" value={specifications.colorCount ?? ""} onChange={(event) => updateSpecifications({ colorCount: numberOrNull(event.target.value) })} /></label>}
       <label>سرعة الطباعة<input type="number" min="0" step="any" value={specifications.printSpeed ?? ""} onChange={(event) => updateSpecifications({ printSpeed: numberOrNull(event.target.value) })} /></label>
       <label>وحدة السرعة<select value={specifications.speedUnit ?? ""} onChange={(event) => updateSpecifications({ speedUnit: event.target.value || null })}><option value="">غير محدد</option>{SPEED_UNIT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
       {!isLq && <label>سعة ADF<input type="number" min="0" value={specifications.adfCapacity ?? ""} onChange={(event) => updateSpecifications({ adfCapacity: numberOrNull(event.target.value) })} /></label>}
+      {isEcoTank && <label>زمن طباعة الصورة بالثواني<input type="number" min="0" step="any" value={specifications.photoPrintTimeSeconds ?? ""} onChange={(event) => updateSpecifications({ photoPrintTimeSeconds: numberOrNull(event.target.value) })} /></label>}
     </div>
 
     <label>{isLq ? "نوع المستهلك" : "نوع الحبر"}<select value={specifications.inkType ?? ""} onChange={(event) => updateSpecifications({ inkType: event.target.value || null })}><option value="">غير محدد</option>{INK_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>

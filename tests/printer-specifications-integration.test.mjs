@@ -39,12 +39,53 @@ test("admin provides structured choices, tri-state fields, conditional LQ fields
     assert.match(admin, new RegExp(expected));
   }
   assert.match(admin, /const isLq = product\.printerCategory === "lq"/);
+  assert.match(admin, /const isEcoTank = product\.printerCategory === "ecotank" \|\| product\.printerCategory === "ecotank-6-color"/);
   assert.match(admin, /value=\{triStateToFormValue\(value\)\}/);
+  for (const expected of ["Wi-Fi Direct", "وضع الدوبلكس", "طباعة CD/DVD", "طباعة البطاقات البلاستيكية", "زمن طباعة الصورة بالثواني"]) {
+    assert.match(`${admin}\n${shared}`, new RegExp(expected));
+  }
+  assert.match(admin, /\{isEcoTank &&/);
+  assert.match(admin, /\{isLq && <div className="lq-specifications"/);
   assert.match(admin, /product\.specifications \?\? createEmptyPrinterSpecifications\(\)/);
   assert.match(admin, /LQ_INTERFACE_SPECIFICATION_FIELDS\.map/);
   assert.doesNotMatch(admin, /specifications: product\.specifications \?\? createEmptyPrinterSpecifications\(\)/);
   for (const expected of ["Wi-Fi", "Ethernet", "USB", "حرف/ثانية", "اطلب عرض سعر"]) {
     assert.match(shared, new RegExp(expected));
+  }
+});
+
+test("EcoTank phase-two migration is transactional, exact and preserves all protected data", async () => {
+  const migration = await read("supabase/migrations/20260722_populate_ecotank_phase_two_specifications.sql");
+  const lower = migration.toLowerCase();
+  const approvedBlock = migration.match(/with approved[\s\S]+?\n  update public\.products/)?.[0] ?? "";
+
+  assert.match(lower, /^--[\s\S]*\nbegin;/);
+  assert.match(lower, /commit;\s*$/);
+  assert.match(lower, /having count\(product\.id\) <> 1 or bool_or/);
+  assert.match(lower, /get diagnostics affected_rows = row_count/);
+  assert.match(lower, /if affected_rows <> 10/);
+  assert.match(lower, /if \(select count\(\*\) from public\.products\) <> 25/);
+  assert.match(lower, /specifications = coalesce\(product\.specifications, '\{\}'::jsonb\) \|\| approved\.specifications/);
+  assert.match(lower, /to_jsonb\(product\) is distinct from to_jsonb\(old\)/);
+  assert.match(lower, /non_target_fingerprint is distinct from non_target_fingerprint_after/);
+  assert.equal((lower.match(/update public\.products/g) ?? []).length, 1);
+  assert.doesNotMatch(approvedBlock, /"printSpeed"|"speedUnit"|"photoPrintTimeSeconds"/);
+
+  const names = [
+    "EPSON EcoTank L11050", "EPSON EcoTank L15150", "EPSON EcoTank L18050",
+    "EPSON EcoTank L3210", "EPSON EcoTank L3250", "EPSON EcoTank L4260",
+    "EPSON EcoTank L6270", "EPSON EcoTank L6490", "EPSON EcoTank L8050",
+    "EPSON EcoTank L8180",
+  ];
+  for (const name of names) {
+    assert.equal(approvedBlock.split(`'${name}'`).length - 1, 1, `${name} must appear once in the approved data block`);
+  }
+  for (const forbidden of ["delete", "truncate", "drop", "insert into public.products", "setup.sql"]) {
+    assert.equal(lower.includes(forbidden), false, `forbidden migration operation: ${forbidden}`);
+  }
+  const setBlock = lower.match(/set\s+([\s\S]+?)\s+from approved/)?.[1] ?? "";
+  for (const protectedColumn of ["name =", "image =", "category =", "price =", "badge =", "sort_order ="]) {
+    assert.equal(setBlock.includes(protectedColumn), false, `protected field assignment: ${protectedColumn}`);
   }
 });
 
@@ -80,4 +121,5 @@ test("customer card stays concise and quick view renders only prepared specifica
   assert.match(card, /product\.price/);
   assert.equal(card.includes("product.features.map"), false);
   assert.match(home, /selectedSpecificationRows\.map/);
+  assert.match(home, /product-modal-shell/);
 });

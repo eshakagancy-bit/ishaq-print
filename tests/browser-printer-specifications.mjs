@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { ALL_PRINTERS_FILTER, PRINTER_CATEGORIES } from "../app/printer-categories.ts";
+import { normalizePrinterSpecifications } from "../app/printer-specifications.ts";
 
 const require = createRequire(import.meta.url);
 const WebSocketClient = require("next/dist/compiled/ws");
@@ -15,6 +16,8 @@ async function openPage(url, mockedSiteData) {
   const socket = new WebSocketClient(browserVersion.webSocketDebuggerUrl);
   const pending = new Map();
   const eventHandlers = new Map();
+  const javascriptErrors = [];
+  const resourceErrors = [];
   let messageId = 0;
   let sessionId;
 
@@ -70,19 +73,35 @@ async function openPage(url, mockedSiteData) {
   sessionId = (await send("Target.attachToTarget", { targetId: target.id, flatten: true })).sessionId;
   await send("Page.enable");
   await send("Runtime.enable");
+  await send("Log.enable");
+  eventHandlers.set("Runtime.exceptionThrown", ({ exceptionDetails }) => {
+    javascriptErrors.push(exceptionDetails.exception?.description ?? exceptionDetails.text ?? "Runtime exception");
+  });
+  eventHandlers.set("Log.entryAdded", ({ entry }) => {
+    if (entry.level === "error") resourceErrors.push(entry.text);
+  });
   if (mockedSiteData) {
-    eventHandlers.set("Fetch.requestPaused", ({ requestId }) => {
+    eventHandlers.set("Fetch.requestPaused", ({ requestId, request }) => {
+      const body = request.url.includes("/api/admin/hero-slides")
+        ? { slides: [], settings: {} }
+        : request.url.includes("/api/admin/hero-settings")
+          ? { settings: {} }
+          : mockedSiteData;
       void send("Fetch.fulfillRequest", {
         requestId,
         responseCode: 200,
         responseHeaders: [{ name: "content-type", value: "application/json; charset=utf-8" }],
-        body: Buffer.from(JSON.stringify(mockedSiteData)).toString("base64"),
+        body: Buffer.from(JSON.stringify(body)).toString("base64"),
       });
     });
-    await send("Fetch.enable", { patterns: [{ urlPattern: "*://127.0.0.1:3000/api/site*" }] });
+    await send("Fetch.enable", { patterns: [
+      { urlPattern: "*://*/api/site*" },
+      { urlPattern: "*://*/api/admin/hero-slides*" },
+      { urlPattern: "*://*/api/admin/hero-settings*" },
+    ] });
   }
   await navigate(url);
-  return { evaluate, navigate, screenshot, send, socket, waitFor };
+  return { evaluate, javascriptErrors, navigate, resourceErrors, screenshot, send, socket, waitFor };
 }
 
 const liveData = await fetch("https://ishaq-print-zeta.vercel.app/api/site?specAudit=1").then((response) => response.json());
@@ -94,6 +113,31 @@ const liveCounts = Object.fromEntries([
 assert.deepEqual(liveCounts, { all: 25, workforce: 12, ecotank: 7, "ecotank-6-color": 3, lq: 3 });
 
 const localTestData = structuredClone(liveData);
+for (const product of localTestData.products) product.image = "/brand/eshak-logo.png";
+const ecoTankMigration = await readFile(new URL("../supabase/migrations/20260722_populate_ecotank_phase_two_specifications.sql", import.meta.url), "utf8");
+const approvedEcoTankNames = [
+  "EPSON EcoTank L11050", "EPSON EcoTank L15150", "EPSON EcoTank L18050",
+  "EPSON EcoTank L3210", "EPSON EcoTank L3250", "EPSON EcoTank L4260",
+  "EPSON EcoTank L6270", "EPSON EcoTank L6490", "EPSON EcoTank L8050",
+  "EPSON EcoTank L8180",
+];
+const approvedEcoTankProducts = Object.fromEntries(approvedEcoTankNames.map((name) => {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = ecoTankMigration.match(new RegExp(
+    `\\(\\s*'${escapedName}',\\s*'([^']+)',\\s*'([^']+)',\\s*'([^']+)',\\s*'([^']+)',\\s*'([^']*)',\\s*'(\\[[^']*\\])'::jsonb,\\s*'(\\{[^']+\\})'::jsonb,\\s*'([^']+)'\\s*\\)`,
+  ));
+  assert.ok(match, `approved browser fixture missing for ${name}`);
+  return [name, {
+    printerCategory: match[1], family: match[2], size: match[3], type: match[4],
+    description: match[5], features: JSON.parse(match[6]), specifications: normalizePrinterSpecifications(JSON.parse(match[7])),
+    specificationsSourceUrl: match[8], specificationsVerifiedAt: "2026-07-22T00:00:00.000Z",
+  }];
+}));
+for (const [name, approved] of Object.entries(approvedEcoTankProducts)) {
+  const product = localTestData.products.find((item) => item.name === name);
+  assert.ok(product, `${name} must exist in the read-only live fixture`);
+  Object.assign(product, approved);
+}
 const lq350 = localTestData.products.find((product) => product.name === "LQ-350");
 assert.ok(lq350, "LQ-350 must exist in the read-only source data");
 Object.assign(lq350, {
@@ -121,6 +165,20 @@ assert.deepEqual(
 );
 assert.equal(await page.evaluate("getComputedStyle(document.body).direction"), "rtl");
 
+await page.waitFor(`(() => {
+  const element = document.querySelector('.product-grid');
+  const fiberKey = element && Object.keys(element).find((key) => key.startsWith('__reactFiber'));
+  let fiber = fiberKey ? element[fiberKey] : null;
+  while (fiber) {
+    let hook = fiber.memoizedState;
+    while (hook) {
+      if (Array.isArray(hook.memoizedState) && hook.queue?.dispatch) return true;
+      hook = hook.next;
+    }
+    fiber = fiber.return;
+  }
+  return false;
+})()`);
 const injectedLocalProducts = await page.evaluate(`(() => {
   const products = ${JSON.stringify(localTestData.products)};
   const element = document.querySelector('.product-grid');
@@ -144,6 +202,35 @@ await page.waitFor("[...document.querySelectorAll('.product-card h3')].some((hea
 
 const displayedProductNames = await page.evaluate("[...document.querySelectorAll('.product-card h3')].map((heading) => heading.textContent.trim())");
 assert.ok(displayedProductNames.some((name) => name.endsWith("LQ-350")), `LQ-350 card missing: ${displayedProductNames.join(", ")}`);
+
+const ecoTankQuickViews = {};
+for (const name of approvedEcoTankNames) {
+  await page.evaluate(`(() => {
+    const card = [...document.querySelectorAll('.product-card')].find((item) => item.querySelector('h3')?.textContent.trim() === ${JSON.stringify(name)});
+    card.querySelector('.quick-view').click();
+  })()`);
+  await page.waitFor("Boolean(document.querySelector('.product-modal'))");
+  const quickView = await page.evaluate(`(() => Object.fromEntries(
+    [...document.querySelectorAll('.modal-specs > div')].map((row) => [row.querySelector('dt').textContent.trim(), row.querySelector('dd').textContent.trim()])
+  ))()`);
+  ecoTankQuickViews[name] = quickView;
+  const approvedSpecifications = approvedEcoTankProducts[name].specifications;
+  const duplexLabels = { none: "لا يوجد طباعة على الوجهين", manual: "طباعة يدوية على الوجهين", automatic: "طباعة تلقائية على الوجهين" };
+  assert.equal("سرعة الطباعة" in quickView, false, `${name}: speed must stay hidden`);
+  if (approvedSpecifications.duplexMode === null) assert.equal("وضع الطباعة على الوجهين" in quickView || "الطباعة التلقائية على الوجهين" in quickView, false, `${name}: unknown duplex hidden`);
+  else assert.equal(quickView["وضع الطباعة على الوجهين"], duplexLabels[approvedSpecifications.duplexMode], `${name}: duplex mode`);
+  assert.equal(quickView["Wi-Fi Direct"], approvedSpecifications.wifiDirect ? "نعم" : "لا", `${name}: Wi-Fi Direct`);
+  assert.equal(quickView["مقاس الورق"], approvedSpecifications.paperSize, `${name}: paper size`);
+  assert.equal(quickView["عدد الألوان"], `${approvedSpecifications.colorCount} ألوان`, `${name}: color count`);
+  assert.equal(quickView["طباعة CD/DVD"], approvedSpecifications.cdDvdPrinting ? "نعم" : "لا", `${name}: CD/DVD printing`);
+  if (approvedSpecifications.plasticCardPrinting === null) assert.equal("طباعة البطاقات البلاستيكية" in quickView, false, `${name}: unknown plastic-card value hidden`);
+  else assert.equal(quickView["طباعة البطاقات البلاستيكية"], approvedSpecifications.plasticCardPrinting ? "نعم" : "لا", `${name}: plastic-card printing`);
+  assert.equal("زمن طباعة الصورة" in quickView, false, `${name}: unknown photo time must stay hidden`);
+  if (name === "EPSON EcoTank L11050") assert.equal("الطباعة بدون حواف" in quickView, false, `${name}: unknown borderless support hidden`);
+  await page.evaluate("document.querySelector('.modal-close').click()");
+  await page.waitFor("!document.querySelector('.product-modal')");
+}
+
 await page.evaluate(`(() => {
   const card = [...document.querySelectorAll('.product-card')].find((item) => item.querySelector('h3')?.textContent.trim().endsWith('LQ-350'));
   card.querySelector('.quick-view').click();
@@ -178,8 +265,36 @@ await page.screenshot("printer-specifications-quick-view-mobile.png");
 await page.evaluate("document.querySelector('.product-modal').scrollTop = document.querySelector('.product-modal').scrollHeight");
 await page.screenshot("printer-specifications-quick-view-mobile-lq-fields.png");
 
+await page.evaluate("document.querySelector('.modal-close').click()");
+await page.waitFor("!document.querySelector('.product-modal')");
+await page.evaluate(`(() => {
+  const card = [...document.querySelectorAll('.product-card')].find((item) => item.querySelector('h3')?.textContent.trim() === 'EPSON EcoTank L8180');
+  card.querySelector('.quick-view').click();
+})()`);
+await page.waitFor("Boolean(document.querySelector('.product-modal'))");
+const mobileEcoTankModal = await page.evaluate(`(() => {
+  const shell = document.querySelector('.product-modal-shell');
+  const modal = document.querySelector('.product-modal');
+  const close = document.querySelector('.modal-close');
+  const shellRect = shell.getBoundingClientRect();
+  const closeRect = close.getBoundingClientRect();
+  return {
+    fitsViewport: shellRect.height <= innerHeight && shellRect.width <= innerWidth,
+    overflow: getComputedStyle(modal).overflowY,
+    noHorizontalScroll: modal.scrollWidth <= modal.clientWidth && document.documentElement.scrollWidth <= innerWidth,
+    closeVisible: closeRect.top >= 0 && closeRect.bottom <= innerHeight && closeRect.left >= 0 && closeRect.right <= innerWidth,
+  };
+})()`);
+assert.deepEqual(mobileEcoTankModal, { fitsViewport: true, overflow: "auto", noHorizontalScroll: true, closeVisible: true });
+await page.evaluate("document.querySelector('.product-modal').scrollTop = document.querySelector('.product-modal').scrollHeight");
+const mobileCloseAfterScroll = await page.evaluate(`(() => {
+  const closeRect = document.querySelector('.modal-close').getBoundingClientRect();
+  return closeRect.top >= 0 && closeRect.bottom <= innerHeight && closeRect.left >= 0 && closeRect.right <= innerWidth;
+})()`);
+assert.equal(mobileCloseAfterScroll, true);
+await page.screenshot("ecotank-phase-two-quick-view-mobile.png");
+
 await page.send("Emulation.setDeviceMetricsOverride", { width: 1365, height: 900, deviceScaleFactor: 1, mobile: false });
-await page.send("Fetch.disable");
 await page.navigate("http://localhost:3000/admin");
 await page.waitFor("Boolean(document.querySelector('input[name=password]') || document.querySelector('.real-admin-toolbar'))");
 if (await page.evaluate("Boolean(document.querySelector('input[name=password]'))")) {
@@ -211,6 +326,91 @@ assert.deepEqual(adminInitial.categoryOptions, PRINTER_CATEGORIES.map((category)
 assert.ok(adminInitial.triStates.length > 0 && adminInitial.triStates.every((value) => value === "unknown"));
 assert.equal(adminInitial.familyHasSuggestions, true);
 assert.equal(adminInitial.descriptionCounter, "0 / 160 حرفاً");
+
+await page.evaluate(`(() => {
+  const select = document.querySelector('.product-editor select[required]');
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, 'ecotank');
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+})()`);
+await page.waitFor("[...document.querySelectorAll('.printer-specifications-editor label')].some((label) => label.textContent.trim().startsWith('Wi-Fi Direct'))");
+const ecoTankAdminState = await page.evaluate(`(() => {
+  const labels = [...document.querySelectorAll('.printer-specifications-editor label')].filter((label) => label.offsetParent !== null).map((label) => label.textContent.trim());
+  return {
+    family: document.querySelector('input[list="printer-family-options"]').value,
+    hasWifiDirect: labels.some((label) => label.startsWith('Wi-Fi Direct')),
+    hasDuplexMode: labels.some((label) => label.startsWith('وضع الدوبلكس')),
+    hasCdDvd: labels.some((label) => label.startsWith('طباعة CD/DVD')),
+    hasPlasticCards: labels.some((label) => label.startsWith('طباعة البطاقات البلاستيكية')),
+    hasPhotoTime: labels.some((label) => label.startsWith('زمن طباعة الصورة بالثواني')),
+    hasPins: labels.some((label) => label.startsWith('عدد الإبر')),
+    hasParallel: labels.some((label) => label.startsWith('منفذ متوازي Parallel')),
+  };
+})()`);
+assert.deepEqual(ecoTankAdminState, {
+  family: "Epson EcoTank", hasWifiDirect: true, hasDuplexMode: true, hasCdDvd: true,
+  hasPlasticCards: true, hasPhotoTime: true, hasPins: false, hasParallel: false,
+});
+await page.evaluate(`([...document.querySelectorAll('.printer-specifications-editor label')]
+  .find((label) => label.textContent.trim().startsWith('Wi-Fi Direct'))).scrollIntoView({ block: 'start' })`);
+await page.screenshot("ecotank-phase-two-admin-fields.png");
+
+await page.evaluate(`(() => {
+  const findControl = (labelText) => [...document.querySelectorAll('.printer-specifications-editor label')]
+    .find((label) => label.textContent.trim().startsWith(labelText))?.querySelector('input,select');
+  const setInput = (input, value) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  const setSelect = (select, value) => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, value);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  setInput(document.querySelector('.product-editor input[required]'), 'منتج EcoTank محلي');
+  setSelect(findControl('Wi-Fi Direct'), 'yes');
+  setSelect(findControl('وضع الدوبلكس'), 'manual');
+  setSelect(findControl('طباعة CD/DVD'), 'yes');
+  setSelect(findControl('طباعة البطاقات البلاستيكية'), 'no');
+  setInput(findControl('زمن طباعة الصورة بالثواني'), '45');
+})()`);
+
+await page.evaluate(`(() => {
+  const select = document.querySelector('.product-editor select[required]');
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, 'lq');
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+})()`);
+await page.waitFor("Boolean(document.querySelector('.lq-specifications'))");
+assert.equal(await page.evaluate("[...document.querySelectorAll('.printer-specifications-editor label')].some((label) => label.textContent.trim().startsWith('Wi-Fi Direct'))"), false);
+await page.evaluate(`(() => {
+  const select = document.querySelector('.product-editor select[required]');
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, 'ecotank-6-color');
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+})()`);
+await page.waitFor("[...document.querySelectorAll('.printer-specifications-editor label')].some((label) => label.textContent.trim().startsWith('Wi-Fi Direct'))");
+const restoredEcoTankDraft = await page.evaluate(`(() => {
+  const findControl = (labelText) => [...document.querySelectorAll('.printer-specifications-editor label')]
+    .find((label) => label.textContent.trim().startsWith(labelText))?.querySelector('input,select');
+  return {
+    wifiDirect: findControl('Wi-Fi Direct').value,
+    duplexMode: findControl('وضع الدوبلكس').value,
+    cdDvdPrinting: findControl('طباعة CD/DVD').value,
+    plasticCardPrinting: findControl('طباعة البطاقات البلاستيكية').value,
+    photoPrintTimeSeconds: findControl('زمن طباعة الصورة بالثواني').value,
+  };
+})()`);
+assert.deepEqual(restoredEcoTankDraft, { wifiDirect: "yes", duplexMode: "manual", cdDvdPrinting: "yes", plasticCardPrinting: "no", photoPrintTimeSeconds: "45" });
+await page.evaluate("document.querySelector('.product-editor button[type=submit]').click()");
+await page.waitFor(`document.querySelectorAll('.products-manager article').length === ${initialAdminProductCount + 1}`);
+await page.evaluate(`(() => {
+  const product = [...document.querySelectorAll('.products-manager article')].find((item) => item.querySelector('b')?.textContent.trim() === 'منتج EcoTank محلي');
+  product.querySelector('button:not(.delete-product)').click();
+})()`);
+await page.waitFor("document.querySelector('.product-editor input[required]').value === 'منتج EcoTank محلي'");
+assert.deepEqual(await page.evaluate(`(() => {
+  const findControl = (labelText) => [...document.querySelectorAll('.printer-specifications-editor label')]
+    .find((label) => label.textContent.trim().startsWith(labelText))?.querySelector('input,select');
+  return { wifiDirect: findControl('Wi-Fi Direct').value, duplexMode: findControl('وضع الدوبلكس').value, cdDvdPrinting: findControl('طباعة CD/DVD').value, plasticCardPrinting: findControl('طباعة البطاقات البلاستيكية').value, photoPrintTimeSeconds: findControl('زمن طباعة الصورة بالثواني').value };
+})()`), restoredEcoTankDraft);
+await page.evaluate("document.querySelector('.product-editor button[type=button]').click()");
 
 await page.evaluate(`(() => {
   const select = document.querySelector('.product-editor select[required]');
@@ -264,7 +464,7 @@ await page.evaluate(`(() => {
   setSelect(findControl('يدعم واجهة اتصال اختيارية'), 'yes');
 })()`);
 await page.evaluate("document.querySelector('.product-editor button[type=submit]').click()");
-await page.waitFor(`document.querySelectorAll('.products-manager article').length === ${initialAdminProductCount + 1}`);
+await page.waitFor(`document.querySelectorAll('.products-manager article').length === ${initialAdminProductCount + 2}`);
 await page.evaluate(`(() => {
   const product = [...document.querySelectorAll('.products-manager article')].find((item) => item.querySelector('b')?.textContent.trim() === 'منتج اختبار محلي');
   product.querySelector('button:not(.delete-product)').click();
@@ -293,5 +493,9 @@ assert.equal(await page.evaluate("document.querySelector('.admin-field-error[rol
 await page.evaluate("document.querySelector('.lq-specifications').scrollIntoView({ block: 'center' })");
 await page.screenshot("printer-specifications-admin.png");
 
-console.log(JSON.stringify({ liveCounts, lqQuickView, mobileModal, lqState, restoredDraft, result: "passed" }, null, 2));
+await page.screenshot("ecotank-phase-two-admin.png");
+assert.deepEqual(page.javascriptErrors, [], `browser JavaScript errors: ${page.javascriptErrors.join(" | ")}`);
+assert.deepEqual(page.resourceErrors, [], `browser resource errors: ${page.resourceErrors.join(" | ")}`);
+
+console.log(JSON.stringify({ liveCounts, testedEcoTankQuickViews: Object.keys(ecoTankQuickViews).length, javascriptErrors: page.javascriptErrors.length, resourceErrors: page.resourceErrors.length, lqQuickView, mobileModal, mobileEcoTankModal, mobileCloseAfterScroll, ecoTankAdminState, restoredEcoTankDraft, lqState, restoredDraft, result: "passed" }, null, 2));
 page.socket.close();

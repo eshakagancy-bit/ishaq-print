@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   buildQuickViewSpecificationRows,
   createEmptyPrinterSpecifications,
+  duplexModeToFormValue,
+  formValueToDuplexMode,
   formValueToTriState,
   getProductCardSpecificationTags,
   normalizePrinterSpecifications,
@@ -43,6 +45,18 @@ test("preserves yes, no and unknown as three distinct states", () => {
   assert.equal(triStateToFormValue(true), "yes");
   assert.equal(triStateToFormValue(false), "no");
   assert.equal(triStateToFormValue(null), "unknown");
+});
+
+test("preserves the detailed duplex mode and supports the legacy duplex fallback", () => {
+  assert.equal(formValueToDuplexMode("none"), "none");
+  assert.equal(formValueToDuplexMode("manual"), "manual");
+  assert.equal(formValueToDuplexMode("automatic"), "automatic");
+  assert.equal(formValueToDuplexMode("unknown"), null);
+  assert.equal(duplexModeToFormValue(null), "unknown");
+  assert.equal(duplexModeToFormValue("manual"), "manual");
+  assert.equal(normalizePrinterSpecifications({ duplex: true })?.duplexMode, "automatic");
+  assert.equal(normalizePrinterSpecifications({ duplex: false })?.duplexMode, null);
+  assert.equal(normalizePrinterSpecifications({ duplex: true, duplexMode: "manual" })?.duplexMode, "manual");
 });
 
 test("shows dot-matrix fields and characters per second while hiding inkjet-only fields", () => {
@@ -110,6 +124,39 @@ test("hides empty quick-view fields and keeps false values explicit", () => {
     ["wifi", "لا"],
     ["usb", "نعم"],
   ]);
+});
+
+test("shows EcoTank-only fields, Arabic duplex wording and never exposes stored speed", () => {
+  const rows = buildQuickViewSpecificationRows({
+    printerCategory: "ecotank-6-color",
+    specifications: {
+      ...createEmptyPrinterSpecifications(),
+      paperSize: "A3+",
+      colorCount: 6,
+      wifiDirect: true,
+      duplexMode: "manual",
+      cdDvdPrinting: true,
+      plasticCardPrinting: false,
+      photoPrintTimeSeconds: 25,
+      printSpeed: 99,
+      speedUnit: "صفحة/دقيقة",
+    },
+  });
+
+  assert.equal(rows.find((row) => row.key === "duplex-mode")?.value, "طباعة يدوية على الوجهين");
+  assert.equal(rows.find((row) => row.key === "wifi-direct")?.value, "نعم");
+  assert.equal(rows.find((row) => row.key === "cd-dvd-printing")?.value, "نعم");
+  assert.equal(rows.find((row) => row.key === "plastic-card-printing")?.value, "لا");
+  assert.equal(rows.find((row) => row.key === "photo-print-time")?.value, "25 ثانية");
+  assert.equal(rows.some((row) => row.key === "print-speed"), false);
+});
+
+test("keeps speed visible outside EcoTank categories", () => {
+  const rows = buildQuickViewSpecificationRows({
+    printerCategory: "workforce",
+    specifications: { ...createEmptyPrinterSpecifications(), printSpeed: 25, speedUnit: "صفحة/دقيقة" },
+  });
+  assert.equal(rows.find((row) => row.key === "print-speed")?.value, "25 صفحة/دقيقة");
 });
 
 test("keeps cards concise and uses legacy values only without structured specifications", () => {
