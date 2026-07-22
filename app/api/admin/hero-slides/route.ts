@@ -1,12 +1,12 @@
 import { createHeroSlide, getHeroData } from "../../../../lib/site-database";
-import { requireAdminApi } from "../../../admin-auth";
+import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../../admin-auth";
 import { normalizeHeroSlideInput } from "./validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!await requireAdminApi()) return Response.json({ error: "غير مصرح" }, { status: 403 });
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     return Response.json(await getHeroData(false));
@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await requireAdminApi()) return Response.json({ error: "غير مصرح" }, { status: 403 });
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const slide = await createHeroSlide(normalizeHeroSlideInput(await request.json()));

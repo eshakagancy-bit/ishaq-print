@@ -1,4 +1,4 @@
-import { requireAdminApi } from "../../admin-auth";
+import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../admin-auth";
 import {
   MAX_IMAGE_UPLOAD_BYTES,
   fileHasMatchingImageSignature,
@@ -13,7 +13,7 @@ const allowedFolders = new Set(["logos", "banners", "products", "general"]);
 
 export async function POST(request: Request) {
   const admin = await requireAdminApi();
-  if (!admin) return Response.json({ error: "غير مصرح" }, { status: 403 });
+  if (!admin) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const form = await request.formData();
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const admin = await requireAdminApi();
-  if (!admin) return Response.json({ error: "غير مصرح" }, { status: 403 });
+  if (!admin) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const body = await request.json() as { url?: unknown };

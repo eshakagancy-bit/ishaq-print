@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 export const ADMIN_COOKIE = "eshak_admin_session";
+export const ADMIN_UNAUTHORIZED_MESSAGE = "غير مصرح لك بتنفيذ هذه العملية";
 
 function configuredPassword() {
   return process.env.ADMIN_PASSWORD?.trim() ?? "";

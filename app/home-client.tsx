@@ -3,6 +3,14 @@
 import Image, { getImageProps } from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { normalizeMediaUrl } from "../lib/media-url";
+import { isOpenInAden } from "./business-hours";
+import {
+  ALL_PRINTERS_FILTER,
+  PRINTER_CATEGORIES,
+  resolvePrinterCategory,
+  type PrinterCategory,
+  type PrinterCategoryFilter,
+} from "./printer-categories";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
@@ -11,10 +19,13 @@ import {
   type HeroSlide,
   type SiteSettings,
   type StoredProduct,
+  normalizeProductBrandName,
+  starterProducts as defaultStarterProducts,
 } from "./site-defaults";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
 const DEFAULT_IMAGE_SRC = "/brand/eshak-logo.png";
+const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 const allowedImagePrefixes = ["/api/media/", "/brand/", "/hero/", "/products/"];
 
 type Product = {
@@ -23,6 +34,7 @@ type Product = {
   family: string;
   image: string;
   category: CategoryId;
+  printerCategory?: PrinterCategory;
   type: string;
   size: string;
   badge?: string;
@@ -45,7 +57,7 @@ const categories = [
   { id: "inks", name: "الأحبار", icon: "💧", description: "أحبار أصلية وبدائل موثوقة لمختلف الاستخدامات" },
   { id: "papers", name: "الأوراق", icon: "📄", description: "أوراق الطباعة والتصوير والخامات المتخصصة" },
   { id: "advertising-machines", name: "آلات الدعاية والإعلان", icon: "✦", description: "معدات الطباعة والقص والإنتاج الإعلاني" },
-  { id: "electronics", name: "الإكسسوارات الإلكترونية", icon: "🔌", description: "ملحقات إلكترونية عملية للأجهزة والمكاتب" },
+  { id: "electronics", name: "الملحقات الإلكترونية", icon: "🔌", description: "ملحقات إلكترونية عملية للأجهزة والمكاتب" },
   { id: "cameras", name: "الكاميرات", icon: "📷", description: "كاميرات ومعدات تصوير للاستخدامات المختلفة" },
   { id: "3d-printers", name: "طابعات ثلاثية الأبعاد", icon: "◈", description: "طابعات وخامات 3D للنماذج والمشاريع" },
   { id: "money-machines", name: "آلات عد وفحص النقود", icon: "💵", description: "أجهزة دقيقة للعد والكشف وفحص العملات" },
@@ -84,10 +96,15 @@ function imageSrcOrFallback(value: string | null | undefined, fallback = DEFAULT
 }
 
 function normalizeInitialProduct(product: StoredProduct): Product {
+  const category = isCategoryId(product.category) ? product.category : "printers";
   return {
     ...product,
+    name: normalizeProductBrandName(product.name),
     image: imageSrcOrFallback(product.image),
-    category: isCategoryId(product.category) ? product.category : "printers",
+    category,
+    printerCategory: category === "printers"
+      ? resolvePrinterCategory(product.printerCategory, product.name)
+      : undefined,
   };
 }
 
@@ -110,91 +127,7 @@ const maintenanceContacts = [
   { label: "الصيانة 2", phone: "967781103838", display: "781103838" },
 ];
 
-const starterProducts: Product[] = [
-  {
-    id: 1,
-    name: "Epson WorkForce Pro EM-C800",
-    family: "WorkForce Pro",
-    image: "/products/em-c800.jpg",
-    category: "printers",
-    type: "متعددة الوظائف",
-    size: "A4",
-    badge: "الأكثر طلبًا",
-    description: "طابعة أعمال ملونة ذكية تجمع الطباعة والنسخ والمسح والفاكس في جهاز واحد.",
-    features: ["طباعة ملونة احترافية", "شاشة لمس سهلة", "طباعة ونسخ ومسح", "مناسبة لفرق العمل"],
-  },
-  {
-    id: 2,
-    name: "Epson WorkForce Pro WF-C579R",
-    family: "WorkForce Pro RIPS",
-    image: "/products/wf-c579r.jpg",
-    category: "printers",
-    type: "متعددة الوظائف",
-    size: "A4",
-    badge: "اقتصادية بالحبر",
-    description: "حل مكتبي موثوق مصمم لأحجام الطباعة المرتفعة وتقليل مرات استبدال الحبر.",
-    features: ["نظام حبر عالي السعة", "طباعة على الوجهين", "اتصال شبكي", "مهام متعددة"],
-  },
-  {
-    id: 3,
-    name: "Epson WorkForce Pro WF-C5390",
-    family: "WorkForce Pro",
-    image: "/products/wf-c5390.png",
-    category: "printers",
-    type: "طباعة فقط",
-    size: "A4",
-    badge: "للأعمال",
-    description: "طابعة مكتبية ملونة سريعة ومدمجة للشركات التي تحتاج إنجازًا يوميًا ثابتًا.",
-    features: ["ألوان واضحة", "تصميم مكتبي مدمج", "تشغيل سهل", "جاهزة للشبكات"],
-  },
-  {
-    id: 4,
-    name: "Epson WorkForce Pro WF-C878R",
-    family: "WorkForce Pro RIPS",
-    image: "/products/wf-c878r.webp",
-    category: "printers",
-    type: "متعددة الوظائف",
-    size: "A3",
-    badge: "طباعة A3",
-    description: "منصة أعمال متكاملة تدعم مقاسات أكبر وتلائم الإدارات ومجموعات العمل النشطة.",
-    features: ["تدعم مقاس A3", "نظام RIPS", "ماسح وناسخ", "إدارة ورق مرنة"],
-  },
-  {
-    id: 5,
-    name: "Epson WorkForce Pro WF-C879R",
-    family: "WorkForce Pro RIPS",
-    image: "/products/wf-c879r.png",
-    category: "printers",
-    type: "متعددة الوظائف",
-    size: "A3",
-    badge: "فئة احترافية",
-    description: "طابعة متعددة الوظائف للشركات تجمع المرونة في التعامل مع الورق وكفاءة التشغيل.",
-    features: ["طباعة A3 ملونة", "لوحة تحكم كبيرة", "سعة ورق قابلة للتوسعة", "مناسبة للأقسام"],
-  },
-  {
-    id: 6,
-    name: "Epson WorkForce Pro WF-C869R",
-    family: "WorkForce Pro",
-    image: "/products/wf-c869r.jpg",
-    category: "printers",
-    type: "متعددة الوظائف",
-    size: "A3",
-    description: "أداء مكتبي قوي للطباعة والنسخ والمسح مع تصميم عملي للاستخدام اليومي.",
-    features: ["وظائف متكاملة", "واجهة استخدام واضحة", "طباعة شبكية", "مناسبة للمكاتب"],
-  },
-  {
-    id: 7,
-    name: "Epson WorkForce Pro EM-C800 + Tray",
-    family: "WorkForce Pro",
-    image: "/products/em-c800-tray.jpg",
-    category: "printers",
-    type: "متعددة الوظائف",
-    size: "A4",
-    badge: "سعة إضافية",
-    description: "نسخة مجهزة بدرج إضافي لتوفير سعة ورق أكبر واستمرارية أفضل في بيئات العمل.",
-    features: ["درج ورق إضافي", "مهام مكتبية متكاملة", "طباعة ملونة", "إنتاجية مستمرة"],
-  },
-];
+const starterProducts: Product[] = defaultStarterProducts.map(normalizeInitialProduct);
 
 const whatsapp = "967777000725";
 function generalWaLink(phone: string) {
@@ -233,7 +166,6 @@ export default function HomeClient({
     return {
       ...nextSettings,
       logoImage: imageSrcOrFallback(nextSettings.logoImage),
-      heroImage: imageSrcOrFallback(nextSettings.heroImage, defaultSiteSettings.heroImage),
       featureImage: safeImageSrc(nextSettings.featureImage) ?? "",
     };
   });
@@ -248,18 +180,24 @@ export default function HomeClient({
   const [heroSettings] = useState<HeroSettings>(() => ({ ...defaultHeroSettings, ...initialHeroSettings }));
   const [products] = useState<Product[]>(() => {
     const nextProducts = initialProducts.map(normalizeInitialProduct);
-    return nextProducts.length ? nextProducts : starterProducts;
+    return nextProducts.length ? nextProducts : starterProducts.map((product) => ({
+      ...product,
+      name: normalizeProductBrandName(product.name),
+    }));
   });
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("الكل");
+  const [filter, setFilter] = useState<PrinterCategoryFilter>(ALL_PRINTERS_FILTER.value);
   const [activeCategory, setActiveCategory] = useState<CategoryId>("printers");
   const [selected, setSelected] = useState<Product | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
+  const [favoritesReady, setFavoritesReady] = useState(false);
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [customerPhoneCopied, setCustomerPhoneCopied] = useState(false);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [outgoingHeroSlide, setOutgoingHeroSlide] = useState<number | null>(null);
   const [heroPaused, setHeroPaused] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
   const heroTransitionTimerRef = useRef<number | null>(null);
@@ -270,6 +208,8 @@ export default function HomeClient({
   const activeHero = heroSlides[activeHeroSlide] ?? defaultHeroSlides[0];
   const activeHeroImageSrc = imageSrcOrFallback(activeHero.imageUrl, defaultHeroSlides[0].imageUrl);
   const featureImageSrc = safeImageSrc(settings.featureImage);
+  const favoriteProducts = products.filter((product) => favorites.includes(product.id));
+  const businessIsOpen = isOpenInAden(currentTime, settings);
 
   const showHeroSlide = useCallback((requestedIndex: number) => {
     if (heroSlides.length < 2) return;
@@ -347,15 +287,51 @@ export default function HomeClient({
     };
   }, [activeHeroSlide, heroSlides]);
 
+  useEffect(() => {
+    let storedFavorites: number[] = [];
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(FAVORITES_STORAGE_KEY) ?? "[]") as unknown;
+      if (Array.isArray(stored)) {
+        const productIds = new Set(products.map((product) => product.id));
+        storedFavorites = [...new Set(stored.map(Number).filter((id) => Number.isSafeInteger(id) && productIds.has(id)))];
+      }
+    } catch {
+      window.localStorage.removeItem(FAVORITES_STORAGE_KEY);
+    }
+    const hydrationTimer = window.setTimeout(() => {
+      setFavorites(storedFavorites);
+      setFavoritesReady(true);
+    }, 0);
+    return () => window.clearTimeout(hydrationTimer);
+  }, [products]);
+
+  useEffect(() => {
+    if (favoritesReady) window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+  }, [favorites, favoritesReady]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!favoritesOpen && !selected) return undefined;
+    const closeDialog = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (selected) setSelected(null);
+      else setFavoritesOpen(false);
+    };
+    document.addEventListener("keydown", closeDialog);
+    return () => document.removeEventListener("keydown", closeDialog);
+  }, [favoritesOpen, selected]);
+
   const visibleProducts = useMemo(() => products.filter((product) => {
     const matchesCategory = product.category === activeCategory;
     const searchText = `${product.name} ${product.family} ${product.description}`.toLowerCase();
     const matchesQuery = searchText.includes(query.toLowerCase());
-    const matchesFilter = activeCategory !== "printers" || filter === "الكل" ||
-      (filter === "A3" && product.size === "A3") ||
-      (filter === "A4" && product.size === "A4") ||
-      (filter === "متعددة الوظائف" && product.type === "متعددة الوظائف") ||
-      (filter === "طباعة فقط" && product.type === "طباعة فقط");
+    const matchesFilter = activeCategory !== "printers" ||
+      filter === ALL_PRINTERS_FILTER.value ||
+      product.printerCategory === filter;
     return matchesCategory && matchesQuery && matchesFilter;
   }), [products, query, filter, activeCategory]);
 
@@ -363,7 +339,7 @@ export default function HomeClient({
 
   const openCategory = (category: CategoryId) => {
     setActiveCategory(category);
-    setFilter("الكل");
+    setFilter(ALL_PRINTERS_FILTER.value);
     setQuery("");
     window.setTimeout(() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" }), 0);
   };
@@ -420,7 +396,7 @@ export default function HomeClient({
             <a href="/admin" className="mobile-admin-nav">لوحة التحكم</a>
           </nav>
           <div className="nav-actions">
-            <button className="favorite-counter" aria-label={`المفضلة، ${favorites.length} منتجات`}><span>♡</span><b>{favorites.length}</b></button>
+            <button type="button" className="favorite-counter" onClick={() => setFavoritesOpen(true)} aria-label={`فتح المفضلة، ${favorites.length} منتجات`}><span>♡</span><b>{favorites.length}</b></button>
             <a className="admin-link" href="/admin">لوحة التحكم</a>
             <a className="nav-contact" href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">اطلب استشارة</a>
             <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="فتح القائمة"><span></span><span></span><span></span></button>
@@ -519,7 +495,7 @@ export default function HomeClient({
       </div></section>
 
       <section className="categories-section" id="categories"><div className="container">
-        <div className="center-heading categories-heading"><span className="section-kicker">أقسامنا التجارية</span><h2>اختر القسم الذي تبحث عنه</h2><p>تصفح الأقسام، ثم أضف المنتجات والصور والأسعار من لوحة التحكم بسهولة.</p></div>
+        <div className="center-heading categories-heading"><span className="section-kicker">أقسامنا التجارية</span><h2>اختر القسم الذي تبحث عنه</h2><p>تصفح أقسامنا المتنوعة واختر المنتجات التي تناسب احتياجاتك.</p></div>
         <div className="category-grid">
           {categories.map((category) => {
             const count = products.filter((product) => product.category === category.id).length;
@@ -527,7 +503,7 @@ export default function HomeClient({
               <button className="category-main" onClick={() => openCategory(category.id)}>
                 <span className="category-icon" aria-hidden="true">{category.icon}</span>
                 <span className="category-copy"><b>{category.name}</b><small>{category.description}</small></span>
-                <span className="category-meta">{count ? `${count} منتجات` : "جاهز للإضافة"}<i>←</i></span>
+                <span className="category-meta">{count ? `${count} منتجات` : "قريبًا"}<i>←</i></span>
               </button>
               <a className="category-specialist" href={specialistWaLink(category.id)} target="_blank" rel="noreferrer" aria-label={`تواصل مع مختص قسم ${category.name}`}><span>●</span> واتساب المختص: <b dir="ltr">{categoryContacts[category.id].replace("967", "")}</b></a>
             </article>;
@@ -537,11 +513,11 @@ export default function HomeClient({
 
       <section className="products-section" id="products"><div className="container">
         <div className="section-heading"><div><span className="section-kicker">{activeCategory === "printers" ? "طابعات إبسون فقط" : "منتجات القسم"}</span><h2>{currentCategory.name}</h2><p>{currentCategory.description}.</p></div><a className="specialist-heading-link" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer"><span>●</span> واتساب المختص: <b dir="ltr">{categoryContacts[activeCategory].replace("967", "")}</b></a></div>
-        {activeCategory === "printers" && <div className="filters" role="group" aria-label="تصنيف طابعات إبسون">{["الكل", "A4", "A3", "متعددة الوظائف", "طباعة فقط"].map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div>}
+        {activeCategory === "printers" && <div className="filters" role="group" aria-label="تصنيف طابعات إبسون">{[ALL_PRINTERS_FILTER, ...PRINTER_CATEGORIES].map((item) => <button key={item.value} className={filter === item.value ? "active" : ""} onClick={() => setFilter(item.value)}>{item.label}</button>)}</div>}
         {visibleProducts.length ? <div className="product-grid">{visibleProducts.map((product) => <article className="product-card" key={product.id}>
-          <div className="product-image">{product.badge && <span className="product-badge">{product.badge}</span>}<button className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label="إضافة إلى المفضلة">♥</button><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /><button className="quick-view" onClick={() => setSelected(product)}>عرض سريع</button></div>
+          <div className="product-image">{product.badge && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /><button type="button" className="quick-view" onClick={() => setSelected(product)}>عرض سريع</button></div>
           <div className="product-body"><span className="product-family">{product.family}</span><h3>{product.name}</h3><p>{product.description}</p><div className="product-tags"><span>{product.size}</span><span>{product.type}</span></div><div className="product-footer"><div className="price"><small>السعر</small><strong>{product.price || "اطلب عرض سعر"}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
-        </article>)}</div> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم من لوحة التحكم."}</p><div className="empty-actions"><button onClick={() => { setQuery(""); setFilter("الكل"); }}>{query ? "عرض جميع المنتجات" : "تحديث القسم"}</button></div></div>}
+        </article>)}</div> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا"}</p><div className="empty-actions">{query ? <button type="button" onClick={() => { setQuery(""); setFilter(ALL_PRINTERS_FILTER.value); }}>عرض جميع المنتجات</button> : <a className="empty-specialist" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer">تواصل مع مختص القسم</a>}</div></div>}
       </div></section>
 
       <section className="feature-band"><div className="container feature-band-inner">
@@ -575,16 +551,21 @@ export default function HomeClient({
         </div>
       </section>
 
-      <section className="contact-banner" id="contact"><div className="container contact-banner-inner"><div><span>{settings.contactKicker}</span><h2>{settings.contactTitle}</h2></div><div className="contact-actions"><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">واتساب: {settings.generalWhatsapp.replace("967", "")}</a><a href={`tel:+${customerPhone}`} className="outline" dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم نسخ الرقم ✓" : "نسخ الرقم"}</button></div></div></section>
+      <section className="contact-banner" id="contact"><div className="container contact-banner-inner"><div><span>{settings.contactKicker}</span><h2>{settings.contactTitle}</h2><p className="contact-address">📍 {settings.address}</p></div><div className="contact-actions"><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">واتساب: {settings.generalWhatsapp.replace("967", "")}</a><a href={`tel:+${customerPhone}`} className="outline" dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم نسخ الرقم ✓" : "نسخ الرقم"}</button></div></div></section>
 
       <footer><div className="container footer-grid">
         <div className="footer-brand"><Image src={imageSrcOrFallback(settings.logoImage)} alt="وكالة إسحاق العالمية" width={210} height={90} sizes="190px" loading="lazy" /><p>حلول تقنية وتجارية وتجهيزات موثوقة للأفراد والشركات والمؤسسات في اليمن.</p></div>
         <div><h3>روابط سريعة</h3><a href="#home">الرئيسية</a><a href="#categories">جميع الأقسام</a><a href="#maintenance">الصيانة</a><a href="#products">طابعات EPSON</a><a href="#services">خدماتنا</a></div>
         <div><h3>تواصل معنا</h3><a href={`tel:+${customerPhone}`} dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button className="footer-copy-phone" type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم النسخ ✓" : "نسخ الرقم"}</button><a href={`tel:${settings.salesPhone}`}>{settings.salesPhone}</a><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">{settings.generalWhatsapp.replace("967", "")}</a><p>{settings.address}</p></div>
-        <div><h3>أوقات العمل</h3><p>{settings.workDays}</p><p>{settings.workHours}</p><span className="open-label">● متاحون الآن</span></div>
-      </div><div className="container copyright"><span>© 2026 وكالة إسحاق العالمية. جميع الحقوق محفوظة.</span><span>EPSON وWorkForce علامات تجارية لأصحابها.</span></div></footer>
+        <div><h3>أوقات العمل</h3><p>{settings.workDays}</p><p>{settings.workHours}</p><span className={businessIsOpen ? "open-label" : "open-label closed"}>{businessIsOpen ? "● متاحون الآن" : "● مغلق الآن"}</span></div>
+      </div><div className="container copyright"><span>© 2026 وكالة إسحاق العالمية. جميع الحقوق محفوظة.</span><span>EPSON وWorkForce علامتان تجاريتان مملوكتان لأصحابهما.</span></div></footer>
 
       <a className="whatsapp-float" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer" aria-label={`تواصل مع مختص قسم ${currentCategory.name}`}>مختص القسم <span>◉</span></a>
+      {favoritesOpen && <div className="modal-backdrop favorites-backdrop" onMouseDown={() => setFavoritesOpen(false)}><aside className="favorites-panel" role="dialog" aria-modal="true" aria-labelledby="favorites-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="favorites-header"><div><span>قائمتك المحفوظة</span><h2 id="favorites-title">المفضلة ({favorites.length})</h2></div><button type="button" onClick={() => setFavoritesOpen(false)} aria-label="إغلاق المفضلة">×</button></div>
+        {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={110} height={90} sizes="76px" /><div><b>{product.name}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={() => { setFavoritesOpen(false); setSelected(product); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
+        {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح المفضلة</button>}
+      </aside></div>}
       {selected && <div className="modal-backdrop" onMouseDown={() => setSelected(null)}><div className="product-modal" role="dialog" aria-modal="true" aria-label={`تفاصيل ${selected.name}`} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="إغلاق">×</button><div className="modal-image"><Image src={imageSrcOrFallback(selected.image)} alt={selected.name} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" /></div><div className="modal-content"><span className="product-family">{selected.family}</span><h2>{selected.name}</h2><p>{selected.description}</p><div className="modal-specs">{selected.features.map((feature) => <span key={feature}>✓ {feature}</span>)}</div><a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div>}
     </main>
   );

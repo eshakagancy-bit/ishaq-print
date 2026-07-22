@@ -1,23 +1,25 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MAX_IMAGE_UPLOAD_BYTES, isSupportedImageMimeType } from "../../lib/image-file-validation";
 import { MEDIA_PROXY_PATH_PREFIX, normalizeMediaUrl } from "../../lib/media-url";
 import { optimizeImageForUpload } from "../image-upload-optimizer";
+import { businessWeekdays, formatArabicBusinessHours, normalizeBusinessTime, sanitizePhoneNumber } from "../business-hours";
+import { PRINTER_CATEGORIES, getPrinterCategoryLabel, isPrinterCategory, resolvePrinterCategory } from "../printer-categories";
 import { defaultHeroSettings, defaultSiteSettings, type HeroSettings, type HeroSlide, type SiteSettings, type StoredProduct } from "../site-defaults";
 
 const categories = [
   ["printers", "طابعات EPSON"], ["laptops", "اللابتوبات"], ["engraving-presses", "آلات النحت والمكابس"],
   ["inks", "الأحبار"], ["papers", "الأوراق"], ["advertising-machines", "آلات الدعاية والإعلان"],
-  ["electronics", "الإكسسوارات الإلكترونية"], ["cameras", "الكاميرات"], ["3d-printers", "طابعات ثلاثية الأبعاد"],
+  ["electronics", "الملحقات الإلكترونية"], ["cameras", "الكاميرات"], ["3d-printers", "طابعات ثلاثية الأبعاد"],
   ["money-machines", "آلات عد وفحص النقود"], ["networks", "الشبكات وأجهزة الواي فاي"],
 ] as const;
 
 const emptyProduct: StoredProduct = {
   id: 0, name: "", family: "", image: "", category: "printers", type: "متعددة الوظائف", size: "A4",
-  badge: "", price: "", description: "", features: [],
+  printerCategory: undefined, badge: "", price: "", description: "", features: [],
 };
 
 const emptyHeroSlide: HeroSlide = {
@@ -36,11 +38,15 @@ const emptyHeroSlide: HeroSlide = {
   isActive: true,
 };
 
+const UNSAVED_CHANGES_MESSAGE = "توجد تعديلات لم يتم حفظها. هل تريد مغادرة الصفحة؟";
+type DirtyScope = "site" | "product-form" | "hero-form" | "hero-settings";
+
 export default function AdminDashboard({ userName, signOutPath }: { userName: string; signOutPath: string }) {
   const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
   const [products, setProducts] = useState<StoredProduct[]>([]);
   const [productForm, setProductForm] = useState<StoredProduct>(emptyProduct);
   const [featuresText, setFeaturesText] = useState("");
+  const [printerCategoryError, setPrinterCategoryError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(defaultHeroSettings);
@@ -50,7 +56,14 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const [status, setStatus] = useState("جاري تحميل بيانات الموقع...");
   const [saving, setSaving] = useState(false);
   const [heroSaving, setHeroSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [dirtyScopes, setDirtyScopes] = useState<DirtyScope[]>([]);
   const pendingMediaDeletes = useRef(new Set<string>());
+  const pendingUploadedMedia = useRef(new Set<string>());
+  const hasUnsavedChanges = dirtyScopes.length > 0;
+
+  const markDirty = (scope: DirtyScope) => setDirtyScopes((current) => current.includes(scope) ? current : [...current, scope]);
+  const clearDirty = (scope: DirtyScope) => setDirtyScopes((current) => current.filter((item) => item !== scope));
 
   useEffect(() => {
     fetch("/api/site").then(async (response) => {
@@ -60,11 +73,16 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       setSettings({
         ...nextSettings,
         logoImage: normalizeMediaUrl(nextSettings.logoImage),
-        heroImage: normalizeMediaUrl(nextSettings.heroImage),
         featureImage: normalizeMediaUrl(nextSettings.featureImage),
       });
       setProducts(Array.isArray(data.products)
-        ? data.products.map((product) => ({ ...product, image: normalizeMediaUrl(product.image) }))
+        ? data.products.map((product) => ({
+          ...product,
+          image: normalizeMediaUrl(product.image),
+          printerCategory: product.category === "printers"
+            ? resolvePrinterCategory(product.printerCategory, product.name)
+            : undefined,
+        }))
         : []);
       setStatus("تم تحميل البيانات");
     }).catch((error) => setStatus(error instanceof Error ? error.message : "تعذر تحميل البيانات"));
@@ -81,7 +99,103 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     }).catch((error) => setStatus(error instanceof Error ? error.message : "تعذر تحميل بيانات البانر"));
   }, []);
 
-  const updateSetting = (key: keyof SiteSettings, value: string) => setSettings((current) => ({ ...current, [key]: value }));
+  useEffect(() => {
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = UNSAVED_CHANGES_MESSAGE;
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    const cleanupUnusedUploads = () => {
+      for (const url of pendingUploadedMedia.current) {
+        void fetch("/api/upload", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url }),
+          keepalive: true,
+        });
+      }
+    };
+    window.addEventListener("pagehide", cleanupUnusedUploads);
+    return () => window.removeEventListener("pagehide", cleanupUnusedUploads);
+  }, []);
+
+  const updateSetting = (key: keyof SiteSettings, value: string) => {
+    setSettings((current) => ({ ...current, [key]: value }));
+    markDirty("site");
+  };
+
+  const updatePhoneSetting = (key: "salesPhone" | "customerServicePhone" | "generalWhatsapp", value: string) => {
+    updateSetting(key, sanitizePhoneNumber(value));
+  };
+
+  const updateWorkTime = (key: "workStartTime" | "workEndTime", value: string) => {
+    setSettings((current) => {
+      const next = { ...current, [key]: normalizeBusinessTime(value, current[key]) };
+      return { ...next, workHours: formatArabicBusinessHours(next.workStartTime, next.workEndTime) };
+    });
+    markDirty("site");
+  };
+
+  const toggleBusinessDay = (day: string) => {
+    setSettings((current) => {
+      const days = new Set(current.workWeekdays.split(",").filter(Boolean));
+      if (days.has(day)) days.delete(day);
+      else days.add(day);
+      const workWeekdays = businessWeekdays.map((item) => item.id).filter((id) => id !== "fri" && days.has(id)).join(",");
+      return { ...current, workWeekdays };
+    });
+    markDirty("site");
+  };
+
+  const updateProductForm = (patch: Partial<StoredProduct>) => {
+    setProductForm((current) => ({ ...current, ...patch }));
+    markDirty("product-form");
+  };
+
+  const updateProductSection = (category: string) => {
+    setProductForm((current) => ({
+      ...current,
+      category,
+      printerCategory: category === "printers" ? current.printerCategory : undefined,
+    }));
+    setPrinterCategoryError("");
+    markDirty("product-form");
+  };
+
+  const updatePrinterCategory = (value: string) => {
+    updateProductForm({ printerCategory: isPrinterCategory(value) ? value : undefined });
+    setPrinterCategoryError("");
+  };
+
+  const updateProductFeatures = (value: string) => {
+    setFeaturesText(value);
+    markDirty("product-form");
+  };
+
+  const updateHeroForm = (patch: Partial<HeroSlide>) => {
+    setHeroForm((current) => ({ ...current, ...patch }));
+    markDirty("hero-form");
+  };
+
+  const updateHeroSettings = (patch: Partial<HeroSettings>) => {
+    setHeroSettings((current) => ({ ...current, ...patch }));
+    markDirty("hero-settings");
+  };
+
+  const markUploadsSaved = (activeUrls: Set<string>) => {
+    for (const url of pendingUploadedMedia.current) {
+      if (activeUrls.has(url)) pendingUploadedMedia.current.delete(url);
+    }
+  };
+
+  const confirmAdminNavigation = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (hasUnsavedChanges && !window.confirm(UNSAVED_CHANGES_MESSAGE)) event.preventDefault();
+  };
 
   const queueMediaRemoval = (url: string) => {
     const normalizedUrl = normalizeMediaUrl(url);
@@ -92,7 +206,6 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
   const activeMediaUrls = (nextSettings = settings, nextProducts = products, nextHeroSlides = heroSlides) => new Set([
     normalizeMediaUrl(nextSettings.logoImage),
-    normalizeMediaUrl(nextSettings.heroImage),
     normalizeMediaUrl(nextSettings.featureImage),
     ...nextProducts.map((product) => normalizeMediaUrl(product.image)),
     ...nextHeroSlides.map((slide) => normalizeMediaUrl(slide.imageUrl)),
@@ -132,6 +245,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       return;
     }
 
+    setUploadingImage(true);
     setStatus(selectedFile.type === "image/gif" ? "جاري تجهيز الصورة..." : "جاري ضغط وتجهيز الصورة...");
     let file = selectedFile;
     try {
@@ -142,6 +256,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
     if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
       setStatus("حجم الصورة يجب ألا يتجاوز 4MB بعد المعالجة");
+      setUploadingImage(false);
       input.value = "";
       return;
     }
@@ -155,12 +270,14 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       if (!response.ok) throw new Error(data.error || "تعذر رفع الصورة");
       if (!data.url) throw new Error("لم يُرجع الخادم رابط الصورة");
       const uploadedUrl = normalizeMediaUrl(data.url);
+      pendingUploadedMedia.current.add(uploadedUrl);
       if (currentUrl && normalizeMediaUrl(currentUrl) !== uploadedUrl) queueMediaRemoval(currentUrl);
       onUploaded(uploadedUrl);
       setStatus("تم رفع الصورة، اضغط حفظ جميع التعديلات");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "تعذر رفع الصورة");
     }
+    setUploadingImage(false);
     input.value = "";
   };
 
@@ -182,10 +299,13 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || "تعذر الحفظ");
-      const deleteFailures = await flushPendingMediaDeletes(activeMediaUrls(settings, products, heroSlides));
+      const savedUrls = activeMediaUrls(settings, products, heroSlides);
+      markUploadsSaved(savedUrls);
+      const deleteFailures = await flushPendingMediaDeletes(savedUrls);
+      clearDirty("site");
       setStatus(deleteFailures
         ? "تم حفظ التعديلات، لكن تعذر تنظيف بعض الصور القديمة"
-        : "تم حفظ التعديلات وأصبحت ظاهرة للزوار ✓");
+        : "تم حفظ التعديلات ونشرها بنجاح ✓");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "تعذر حفظ التعديلات");
     } finally {
@@ -195,11 +315,20 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
   const saveProductDraft = (event: FormEvent) => {
     event.preventDefault();
+    if (productForm.category === "printers" && !isPrinterCategory(productForm.printerCategory)) {
+      const message = "يرجى اختيار فئة الطابعة قبل إضافة المنتج.";
+      setPrinterCategoryError(message);
+      setStatus(message);
+      return;
+    }
     const next = { ...productForm, id: editingId ?? Date.now(), features: featuresText.split(",").map((item) => item.trim()).filter(Boolean) };
     setProducts((current) => editingId ? current.map((item) => item.id === editingId ? next : item) : [next, ...current]);
     setProductForm(emptyProduct);
     setFeaturesText("");
+    setPrinterCategoryError("");
     setEditingId(null);
+    clearDirty("product-form");
+    markDirty("site");
     setStatus("تم تجهيز تعديل المنتجات، اضغط حفظ جميع التعديلات");
   };
 
@@ -224,7 +353,10 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       setHeroSlides(nextSlides);
       setHeroForm(emptyHeroSlide);
       setEditingHeroId(null);
-      const deleteFailures = await flushPendingMediaDeletes(activeMediaUrls(settings, products, nextSlides));
+      const savedUrls = activeMediaUrls(settings, products, nextSlides);
+      markUploadsSaved(savedUrls);
+      const deleteFailures = await flushPendingMediaDeletes(savedUrls);
+      clearDirty("hero-form");
       setStatus(deleteFailures ? "تم حفظ الشريحة، لكن تعذر تنظيف الصورة القديمة" : "تم حفظ الشريحة بنجاح ✓");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "تعذر حفظ الشريحة");
@@ -236,6 +368,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const editHeroSlide = (slide: HeroSlide) => {
     setEditingHeroId(slide.id);
     setHeroForm(slide);
+    clearDirty("hero-form");
     setActiveTab("hero");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -253,6 +386,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       if (editingHeroId === slide.id) {
         setEditingHeroId(null);
         setHeroForm(emptyHeroSlide);
+        clearDirty("hero-form");
       }
       const deleteFailures = await flushPendingMediaDeletes(activeMediaUrls(settings, products, nextSlides));
       setStatus(deleteFailures ? "تم حذف الشريحة، لكن تعذر حذف صورتها" : "تم حذف الشريحة بنجاح ✓");
@@ -273,6 +407,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       const data = await response.json() as { error?: string; settings?: Partial<HeroSettings> };
       if (!response.ok) throw new Error(data.error || "تعذر حفظ إعدادات البانر");
       setHeroSettings({ ...defaultHeroSettings, ...data.settings });
+      clearDirty("hero-settings");
       setStatus("تم حفظ إعدادات البانر بنجاح ✓");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "تعذر حفظ إعدادات البانر");
@@ -283,31 +418,48 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
   const editProduct = (product: StoredProduct) => {
     setEditingId(product.id);
-    setProductForm(product);
+    setProductForm({
+      ...product,
+      printerCategory: product.category === "printers"
+        ? resolvePrinterCategory(product.printerCategory, product.name)
+        : undefined,
+    });
     setFeaturesText(product.features.join(", "));
+    setPrinterCategoryError("");
+    clearDirty("product-form");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const deleteProduct = (product: StoredProduct) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا المنتج؟ لن يتم تنفيذ الحذف النهائي حتى تضغط على حفظ جميع التعديلات.")) return;
+    queueMediaRemoval(product.image);
+    setProducts((current) => current.filter((item) => item.id !== product.id));
+    markDirty("site");
+    setStatus("تم حذف المنتج من القائمة، اضغط حفظ جميع التعديلات");
+  };
+
   return <main dir="rtl" className="real-admin-page">
-    <header className="real-admin-header"><div><span>لوحة تحكم حقيقية</span><h1>إدارة موقع وكالة إسحاق</h1><p>مرحبًا، {userName}</p></div><div className="real-admin-header-actions"><Link href="/">عرض الموقع</Link><a href={signOutPath}>تسجيل الخروج</a></div></header>
+    <header className="real-admin-header"><div><span>لوحة إدارة الموقع</span><h1>إدارة موقع وكالة إسحاق العالمية</h1><p>مرحبًا، {userName}</p></div><div className="real-admin-header-actions"><Link href="/" onClick={confirmAdminNavigation}>عرض الموقع</Link><a href={signOutPath} onClick={confirmAdminNavigation}>تسجيل الخروج</a></div></header>
     <div className="real-admin-toolbar"><nav aria-label="أقسام لوحة التحكم">
       <button className={activeTab === "page" ? "active" : ""} onClick={() => setActiveTab("page")}>بيانات الصفحة</button>
       <button className={activeTab === "ads" ? "active" : ""} onClick={() => setActiveTab("ads")}>الإعلانات والصور</button>
       <button className={activeTab === "hero" ? "active" : ""} onClick={() => setActiveTab("hero")}>إدارة البانر المتحرك</button>
       <button className={activeTab === "products" ? "active" : ""} onClick={() => setActiveTab("products")}>المنتجات</button>
     </nav><button className="save-all-button" onClick={saveAll} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ جميع التعديلات"}</button></div>
-    <p className="admin-live-status" role="status">{status}</p>
+    <p className="admin-live-status" role="status" aria-busy={uploadingImage}>{uploadingImage && <span className="upload-spinner" aria-hidden="true"></span>}{status}</p>
 
     {activeTab === "page" && <section className="real-admin-grid">
       <div className="real-admin-card"><h2>بيانات التواصل</h2>
         <label>العنوان<input value={settings.address} onChange={(e) => updateSetting("address", e.target.value)} /></label>
-        <label>رقم المبيعات<input dir="ltr" value={settings.salesPhone} onChange={(e) => updateSetting("salesPhone", e.target.value)} /></label>
-        <label>رقم خدمة العملاء<input dir="ltr" value={settings.customerServicePhone} onChange={(e) => updateSetting("customerServicePhone", e.target.value)} /></label>
-        <label>واتساب العام<input dir="ltr" value={settings.generalWhatsapp} onChange={(e) => updateSetting("generalWhatsapp", e.target.value)} /></label>
+        <label>رقم المبيعات<input dir="ltr" inputMode="numeric" pattern="[0-9]*" value={settings.salesPhone} onChange={(e) => updatePhoneSetting("salesPhone", e.target.value)} /></label>
+        <label>رقم خدمة العملاء<input dir="ltr" inputMode="numeric" pattern="[0-9]*" value={settings.customerServicePhone} onChange={(e) => updatePhoneSetting("customerServicePhone", e.target.value)} /></label>
+        <label>واتساب العام<input dir="ltr" inputMode="numeric" pattern="[0-9]*" value={settings.generalWhatsapp} onChange={(e) => updatePhoneSetting("generalWhatsapp", e.target.value)} /></label>
       </div>
       <div className="real-admin-card"><h2>أوقات العمل</h2>
         <label>أيام العمل<input value={settings.workDays} onChange={(e) => updateSetting("workDays", e.target.value)} /></label>
-        <label>ساعات العمل<input value={settings.workHours} onChange={(e) => updateSetting("workHours", e.target.value)} /></label>
+        <div className="admin-workdays"><span>الأيام التي يظهر فيها المعرض مفتوحًا (الجمعة مغلق)</span>{businessWeekdays.filter((day) => day.id !== "fri").map((day) => <label className="admin-check" key={day.id}><input type="checkbox" checked={settings.workWeekdays.split(",").includes(day.id)} onChange={() => toggleBusinessDay(day.id)} /> {day.label}</label>)}</div>
+        <div className="admin-two-columns"><label>بداية الدوام<input type="time" value={settings.workStartTime} onChange={(e) => updateWorkTime("workStartTime", e.target.value)} /></label><label>نهاية الدوام<input type="time" value={settings.workEndTime} onChange={(e) => updateWorkTime("workEndTime", e.target.value)} /></label></div>
+        <label>ساعات العمل المعروضة<input value={settings.workHours} readOnly /></label>
       </div>
       <div className="real-admin-card"><h2>قسم الصيانة</h2>
         <label>العنوان<input value={settings.maintenanceTitle} onChange={(e) => updateSetting("maintenanceTitle", e.target.value)} /></label>
@@ -321,13 +473,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
     {activeTab === "ads" && <section className="real-admin-grid">
       <ImageEditor title="شعار الموقع" value={settings.logoImage} onUpload={(event) => uploadImage(event, settings.logoImage, (url) => updateSetting("logoImage", url), "logos")} onRemove={() => removeImage(settings.logoImage, () => updateSetting("logoImage", ""))} />
-      <div className="real-admin-card"><h2>الإعلان الرئيسي</h2>
-        <label>النص العلوي<input value={settings.heroEyebrow} onChange={(e) => updateSetting("heroEyebrow", e.target.value)} /></label>
-        <label>العنوان<input value={settings.heroTitle} onChange={(e) => updateSetting("heroTitle", e.target.value)} /></label>
-        <label>النص الملون<input value={settings.heroHighlight} onChange={(e) => updateSetting("heroHighlight", e.target.value)} /></label>
-        <label>الوصف<textarea value={settings.heroDescription} onChange={(e) => updateSetting("heroDescription", e.target.value)} /></label>
-        <ImageField value={settings.heroImage} onUpload={(event) => uploadImage(event, settings.heroImage, (url) => updateSetting("heroImage", url), "banners")} onRemove={() => removeImage(settings.heroImage, () => updateSetting("heroImage", ""))} />
-      </div>
+      <div className="real-admin-card hero-management-note"><h2>الإعلان الرئيسي</h2><p>يمكن تعديل الإعلان الرئيسي وشرائح العرض من قسم إدارة البانر المتحرك</p><button type="button" onClick={() => setActiveTab("hero")}>الانتقال إلى إدارة البانر المتحرك</button></div>
       <div className="real-admin-card"><h2>البانر الدعائي الثاني</h2>
         <label>النص العلوي<input value={settings.featureEyebrow} onChange={(e) => updateSetting("featureEyebrow", e.target.value)} /></label>
         <label>العنوان<input value={settings.featureTitle} onChange={(e) => updateSetting("featureTitle", e.target.value)} /></label>
@@ -338,7 +484,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
     {activeTab === "hero" && <section className="hero-admin-layout">
       <div className="real-admin-card hero-slides-manager">
-        <div className="hero-admin-head"><h2>إدارة البانر المتحرك</h2><button type="button" onClick={() => { setEditingHeroId(null); setHeroForm({ ...emptyHeroSlide, displayOrder: heroSlides.length + 1 }); }}>إضافة شريحة جديدة</button></div>
+        <div className="hero-admin-head"><h2>إدارة البانر المتحرك</h2><button type="button" onClick={() => { setEditingHeroId(null); setHeroForm({ ...emptyHeroSlide, displayOrder: heroSlides.length + 1 }); clearDirty("hero-form"); }}>إضافة شريحة جديدة</button></div>
         <div className="hero-slides-table" role="table" aria-label="جدول شرائح البانر">
           <div className="hero-slides-row hero-slides-header" role="row"><span>الصورة</span><span>العنوان</span><span>الحالة</span><span>الترتيب</span><span>تعديل</span><span>حذف</span></div>
           {heroSlides.map((slide) => <div className="hero-slides-row" role="row" key={slide.id}>
@@ -355,42 +501,59 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
       <form className="real-admin-card hero-slide-form" onSubmit={saveHeroSlide}>
         <h2>{editingHeroId ? "تعديل شريحة" : "إضافة شريحة جديدة"}</h2>
-        <label>العنوان<input required value={heroForm.title} onChange={(e) => setHeroForm({ ...heroForm, title: e.target.value })} /></label>
-        <label>العنوان الفرعي<input value={heroForm.subtitle} onChange={(e) => setHeroForm({ ...heroForm, subtitle: e.target.value })} /></label>
-        <label>الوصف<textarea required value={heroForm.description} onChange={(e) => setHeroForm({ ...heroForm, description: e.target.value })} /></label>
-        <label>النص الصغير<input value={heroForm.badgeText} onChange={(e) => setHeroForm({ ...heroForm, badgeText: e.target.value })} /></label>
-        <ImageField value={heroForm.imageUrl} onUpload={(event) => uploadImage(event, heroForm.imageUrl, (url) => setHeroForm({ ...heroForm, imageUrl: url }), "banners")} onRemove={() => removeImage(heroForm.imageUrl, () => setHeroForm({ ...heroForm, imageUrl: "" }))} label="الصورة" actionText={heroForm.imageUrl ? "استبدال الصورة" : "اختيار صورة"} />
-        <label>وصف الصورة<input value={heroForm.imageAlt} onChange={(e) => setHeroForm({ ...heroForm, imageAlt: e.target.value })} /></label>
-        <div className="admin-two-columns"><label>نص الزر الأول<input value={heroForm.primaryButtonText} onChange={(e) => setHeroForm({ ...heroForm, primaryButtonText: e.target.value })} /></label><label>رابط الزر الأول<input dir="ltr" value={heroForm.primaryButtonUrl} onChange={(e) => setHeroForm({ ...heroForm, primaryButtonUrl: e.target.value })} /></label></div>
-        <div className="admin-two-columns"><label>نص الزر الثاني<input value={heroForm.secondaryButtonText} onChange={(e) => setHeroForm({ ...heroForm, secondaryButtonText: e.target.value })} /></label><label>رابط الزر الثاني<input dir="ltr" value={heroForm.secondaryButtonUrl} onChange={(e) => setHeroForm({ ...heroForm, secondaryButtonUrl: e.target.value })} /></label></div>
-        <div className="admin-two-columns"><label>ترتيب الشريحة<input type="number" value={heroForm.displayOrder} onChange={(e) => setHeroForm({ ...heroForm, displayOrder: Number(e.target.value) })} /></label><label>حالة الشريحة<select value={heroForm.isActive ? "visible" : "hidden"} onChange={(e) => setHeroForm({ ...heroForm, isActive: e.target.value === "visible" })}><option value="visible">ظاهرة</option><option value="hidden">مخفية</option></select></label></div>
-        <div className="product-editor-actions"><button type="submit" disabled={heroSaving}>{heroSaving ? "جاري الحفظ..." : editingHeroId ? "حفظ التعديل" : "إضافة الشريحة"}</button><button type="button" onClick={() => { setEditingHeroId(null); setHeroForm(emptyHeroSlide); }}>تفريغ</button></div>
+        <label>العنوان<input required value={heroForm.title} onChange={(e) => updateHeroForm({ title: e.target.value })} /></label>
+        <label>العنوان الفرعي<input value={heroForm.subtitle} onChange={(e) => updateHeroForm({ subtitle: e.target.value })} /></label>
+        <label>الوصف<textarea required value={heroForm.description} onChange={(e) => updateHeroForm({ description: e.target.value })} /></label>
+        <label>النص الصغير<input value={heroForm.badgeText} onChange={(e) => updateHeroForm({ badgeText: e.target.value })} /></label>
+        <ImageField value={heroForm.imageUrl} onUpload={(event) => uploadImage(event, heroForm.imageUrl, (url) => updateHeroForm({ imageUrl: url }), "banners")} onRemove={() => removeImage(heroForm.imageUrl, () => updateHeroForm({ imageUrl: "" }))} label="الصورة" actionText={heroForm.imageUrl ? "استبدال الصورة" : "اختيار صورة"} />
+        <label>وصف الصورة<input value={heroForm.imageAlt} onChange={(e) => updateHeroForm({ imageAlt: e.target.value })} /></label>
+        <div className="admin-two-columns"><label>نص الزر الأول<input value={heroForm.primaryButtonText} onChange={(e) => updateHeroForm({ primaryButtonText: e.target.value })} /></label><label>رابط الزر الأول<input dir="ltr" value={heroForm.primaryButtonUrl} onChange={(e) => updateHeroForm({ primaryButtonUrl: e.target.value })} /></label></div>
+        <div className="admin-two-columns"><label>نص الزر الثاني<input value={heroForm.secondaryButtonText} onChange={(e) => updateHeroForm({ secondaryButtonText: e.target.value })} /></label><label>رابط الزر الثاني<input dir="ltr" value={heroForm.secondaryButtonUrl} onChange={(e) => updateHeroForm({ secondaryButtonUrl: e.target.value })} /></label></div>
+        <div className="admin-two-columns"><label>ترتيب الشريحة<input type="number" value={heroForm.displayOrder} onChange={(e) => updateHeroForm({ displayOrder: Number(e.target.value) })} /></label><label>حالة الشريحة<select value={heroForm.isActive ? "visible" : "hidden"} onChange={(e) => updateHeroForm({ isActive: e.target.value === "visible" })}><option value="visible">ظاهرة</option><option value="hidden">مخفية</option></select></label></div>
+        <div className="product-editor-actions"><button type="submit" disabled={heroSaving}>{heroSaving ? "جاري الحفظ..." : editingHeroId ? "حفظ التعديل" : "إضافة الشريحة"}</button><button type="button" onClick={() => { setEditingHeroId(null); setHeroForm(emptyHeroSlide); clearDirty("hero-form"); }}>تفريغ</button></div>
       </form>
 
       <div className="real-admin-card hero-settings-card">
         <h2>إعدادات الحركة</h2>
-        <label className="admin-check"><input type="checkbox" checked={heroSettings.autoplayEnabled} onChange={(e) => setHeroSettings({ ...heroSettings, autoplayEnabled: e.target.checked })} /> تشغيل الحركة التلقائية</label>
-        <label>سرعة الانتقال بالثواني<input type="number" min="1" max="30" value={Math.round(heroSettings.autoplayDelay / 1000)} onChange={(e) => setHeroSettings({ ...heroSettings, autoplayDelay: Math.max(1, Number(e.target.value)) * 1000 })} /></label>
-        <label className="admin-check"><input type="checkbox" checked={heroSettings.showArrows} onChange={(e) => setHeroSettings({ ...heroSettings, showArrows: e.target.checked })} /> إظهار الأسهم</label>
-        <label className="admin-check"><input type="checkbox" checked={heroSettings.showDots} onChange={(e) => setHeroSettings({ ...heroSettings, showDots: e.target.checked })} /> إظهار النقاط</label>
-        <label className="admin-check"><input type="checkbox" checked={heroSettings.pauseOnHover} onChange={(e) => setHeroSettings({ ...heroSettings, pauseOnHover: e.target.checked })} /> التوقف عند مرور الماوس</label>
+        <label className="admin-check"><input type="checkbox" checked={heroSettings.autoplayEnabled} onChange={(e) => updateHeroSettings({ autoplayEnabled: e.target.checked })} /> تشغيل الحركة التلقائية</label>
+        <label>سرعة الانتقال بالثواني<input type="number" min="1" max="30" value={Math.round(heroSettings.autoplayDelay / 1000)} onChange={(e) => updateHeroSettings({ autoplayDelay: Math.max(1, Number(e.target.value)) * 1000 })} /></label>
+        <label className="admin-check"><input type="checkbox" checked={heroSettings.showArrows} onChange={(e) => updateHeroSettings({ showArrows: e.target.checked })} /> إظهار الأسهم</label>
+        <label className="admin-check"><input type="checkbox" checked={heroSettings.showDots} onChange={(e) => updateHeroSettings({ showDots: e.target.checked })} /> إظهار النقاط</label>
+        <label className="admin-check"><input type="checkbox" checked={heroSettings.pauseOnHover} onChange={(e) => updateHeroSettings({ pauseOnHover: e.target.checked })} /> التوقف عند مرور الماوس</label>
         <button className="save-all-button" type="button" onClick={saveHeroSettings} disabled={heroSaving}>{heroSaving ? "جاري الحفظ..." : "حفظ إعدادات البانر"}</button>
       </div>
     </section>}
 
     {activeTab === "products" && <section className="product-admin-layout">
       <form className="real-admin-card product-editor" onSubmit={saveProductDraft}><h2>{editingId ? "تعديل المنتج" : "إضافة منتج"}</h2>
-        <label>القسم<select value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>اسم المنتج<input required value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} /></label>
-        <label>العلامة أو العائلة<input value={productForm.family} onChange={(e) => setProductForm({ ...productForm, family: e.target.value })} /></label>
-        <div className="admin-two-columns"><label>المواصفة<input value={productForm.size} onChange={(e) => setProductForm({ ...productForm, size: e.target.value })} /></label><label>النوع<input value={productForm.type} onChange={(e) => setProductForm({ ...productForm, type: e.target.value })} /></label></div>
-        <div className="admin-two-columns"><label>الشارة<input value={productForm.badge ?? ""} onChange={(e) => setProductForm({ ...productForm, badge: e.target.value })} /></label><label>السعر<input value={productForm.price ?? ""} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} /></label></div>
-        <label>الوصف<textarea value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} /></label>
-        <label>المميزات، افصل بفاصلة<input value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} /></label>
-        <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => setProductForm({ ...productForm, image: url }), "products")} onRemove={() => removeImage(productForm.image, () => setProductForm({ ...productForm, image: "" }))} />
-        <div className="product-editor-actions"><button type="submit">{editingId ? "تجهيز التعديل" : "إضافة للقائمة"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); }}>تفريغ</button></div>
+        <label>القسم<select value={productForm.category} onChange={(e) => updateProductSection(e.target.value)}>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        {productForm.category === "printers" && <label>الفئة<select
+          value={productForm.printerCategory ?? ""}
+          required
+          aria-invalid={Boolean(printerCategoryError)}
+          aria-describedby={printerCategoryError ? "printer-category-error" : undefined}
+          onInvalid={(event) => {
+            event.currentTarget.setCustomValidity("يرجى اختيار فئة الطابعة قبل إضافة المنتج.");
+            setPrinterCategoryError("يرجى اختيار فئة الطابعة قبل إضافة المنتج.");
+          }}
+          onChange={(event) => {
+            event.currentTarget.setCustomValidity("");
+            updatePrinterCategory(event.target.value);
+          }}
+        >
+          <option value="">اختر فئة الطابعة</option>
+          {PRINTER_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+        </select>{printerCategoryError && <span className="admin-field-error" id="printer-category-error" role="alert">{printerCategoryError}</span>}</label>}
+        <label>اسم المنتج<input required value={productForm.name} onChange={(e) => updateProductForm({ name: e.target.value })} /></label>
+        <label>العلامة أو العائلة<input value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} /></label>
+        <div className="admin-two-columns"><label>المواصفة<input value={productForm.size} onChange={(e) => updateProductForm({ size: e.target.value })} /></label><label>النوع<input value={productForm.type} onChange={(e) => updateProductForm({ type: e.target.value })} /></label></div>
+        <div className="admin-two-columns"><label>الشارة<input value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })} /></label><label>السعر<input value={productForm.price ?? ""} onChange={(e) => updateProductForm({ price: e.target.value })} /></label></div>
+        <label>الوصف<textarea value={productForm.description} onChange={(e) => updateProductForm({ description: e.target.value })} /></label>
+        <label>المميزات، افصل بفاصلة<input value={featuresText} onChange={(e) => updateProductFeatures(e.target.value)} /></label>
+        <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />
+        <div className="product-editor-actions"><button type="submit">{editingId ? "تجهيز التعديل" : "إضافة للقائمة"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
-      <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}</span></div><button onClick={() => editProduct(product)}>تعديل</button><button className="delete-product" onClick={() => { queueMediaRemoval(product.image); setProducts((current) => current.filter((item) => item.id !== product.id)); setStatus("تم حذف المنتج من القائمة، اضغط حفظ جميع التعديلات"); }}>حذف</button></article>)}</div>
+      <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
     </section>}
   </main>;
 }

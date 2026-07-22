@@ -1,5 +1,5 @@
 import { removeHeroSlide, updateHeroSlide } from "../../../../../lib/site-database";
-import { requireAdminApi } from "../../../../admin-auth";
+import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../../../admin-auth";
 import { normalizeHeroSlideInput } from "../validation";
 
 export const runtime = "nodejs";
@@ -12,7 +12,7 @@ function parseId(value: string) {
 }
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
-  if (!await requireAdminApi()) return Response.json({ error: "غير مصرح" }, { status: 403 });
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const { id: idParam } = await context.params;
@@ -25,7 +25,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  if (!await requireAdminApi()) return Response.json({ error: "غير مصرح" }, { status: 403 });
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const { id: idParam } = await context.params;

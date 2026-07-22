@@ -137,6 +137,56 @@ $$;
 revoke all on function public.replace_site_data(jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.replace_site_data(jsonb, jsonb) to service_role;
 
+-- Idempotent copy corrections for existing records. Legacy hero fields are removed
+-- because public.hero_slides is the only source used by the main banner.
+update public.site_settings
+set payload = payload
+  - 'heroEyebrow'
+  - 'heroTitle'
+  - 'heroHighlight'
+  - 'heroDescription'
+  - 'heroImage'
+where id = 1;
+
+update public.site_settings
+set payload = jsonb_set(
+  jsonb_set(
+    payload,
+    '{maintenanceDescription}',
+    to_jsonb('للفحص والصيانة والدعم الفني، اختر أحد الرقمين، وسيُفتح تطبيق واتساب أو تطبيق الاتصال مباشرة على جهازك.'::text),
+    true
+  ),
+  '{address}',
+  to_jsonb('صنعاء – شارع صخر من جهة الدائري'::text),
+  true
+) || jsonb_build_object(
+  'workWeekdays', coalesce(payload ->> 'workWeekdays', 'sat,sun,mon,tue,wed,thu'),
+  'workStartTime', coalesce(payload ->> 'workStartTime', '09:30'),
+  'workEndTime', coalesce(payload ->> 'workEndTime', '22:00')
+)
+where id = 1
+  and (
+    payload ->> 'maintenanceDescription' ~ 'اختر أحد الرقمين وسيفتح واتساب'
+    or payload ->> 'address' ~ 'من جهة[[:space:]]*\\(الدائري\\)'
+    or not (payload ?& array['workWeekdays', 'workStartTime', 'workEndTime'])
+  );
+
+update public.hero_slides
+set title = regexp_replace(title, 'تقنيات وحلول[[:space:]]{2}كبرى', 'تقنيات وحلول متكاملة', 'g'),
+    subtitle = regexp_replace(subtitle, 'الإكسسوارات[[:space:]]+الإلكترونية', 'الملحقات الإلكترونية', 'g'),
+    description = regexp_replace(description, 'الإكسسوارات[[:space:]]+الإلكترونية', 'الملحقات الإلكترونية', 'g'),
+    badge_text = regexp_replace(badge_text, 'الإكسسوارات[[:space:]]+الإلكترونية', 'الملحقات الإلكترونية', 'g'),
+    updated_at = now()
+where title ~ 'تقنيات وحلول[[:space:]]{2}كبرى'
+   or subtitle ~ 'الإكسسوارات[[:space:]]+الإلكترونية'
+   or description ~ 'الإكسسوارات[[:space:]]+الإلكترونية'
+   or badge_text ~ 'الإكسسوارات[[:space:]]+الإلكترونية';
+
+update public.products
+set name = regexp_replace(name, '^Epson([[:space:]])', 'EPSON\1'),
+    updated_at = now()
+where name ~ '^Epson[[:space:]]';
+
 -- Public bucket for website images. Upload/delete operations still use the
 -- server-only service key through /api/upload.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

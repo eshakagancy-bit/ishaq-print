@@ -1,9 +1,12 @@
 import { getSupabaseAdmin } from "./supabase-server";
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "./media-url";
+import { isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
   defaultSiteSettings,
+  normalizeLegacyArabicText,
+  normalizeProductBrandName,
   starterProducts,
   type HeroSettings,
   type HeroSlide,
@@ -51,8 +54,78 @@ type HeroSettingsRow = {
   pause_on_hover: boolean;
 };
 
+const verifiedLiveWorkforceProducts = [
+  { id: 1784646662025, name: "Epson WorkForce Pro EM-C800" },
+  { id: 1784646618603, name: "Epson WorkForce Pro WF-C8690" },
+  { id: 1784646445851, name: "Epson WorkForce Pro WF-C5890" },
+  { id: 1784646231295, name: "Epson WorkForce Pro WF-C5390" },
+  { id: 1784573743180, name: "Epson WorkForce Pro WF-C7835" },
+  { id: 1784573705610, name: "Epson WorkForce Pro WF-C579R" },
+  { id: 1784573671884, name: "Epson WorkForce Pro WF-C8610" },
+  { id: 1784573642246, name: "Epson WorkForce Pro WF-C878R" },
+  { id: 1784573559103, name: "Epson WorkForce Pro AM-C5000 / WF-C5000" },
+  { id: 1784573531690, name: "Epson WorkForce Pro AM-C4000 / WF-C4000" },
+  { id: 1784573512133, name: "Epson WorkForce Pro AM-C6000 / WF-C6000" },
+  { id: 1784573491085, name: "Epson WorkForce Pro WF-C20750" },
+] as const;
+
+let liveWorkforceMigrationPromise: Promise<void> | null = null;
+
 function databaseError(message: string, error: { message: string } | null) {
   if (error) throw new Error(`${message}: ${error.message}`);
+}
+
+async function applyVerifiedLiveWorkforceMigration() {
+  const client = getSupabaseAdmin();
+  const ids = verifiedLiveWorkforceProducts.map((product) => product.id);
+  const expectedNames = new Map<number, string>(verifiedLiveWorkforceProducts.map((product) => [product.id, product.name]));
+
+  const [countBefore, productsBefore] = await Promise.all([
+    client.from("products").select("id", { count: "exact", head: true }),
+    client.from("products").select("id,name,category").in("id", ids),
+  ]);
+  databaseError("تعذر التحقق من عدد المنتجات قبل ترحيل WorkForce", countBefore.error);
+  databaseError("تعذر التحقق من منتجات WorkForce قبل الترحيل", productsBefore.error);
+
+  if (countBefore.count !== 22) throw new Error(`أُلغي ترحيل WorkForce: العدد المتوقع 22 والفعلي ${countBefore.count ?? "غير معروف"}`);
+  if (productsBefore.data?.length !== verifiedLiveWorkforceProducts.length) {
+    throw new Error("أُلغي ترحيل WorkForce: لم تتطابق المنتجات الاثنا عشر المحددة");
+  }
+
+  const invalidProduct = productsBefore.data.find((product) =>
+    expectedNames.get(Number(product.id)) !== product.name ||
+    (product.category !== "printers" && product.category !== "workforce")
+  );
+  if (invalidProduct) throw new Error(`أُلغي ترحيل WorkForce: بيانات المنتج ${invalidProduct.id} لا تطابق القائمة المعتمدة`);
+
+  const pendingIds = productsBefore.data
+    .filter((product) => product.category === "printers")
+    .map((product) => Number(product.id));
+  if (pendingIds.length) {
+    const updateResult = await client.from("products")
+      .update({ category: "workforce" })
+      .eq("category", "printers")
+      .in("id", pendingIds);
+    databaseError("تعذر تنفيذ ترحيل تصنيف WorkForce", updateResult.error);
+  }
+
+  const [countAfter, productsAfter] = await Promise.all([
+    client.from("products").select("id", { count: "exact", head: true }),
+    client.from("products").select("id,name,category").in("id", ids),
+  ]);
+  databaseError("تعذر التحقق من عدد المنتجات بعد ترحيل WorkForce", countAfter.error);
+  databaseError("تعذر التحقق من منتجات WorkForce بعد الترحيل", productsAfter.error);
+  if (countAfter.count !== 22 || productsAfter.data?.length !== verifiedLiveWorkforceProducts.length || productsAfter.data.some((product) => product.category !== "workforce")) {
+    throw new Error("فشل التحقق النهائي من ترحيل WorkForce دون تغيير عدد المنتجات");
+  }
+}
+
+async function ensureVerifiedLiveWorkforceMigration() {
+  liveWorkforceMigrationPromise ??= applyVerifiedLiveWorkforceMigration().catch((error) => {
+    liveWorkforceMigrationPromise = null;
+    throw error;
+  });
+  await liveWorkforceMigrationPromise;
 }
 
 function normalizeFeatures(value: unknown) {
@@ -74,21 +147,27 @@ function normalizeStoredMediaUrl(value: string) {
 }
 
 function normalizeSiteSettingsMedia(settings: SiteSettings): SiteSettings {
+  const normalizedText = Object.fromEntries(Object.entries(settings).map(([key, value]) => [
+    key,
+    typeof value === "string" ? normalizeLegacyArabicText(value) : value,
+  ])) as SiteSettings;
   return {
-    ...settings,
-    logoImage: normalizeStoredMediaUrl(settings.logoImage),
-    heroImage: normalizeStoredMediaUrl(settings.heroImage),
-    featureImage: normalizeStoredMediaUrl(settings.featureImage),
+    ...normalizedText,
+    logoImage: normalizeStoredMediaUrl(normalizedText.logoImage),
+    featureImage: normalizeStoredMediaUrl(normalizedText.featureImage),
   };
 }
 
 function productToRow(product: StoredProduct, index: number): ProductRow {
+  const printerCategory = product.category === "printers"
+    ? resolvePrinterCategory(product.printerCategory, product.name)
+    : undefined;
   return {
     id: product.id,
-    name: product.name,
+    name: normalizeProductBrandName(product.name),
     family: product.family,
     image: normalizeStoredMediaUrl(product.image),
-    category: product.category,
+    category: printerCategory ?? product.category,
     type: product.type,
     size: product.size,
     badge: product.badge || null,
@@ -100,12 +179,17 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
 }
 
 function productFromRow(row: ProductRow): StoredProduct {
+  const storedPrinterCategory = isPrinterCategory(row.category) ? row.category : undefined;
+  const category = storedPrinterCategory ? "printers" : row.category;
   return {
     id: Number(row.id),
-    name: row.name,
+    name: normalizeProductBrandName(row.name),
     family: row.family,
     image: normalizeStoredMediaUrl(row.image),
-    category: row.category,
+    category,
+    printerCategory: category === "printers"
+      ? resolvePrinterCategory(storedPrinterCategory, row.name)
+      : undefined,
     type: row.type,
     size: row.size,
     badge: row.badge || undefined,
@@ -118,10 +202,10 @@ function productFromRow(row: ProductRow): StoredProduct {
 
 function heroSlideToRow(slide: Omit<HeroSlide, "id"> | HeroSlide) {
   const row = {
-    title: slide.title,
-    subtitle: slide.subtitle,
-    description: slide.description,
-    badge_text: slide.badgeText,
+    title: normalizeLegacyArabicText(slide.title),
+    subtitle: normalizeLegacyArabicText(slide.subtitle),
+    description: normalizeLegacyArabicText(slide.description),
+    badge_text: normalizeLegacyArabicText(slide.badgeText),
     image_url: normalizeStoredMediaUrl(slide.imageUrl),
     image_alt: slide.imageAlt,
     primary_button_text: slide.primaryButtonText,
@@ -137,10 +221,10 @@ function heroSlideToRow(slide: Omit<HeroSlide, "id"> | HeroSlide) {
 function heroSlideFromRow(row: HeroSlideRow): HeroSlide {
   return {
     id: Number(row.id),
-    title: row.title,
-    subtitle: row.subtitle,
-    description: row.description,
-    badgeText: row.badge_text,
+    title: normalizeLegacyArabicText(row.title),
+    subtitle: normalizeLegacyArabicText(row.subtitle),
+    description: normalizeLegacyArabicText(row.description),
+    badgeText: normalizeLegacyArabicText(row.badge_text),
     imageUrl: normalizeStoredMediaUrl(row.image_url),
     imageAlt: row.image_alt,
     primaryButtonText: row.primary_button_text,
@@ -197,6 +281,7 @@ export async function ensureSiteDefaults() {
 
 export async function getSiteData() {
   await ensureSiteDefaults();
+  await ensureVerifiedLiveWorkforceMigration();
   const client = getSupabaseAdmin();
   const [settingsResult, productsResult] = await Promise.all([
     client.from("site_settings").select("payload").eq("id", 1).single(),
@@ -206,7 +291,10 @@ export async function getSiteData() {
   databaseError("تعذر تحميل المنتجات", productsResult.error);
 
   return {
-    settings: normalizeSiteSettingsMedia((settingsResult.data?.payload ?? defaultSiteSettings) as SiteSettings),
+    settings: normalizeSiteSettingsMedia({
+      ...defaultSiteSettings,
+      ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
+    }),
     products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
   };
 }

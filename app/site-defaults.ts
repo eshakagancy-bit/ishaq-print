@@ -1,10 +1,7 @@
+import { resolvePrinterCategory, type PrinterCategory } from "./printer-categories";
+
 export type SiteSettings = {
   logoImage: string;
-  heroEyebrow: string;
-  heroTitle: string;
-  heroHighlight: string;
-  heroDescription: string;
-  heroImage: string;
   featureEyebrow: string;
   featureTitle: string;
   featureDescription: string;
@@ -19,21 +16,19 @@ export type SiteSettings = {
   generalWhatsapp: string;
   workDays: string;
   workHours: string;
+  workWeekdays: string;
+  workStartTime: string;
+  workEndTime: string;
 };
 
 export const defaultSiteSettings: SiteSettings = {
   logoImage: "/brand/eshak-logo.png",
-  heroEyebrow: "حلول تقنية وتجارية متكاملة",
-  heroTitle: "كل احتياجات أعمالك",
-  heroHighlight: "في مكان واحد",
-  heroDescription: "طابعات EPSON، أجهزة وتقنيات مكتبية، آلات دعاية وإعلان، مستلزمات طباعة وحلول شبكات باختيار موثوق وخدمة متخصصة.",
-  heroImage: "/products/em-c800.jpg",
   featureEyebrow: "حلول للشركات والمؤسسات",
   featureTitle: "من أول استشارة حتى تشغيل الطابعة",
   featureDescription: "لا نبيع جهازًا فقط؛ نساعدك على تحديد الفئة المناسبة حسب حجم العمل، مقاس الورق، وعدد المستخدمين.",
   featureImage: "/products/wf-c879r.png",
   maintenanceTitle: "تواصل مع قسم الصيانة",
-  maintenanceDescription: "للفحص والصيانة والدعم الفني، اختر أحد الرقمين وسيفتح واتساب أو تطبيق الاتصال مباشرة من جهازك.",
+  maintenanceDescription: "للفحص والصيانة والدعم الفني، اختر أحد الرقمين، وسيُفتح تطبيق واتساب أو تطبيق الاتصال مباشرة على جهازك.",
   contactKicker: "تبحث عن جهاز أو حل مناسب لعملك؟",
   contactTitle: "دعنا نساعدك في اختيار الحل الأنسب",
   address: "صنعاء – شارع صخر من جهة الدائري",
@@ -42,7 +37,25 @@ export const defaultSiteSettings: SiteSettings = {
   generalWhatsapp: "967777000725",
   workDays: "السبت – الخميس",
   workHours: "9:30 صباحًا – 10:00 مساءً",
+  workWeekdays: "sat,sun,mon,tue,wed,thu",
+  workStartTime: "09:30",
+  workEndTime: "22:00",
 };
+
+export function normalizeLegacyArabicText(value: string) {
+  return value
+    .replace(/تقنيات وحلول\s{2}كبرى/g, "تقنيات وحلول متكاملة")
+    .replace(new RegExp(["الإكسسوارات", "الإلكترونية"].join("\\s+"), "g"), "الملحقات الإلكترونية")
+    .replace(/من جهة\s*\(الدائري\)/g, "من جهة الدائري")
+    .replaceAll(
+      "للفحص والصيانة والدعم الفني، اختر أحد الرقمين وسيفتح واتساب أو تطبيق الاتصال مباشرة من جهازك.",
+      "للفحص والصيانة والدعم الفني، اختر أحد الرقمين، وسيُفتح تطبيق واتساب أو تطبيق الاتصال مباشرة على جهازك.",
+    );
+}
+
+export function normalizeProductBrandName(value: string) {
+  return value.replace(/^Epson\b/, "EPSON");
+}
 
 export type StoredProduct = {
   id: number;
@@ -50,6 +63,7 @@ export type StoredProduct = {
   family: string;
   image: string;
   category: string;
+  printerCategory?: PrinterCategory;
   type: string;
   size: string;
   badge?: string;
@@ -140,11 +154,15 @@ export const defaultHeroSlides: HeroSlide[] = [
 ];
 
 export const starterProducts: StoredProduct[] = [
-  { id: 1, name: "Epson WorkForce Pro EM-C800", family: "WorkForce Pro", image: "/products/em-c800.jpg", category: "printers", type: "متعددة الوظائف", size: "A4", badge: "الأكثر طلبًا", description: "طابعة أعمال ملونة ذكية تجمع الطباعة والنسخ والمسح والفاكس في جهاز واحد.", features: ["طباعة ملونة احترافية", "شاشة لمس سهلة", "طباعة ونسخ ومسح", "مناسبة لفرق العمل"], sortOrder: 1 },
-  { id: 2, name: "Epson WorkForce Pro WF-C579R", family: "WorkForce Pro RIPS", image: "/products/wf-c579r.jpg", category: "printers", type: "متعددة الوظائف", size: "A4", badge: "اقتصادية بالحبر", description: "حل مكتبي موثوق مصمم لأحجام الطباعة المرتفعة وتقليل مرات استبدال الحبر.", features: ["نظام حبر عالي السعة", "طباعة على الوجهين", "اتصال شبكي", "مهام متعددة"], sortOrder: 2 },
-  { id: 3, name: "Epson WorkForce Pro WF-C5390", family: "WorkForce Pro", image: "/products/wf-c5390.png", category: "printers", type: "طباعة فقط", size: "A4", badge: "للأعمال", description: "طابعة مكتبية ملونة سريعة ومدمجة للشركات التي تحتاج إنجازًا يوميًا ثابتًا.", features: ["ألوان واضحة", "تصميم مكتبي مدمج", "تشغيل سهل", "جاهزة للشبكات"], sortOrder: 3 },
-  { id: 4, name: "Epson WorkForce Pro WF-C878R", family: "WorkForce Pro RIPS", image: "/products/wf-c878r.webp", category: "printers", type: "متعددة الوظائف", size: "A3", badge: "طباعة A3", description: "منصة أعمال متكاملة تدعم مقاسات أكبر وتلائم الإدارات ومجموعات العمل النشطة.", features: ["تدعم مقاس A3", "نظام RIPS", "ماسح وناسخ", "إدارة ورق مرنة"], sortOrder: 4 },
-  { id: 5, name: "Epson WorkForce Pro WF-C879R", family: "WorkForce Pro RIPS", image: "/products/wf-c879r.png", category: "printers", type: "متعددة الوظائف", size: "A3", badge: "فئة احترافية", description: "طابعة متعددة الوظائف للشركات تجمع المرونة في التعامل مع الورق وكفاءة التشغيل.", features: ["طباعة A3 ملونة", "لوحة تحكم كبيرة", "سعة ورق قابلة للتوسعة", "مناسبة للأقسام"], sortOrder: 5 },
-  { id: 6, name: "Epson WorkForce Pro WF-C869R", family: "WorkForce Pro", image: "/products/wf-c869r.jpg", category: "printers", type: "متعددة الوظائف", size: "A3", description: "أداء مكتبي قوي للطباعة والنسخ والمسح مع تصميم عملي للاستخدام اليومي.", features: ["وظائف متكاملة", "واجهة استخدام واضحة", "طباعة شبكية", "مناسبة للمكاتب"], sortOrder: 6 },
-  { id: 7, name: "Epson WorkForce Pro EM-C800 + Tray", family: "WorkForce Pro", image: "/products/em-c800-tray.jpg", category: "printers", type: "متعددة الوظائف", size: "A4", badge: "سعة إضافية", description: "نسخة مجهزة بدرج إضافي لتوفير سعة ورق أكبر واستمرارية أفضل في بيئات العمل.", features: ["درج ورق إضافي", "مهام مكتبية متكاملة", "طباعة ملونة", "إنتاجية مستمرة"], sortOrder: 7 },
-];
+  { id: 1, name: "EPSON WorkForce Pro EM-C800", family: "WorkForce Pro", image: "/products/em-c800.jpg", category: "printers", type: "متعددة الوظائف", size: "A4", badge: "الأكثر طلبًا", description: "طابعة أعمال ملونة ذكية تجمع الطباعة والنسخ والمسح والفاكس في جهاز واحد.", features: ["طباعة ملونة احترافية", "شاشة لمس سهلة", "طباعة ونسخ ومسح", "مناسبة لفرق العمل"], sortOrder: 1 },
+  { id: 2, name: "EPSON WorkForce Pro WF-C579R", family: "WorkForce Pro RIPS", image: "/products/wf-c579r.jpg", category: "printers", type: "متعددة الوظائف", size: "A4", badge: "اقتصادية بالحبر", description: "حل مكتبي موثوق مصمم لأحجام الطباعة المرتفعة وتقليل مرات استبدال الحبر.", features: ["نظام حبر عالي السعة", "طباعة على الوجهين", "اتصال شبكي", "مهام متعددة"], sortOrder: 2 },
+  { id: 3, name: "EPSON WorkForce Pro WF-C5390", family: "WorkForce Pro", image: "/products/wf-c5390.png", category: "printers", type: "طباعة فقط", size: "A4", badge: "للأعمال", description: "طابعة مكتبية ملونة سريعة ومدمجة للشركات التي تحتاج إنجازًا يوميًا ثابتًا.", features: ["ألوان واضحة", "تصميم مكتبي مدمج", "تشغيل سهل", "جاهزة للشبكات"], sortOrder: 3 },
+  { id: 4, name: "EPSON WorkForce Pro WF-C878R", family: "WorkForce Pro RIPS", image: "/products/wf-c878r.webp", category: "printers", type: "متعددة الوظائف", size: "A3", badge: "طباعة A3", description: "منصة أعمال متكاملة تدعم مقاسات أكبر وتلائم الإدارات ومجموعات العمل النشطة.", features: ["تدعم مقاس A3", "نظام RIPS", "ماسح وناسخ", "إدارة ورق مرنة"], sortOrder: 4 },
+  { id: 5, name: "EPSON WorkForce Pro WF-C879R", family: "WorkForce Pro RIPS", image: "/products/wf-c879r.png", category: "printers", type: "متعددة الوظائف", size: "A3", badge: "فئة احترافية", description: "طابعة متعددة الوظائف للشركات تجمع المرونة في التعامل مع الورق وكفاءة التشغيل.", features: ["طباعة A3 ملونة", "لوحة تحكم كبيرة", "سعة ورق قابلة للتوسعة", "مناسبة للأقسام"], sortOrder: 5 },
+  { id: 6, name: "EPSON WorkForce Pro WF-C869R", family: "WorkForce Pro", image: "/products/wf-c869r.jpg", category: "printers", type: "متعددة الوظائف", size: "A3", description: "أداء مكتبي قوي للطباعة والنسخ والمسح مع تصميم عملي للاستخدام اليومي.", features: ["وظائف متكاملة", "واجهة استخدام واضحة", "طباعة شبكية", "مناسبة للمكاتب"], sortOrder: 6 },
+  { id: 7, name: "EPSON WorkForce Pro EM-C800 + Tray", family: "WorkForce Pro", image: "/products/em-c800-tray.jpg", category: "printers", type: "متعددة الوظائف", size: "A4", badge: "سعة إضافية", description: "نسخة مجهزة بدرج إضافي لتوفير سعة ورق أكبر واستمرارية أفضل في بيئات العمل.", features: ["درج ورق إضافي", "مهام مكتبية متكاملة", "طباعة ملونة", "إنتاجية مستمرة"], sortOrder: 7 },
+].map((product) => ({
+  ...product,
+  name: normalizeProductBrandName(product.name),
+  printerCategory: resolvePrinterCategory(undefined, product.name),
+}));

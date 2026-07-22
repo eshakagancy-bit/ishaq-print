@@ -1,7 +1,15 @@
 import { getSiteData, replaceSiteData } from "../../../lib/site-database";
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "../../../lib/media-url";
-import { requireAdminApi } from "../../admin-auth";
-import { defaultSiteSettings, type SiteSettings, type StoredProduct } from "../../site-defaults";
+import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../admin-auth";
+import { normalizeBusinessTime, normalizeBusinessWeekdays, sanitizePhoneNumber } from "../../business-hours";
+import { resolvePrinterCategory } from "../../printer-categories";
+import {
+  defaultSiteSettings,
+  normalizeLegacyArabicText,
+  normalizeProductBrandName,
+  type SiteSettings,
+  type StoredProduct,
+} from "../../site-defaults";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,14 +18,19 @@ function normalizeSettings(value: unknown): SiteSettings {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const settings = Object.fromEntries(Object.entries(defaultSiteSettings).map(([key, fallback]) => [
     key,
-    typeof input[key] === "string" ? String(input[key]).slice(0, 2000) : fallback,
+    typeof input[key] === "string" ? normalizeLegacyArabicText(String(input[key]).slice(0, 2000)) : fallback,
   ])) as SiteSettings;
   const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET;
   return {
     ...settings,
     logoImage: normalizeMediaUrl(settings.logoImage, bucket),
-    heroImage: normalizeMediaUrl(settings.heroImage, bucket),
     featureImage: normalizeMediaUrl(settings.featureImage, bucket),
+    salesPhone: sanitizePhoneNumber(settings.salesPhone) || defaultSiteSettings.salesPhone,
+    customerServicePhone: sanitizePhoneNumber(settings.customerServicePhone) || defaultSiteSettings.customerServicePhone,
+    generalWhatsapp: sanitizePhoneNumber(settings.generalWhatsapp) || defaultSiteSettings.generalWhatsapp,
+    workWeekdays: normalizeBusinessWeekdays(settings.workWeekdays, defaultSiteSettings.workWeekdays),
+    workStartTime: normalizeBusinessTime(settings.workStartTime, defaultSiteSettings.workStartTime),
+    workEndTime: normalizeBusinessTime(settings.workEndTime, defaultSiteSettings.workEndTime),
   };
 }
 
@@ -29,13 +42,16 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
   if (!name || !category) return null;
   return {
     id: Number.isSafeInteger(Number(input.id)) && Number(input.id) > 0 ? Number(input.id) : Date.now() + index,
-    name,
+    name: normalizeProductBrandName(name),
     family: String(input.family ?? "").trim().slice(0, 120),
     image: normalizeMediaUrl(
       String(input.image ?? "/brand/eshak-logo.png").trim().slice(0, 1000),
       process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
     ),
     category,
+    printerCategory: category === "printers"
+      ? resolvePrinterCategory(input.printerCategory, name)
+      : undefined,
     type: String(input.type ?? "").trim().slice(0, 100),
     size: String(input.size ?? "").trim().slice(0, 100),
     badge: String(input.badge ?? "").trim().slice(0, 80) || undefined,
@@ -61,7 +77,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  if (!await requireAdminApi()) return Response.json({ error: "غير مصرح" }, { status: 403 });
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const payload = await request.json() as { settings?: unknown; products?: unknown };
