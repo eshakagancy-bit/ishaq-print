@@ -12,6 +12,9 @@ export type PrinterSpecifications = {
   wifi: TriState;
   ethernet: TriState;
   usb: TriState;
+  parallel: TriState;
+  serial: TriState;
+  optionalInterface: TriState;
   scanner: TriState;
   fax: TriState;
   duplex: TriState;
@@ -69,6 +72,12 @@ export const BOOLEAN_SPECIFICATION_FIELDS = [
   { key: "borderless", label: "طباعة بدون حواف" },
 ] as const satisfies ReadonlyArray<{ key: keyof PrinterSpecifications; label: string }>;
 
+export const LQ_INTERFACE_SPECIFICATION_FIELDS = [
+  { key: "parallel", label: "منفذ متوازي Parallel" },
+  { key: "serial", label: "منفذ تسلسلي Serial / RS-232" },
+  { key: "optionalInterface", label: "يدعم واجهة اتصال اختيارية" },
+] as const satisfies ReadonlyArray<{ key: keyof PrinterSpecifications; label: string }>;
+
 export function createEmptyPrinterSpecifications(): PrinterSpecifications {
   return {
     paperSize: null,
@@ -80,6 +89,9 @@ export function createEmptyPrinterSpecifications(): PrinterSpecifications {
     wifi: null,
     ethernet: null,
     usb: null,
+    parallel: null,
+    serial: null,
+    optionalInterface: null,
     scanner: null,
     fax: null,
     duplex: null,
@@ -131,6 +143,9 @@ export function normalizePrinterSpecifications(value: unknown): PrinterSpecifica
     wifi: nullableBoolean(input.wifi),
     ethernet: nullableBoolean(input.ethernet),
     usb: nullableBoolean(input.usb),
+    parallel: nullableBoolean(input.parallel),
+    serial: nullableBoolean(input.serial),
+    optionalInterface: nullableBoolean(input.optionalInterface),
     scanner: nullableBoolean(input.scanner),
     fax: nullableBoolean(input.fax),
     duplex: nullableBoolean(input.duplex),
@@ -205,6 +220,15 @@ function yesNoRow(key: string, label: string, value: TriState): SpecificationDis
   return { key, label, value: value ? "نعم" : "لا", state: value };
 }
 
+function formatMultipartCopies(value: number) {
+  return `أصل + ${value} نسخ`;
+}
+
+function formatRibbonYield(value: number) {
+  if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(2))} مليون حرف`;
+  return `${value.toLocaleString("en-US")} حرف`;
+}
+
 export function getProductCardSpecificationTags(product: ProductSpecificationDisplayInput) {
   if (product.specifications) {
     return [product.specifications.paperSize, product.specifications.printerType].filter((value): value is string => Boolean(value));
@@ -223,18 +247,24 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
   }
 
   const isDotMatrix = product.printerCategory === "lq" || specifications.printerType === "طابعة نقطية";
+  const functionValue = isDotMatrix && specifications.functions.length === 1 && specifications.functions[0] === "طباعة"
+    ? "طباعة فقط"
+    : specifications.functions.join("، ");
   const rows: Array<SpecificationDisplayRow | null> = [
-    specifications.functions.length ? { key: "functions", label: "الوظائف", value: specifications.functions.join("، ") } : null,
+    specifications.functions.length ? { key: "functions", label: "الوظائف", value: functionValue } : null,
     specifications.paperSize ? { key: "paper-size", label: "مقاس الورق", value: specifications.paperSize } : null,
     specifications.printerType ? { key: "printer-type", label: "نوع الطابعة", value: specifications.printerType } : null,
     specifications.printTechnology ? { key: "technology", label: "تقنية الطباعة", value: specifications.printTechnology } : null,
     yesNoRow("wifi", "Wi-Fi", specifications.wifi),
     yesNoRow("ethernet", "Ethernet", specifications.ethernet),
     yesNoRow("usb", "USB", specifications.usb),
-    yesNoRow("mobile-printing", "الطباعة من الجوال", specifications.mobilePrinting),
+    isDotMatrix ? yesNoRow("parallel", "منفذ متوازي Parallel", specifications.parallel) : null,
+    isDotMatrix ? yesNoRow("serial", "منفذ تسلسلي Serial / RS-232", specifications.serial) : null,
+    isDotMatrix ? yesNoRow("optional-interface", "يدعم واجهة اتصال اختيارية", specifications.optionalInterface) : null,
+    !isDotMatrix ? yesNoRow("mobile-printing", "الطباعة من الجوال", specifications.mobilePrinting) : null,
     !isDotMatrix ? yesNoRow("scanner", "الماسح الضوئي", specifications.scanner) : null,
-    yesNoRow("fax", "الفاكس", specifications.fax),
-    yesNoRow("duplex", "الطباعة التلقائية على الوجهين", specifications.duplex),
+    !isDotMatrix ? yesNoRow("fax", "الفاكس", specifications.fax) : null,
+    !isDotMatrix ? yesNoRow("duplex", "الطباعة التلقائية على الوجهين", specifications.duplex) : null,
     !isDotMatrix ? yesNoRow("adf", "ADF", specifications.adf) : null,
     !isDotMatrix && specifications.adfCapacity !== null ? { key: "adf-capacity", label: "سعة ADF", value: `${specifications.adfCapacity}` } : null,
     !isDotMatrix && specifications.colorCount !== null ? { key: "color-count", label: "عدد الألوان", value: `${specifications.colorCount} ألوان` } : null,
@@ -244,13 +274,13 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
       label: "سرعة الطباعة",
       value: `${specifications.printSpeed}${specifications.speedUnit ? ` ${speedUnitLabels[specifications.speedUnit] ?? specifications.speedUnit}` : ""}`,
     } : null,
-    !isDotMatrix && specifications.inkType ? { key: "ink-type", label: "نوع الحبر", value: specifications.inkType } : null,
+    specifications.inkType ? { key: "ink-type", label: isDotMatrix ? "نوع المستهلك" : "نوع الحبر", value: specifications.inkType } : null,
     !isDotMatrix ? yesNoRow("borderless", "الطباعة بدون حواف", specifications.borderless) : null,
     specifications.usage.length ? { key: "usage", label: "الاستخدام المناسب", value: specifications.usage.join("، ") } : null,
     isDotMatrix && specifications.dotMatrixPins !== null ? { key: "dot-matrix-pins", label: "عدد الإبر", value: `${specifications.dotMatrixPins}` } : null,
     isDotMatrix && specifications.printColumns !== null ? { key: "print-columns", label: "أعمدة الطباعة", value: `${specifications.printColumns}` } : null,
-    isDotMatrix && specifications.multipartCopies !== null ? { key: "multipart-copies", label: "نسخ الورق المتعدد", value: `${specifications.multipartCopies}` } : null,
-    isDotMatrix && specifications.ribbonYield !== null ? { key: "ribbon-yield", label: "عمر الشريط", value: `${specifications.ribbonYield}` } : null,
+    isDotMatrix && specifications.multipartCopies !== null ? { key: "multipart-copies", label: "نسخ الورق المتعدد", value: formatMultipartCopies(specifications.multipartCopies) } : null,
+    isDotMatrix && specifications.ribbonYield !== null ? { key: "ribbon-yield", label: "عمر الشريط", value: formatRibbonYield(specifications.ribbonYield) } : null,
   ];
   return rows.filter((row): row is SpecificationDisplayRow => Boolean(row));
 }

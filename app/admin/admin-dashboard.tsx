@@ -11,6 +11,7 @@ import { PRINTER_CATEGORIES, getPrinterCategoryLabel, isPrinterCategory, resolve
 import {
   BOOLEAN_SPECIFICATION_FIELDS,
   INK_TYPE_OPTIONS,
+  LQ_INTERFACE_SPECIFICATION_FIELDS,
   PAPER_SIZE_OPTIONS,
   PRICE_MODE_OPTIONS,
   PRINTER_FAMILY_OPTIONS,
@@ -641,7 +642,7 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
       {!isLq && <label>سعة ADF<input type="number" min="0" value={specifications.adfCapacity ?? ""} onChange={(event) => updateSpecifications({ adfCapacity: numberOrNull(event.target.value) })} /></label>}
     </div>
 
-    {!isLq && <label>نوع الحبر<select value={specifications.inkType ?? ""} onChange={(event) => updateSpecifications({ inkType: event.target.value || null })}><option value="">غير محدد</option>{INK_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>}
+    <label>{isLq ? "نوع المستهلك" : "نوع الحبر"}<select value={specifications.inkType ?? ""} onChange={(event) => updateSpecifications({ inkType: event.target.value || null })}><option value="">غير محدد</option>{INK_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
 
     <div className="admin-option-group"><span>الاستخدام المناسب</span><div className="admin-options-grid">{PRINTER_USAGE_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.usage.includes(option)} onChange={() => toggleListValue("usage", option)} /> {option}</label>)}</div></div>
 
@@ -650,7 +651,7 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
       <label>عدد أعمدة الطباعة<input type="number" min="0" value={specifications.printColumns ?? ""} onChange={(event) => updateSpecifications({ printColumns: numberOrNull(event.target.value) })} /></label>
       <label>عدد نسخ الورق المتعدد<input type="number" min="0" value={specifications.multipartCopies ?? ""} onChange={(event) => updateSpecifications({ multipartCopies: numberOrNull(event.target.value) })} /></label>
       <label>عمر الشريط<input type="number" min="0" value={specifications.ribbonYield ?? ""} onChange={(event) => updateSpecifications({ ribbonYield: numberOrNull(event.target.value) })} /></label>
-    </div></div>}
+    </div><div className="admin-option-group"><span>واجهات اتصال الطابعة النقطية</span><div className="admin-tristate-grid">{LQ_INTERFACE_SPECIFICATION_FIELDS.map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div></div>}
 
     <div className="admin-two-columns">
       <label>رابط مصدر المواصفات<input dir="ltr" type="url" value={product.specificationsSourceUrl ?? ""} onChange={(event) => onChange({ specificationsSourceUrl: event.target.value || undefined })} placeholder="https://" /></label>

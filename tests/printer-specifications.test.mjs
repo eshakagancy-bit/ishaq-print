@@ -51,25 +51,48 @@ test("shows dot-matrix fields and characters per second while hiding inkjet-only
     specifications: {
       ...createEmptyPrinterSpecifications(),
       printerType: "طابعة نقطية",
-      printSpeed: 738,
+      functions: ["طباعة"],
+      printTechnology: "مصفوفة نقطية تصادمية، 24 إبرة",
+      printSpeed: 529,
       speedUnit: "حرف/ثانية",
       colorCount: 4,
+      mobilePrinting: false,
       scanner: false,
+      fax: false,
       adf: false,
+      borderless: false,
+      usb: true,
+      parallel: true,
+      serial: false,
+      optionalInterface: false,
       inkType: "شريط طباعة",
       dotMatrixPins: 24,
       printColumns: 106,
-      multipartCopies: 7,
+      multipartCopies: 6,
       ribbonYield: 10000000,
     },
   });
 
-  assert.equal(rows.find((row) => row.key === "print-speed")?.value, "738 حرف/ثانية");
+  assert.equal(rows.find((row) => row.key === "functions")?.value, "طباعة فقط");
+  assert.equal(rows.find((row) => row.key === "print-speed")?.value, "529 حرف/ثانية");
   assert.equal(rows.find((row) => row.key === "dot-matrix-pins")?.value, "24");
   assert.equal(rows.find((row) => row.key === "print-columns")?.value, "106");
-  for (const hidden of ["color-count", "scanner", "adf", "ink-type"]) {
+  assert.equal(rows.find((row) => row.key === "multipart-copies")?.value, "أصل + 6 نسخ");
+  assert.equal(rows.find((row) => row.key === "ribbon-yield")?.value, "10 مليون حرف");
+  assert.equal(rows.find((row) => row.key === "ink-type")?.value, "شريط طباعة");
+  for (const shown of ["usb", "parallel", "serial", "optional-interface", "ink-type"]) {
+    assert.equal(rows.some((row) => row.key === shown), true, `${shown} must be shown for LQ when defined`);
+  }
+  for (const hidden of ["color-count", "scanner", "fax", "adf", "borderless", "mobile-printing"]) {
     assert.equal(rows.some((row) => row.key === hidden), false, `${hidden} must stay hidden for LQ`);
   }
+});
+
+test("normalizes the three LQ interface fields as tri-state values", () => {
+  const specifications = normalizePrinterSpecifications({ parallel: true, serial: false, optionalInterface: "yes" });
+  assert.equal(specifications?.parallel, true);
+  assert.equal(specifications?.serial, false);
+  assert.equal(specifications?.optionalInterface, null);
 });
 
 test("hides empty quick-view fields and keeps false values explicit", () => {

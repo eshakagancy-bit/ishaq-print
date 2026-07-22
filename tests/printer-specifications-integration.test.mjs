@@ -35,15 +35,34 @@ test("admin provides structured choices, tri-state fields, conditional LQ fields
     read("app/admin/admin-dashboard.tsx"),
     read("app/printer-specifications.ts"),
   ]);
-  for (const expected of ["مقاس الورق", "نوع الطابعة", "الوظائف", "عدد الإبر", "عدد أعمدة الطباعة", "عمر الشريط", "160 حرفاً"]) {
+  for (const expected of ["مقاس الورق", "نوع الطابعة", "الوظائف", "عدد الإبر", "عدد أعمدة الطباعة", "عمر الشريط", "نوع المستهلك", "160 حرفاً"]) {
     assert.match(admin, new RegExp(expected));
   }
   assert.match(admin, /const isLq = product\.printerCategory === "lq"/);
   assert.match(admin, /value=\{triStateToFormValue\(value\)\}/);
   assert.match(admin, /product\.specifications \?\? createEmptyPrinterSpecifications\(\)/);
+  assert.match(admin, /LQ_INTERFACE_SPECIFICATION_FIELDS\.map/);
   assert.doesNotMatch(admin, /specifications: product\.specifications \?\? createEmptyPrinterSpecifications\(\)/);
   for (const expected of ["Wi-Fi", "Ethernet", "USB", "حرف/ثانية", "اطلب عرض سعر"]) {
     assert.match(shared, new RegExp(expected));
+  }
+});
+
+test("LQ phase-one data migration is transactional, exact and preserves protected fields", async () => {
+  const migration = (await read("supabase/migrations/20260722_populate_lq_phase_one_specifications.sql")).toLowerCase();
+  assert.match(migration, /^--[\s\S]*\nbegin;/);
+  assert.match(migration, /commit;\s*$/);
+  assert.match(migration, /having count\(product\.id\) <> 1/);
+  assert.match(migration, /get diagnostics affected_rows = row_count/);
+  assert.match(migration, /if affected_rows <> 3/);
+  assert.match(migration, /specifications = coalesce\(product\.specifications, '\{\}'::jsonb\) \|\| approved\.specifications/);
+  for (const name of ["lq-350", "epson lq-690", "epson fx-890"]) assert.match(migration, new RegExp(name));
+  for (const forbidden of ["delete", "truncate", "drop table", "insert into public.products"]) {
+    assert.equal(migration.includes(forbidden), false, `forbidden migration operation: ${forbidden}`);
+  }
+  const setBlock = migration.match(/set\s+([\s\S]+?)\s+from approved/)?.[1] ?? "";
+  for (const protectedColumn of ["name =", "image =", "category =", "price =", "badge =", "sort_order ="]) {
+    assert.equal(setBlock.includes(protectedColumn), false, `protected field assignment: ${protectedColumn}`);
   }
 });
 
