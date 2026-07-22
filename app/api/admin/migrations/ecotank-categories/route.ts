@@ -12,16 +12,16 @@ type ProductRecord = Record<string, unknown> & {
 };
 
 const approvedTargets = [
-  { name: "Epson EcoTank L8180", category: "ecotank-6-color" },
-  { name: "Epson EcoTank L8050", category: "ecotank-6-color" },
-  { name: "Epson EcoTank L18050", category: "ecotank-6-color" },
-  { name: "Epson EcoTank L6490", category: "ecotank" },
-  { name: "Epson EcoTank L6270", category: "ecotank" },
-  { name: "Epson EcoTank L4260", category: "ecotank" },
-  { name: "Epson EcoTank L11050", category: "ecotank" },
-  { name: "Epson EcoTank L3250", category: "ecotank" },
-  { name: "Epson EcoTank L3210", category: "ecotank" },
-  { name: "Epson EcoTank L15150", category: "ecotank" },
+  { name: "EPSON EcoTank L8180", category: "ecotank-6-color" },
+  { name: "EPSON EcoTank L8050", category: "ecotank-6-color" },
+  { name: "EPSON EcoTank L18050", category: "ecotank-6-color" },
+  { name: "EPSON EcoTank L6490", category: "ecotank" },
+  { name: "EPSON EcoTank L6270", category: "ecotank" },
+  { name: "EPSON EcoTank L4260", category: "ecotank" },
+  { name: "EPSON EcoTank L11050", category: "ecotank" },
+  { name: "EPSON EcoTank L3250", category: "ecotank" },
+  { name: "EPSON EcoTank L3210", category: "ecotank" },
+  { name: "EPSON EcoTank L15150", category: "ecotank" },
 ] as const;
 
 function canonicalize(value: unknown): unknown {

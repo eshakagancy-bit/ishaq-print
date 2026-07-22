@@ -14,7 +14,7 @@ test("keeps the EcoTank migration exact, transactional and category-only", async
   assert.match(normalized, /set category = approved\.target_category/);
   assert.match(normalized, /product\.name = approved\.name/);
   assert.match(normalized, /product\.category = 'printers'/);
-  assert.equal((migration.match(/Epson EcoTank L(?:8180|8050|18050|6490|6270|4260|11050|3250|3210|15150)/g) ?? []).length >= 30, true);
+  assert.equal((migration.match(/EPSON EcoTank L(?:8180|8050|18050|6490|6270|4260|11050|3250|3210|15150)/g) ?? []).length >= 30, true);
 
   for (const forbidden of ["delete", "truncate", "drop table", "insert into", "create table", "alter table", "create or replace"]) {
     assert.equal(normalized.includes(forbidden), false, `forbidden migration statement: ${forbidden}`);

@@ -15,16 +15,16 @@ begin
   if exists (
     select expected.name
     from (values
-      ('Epson EcoTank L8180'),
-      ('Epson EcoTank L8050'),
-      ('Epson EcoTank L18050'),
-      ('Epson EcoTank L6490'),
-      ('Epson EcoTank L6270'),
-      ('Epson EcoTank L4260'),
-      ('Epson EcoTank L11050'),
-      ('Epson EcoTank L3250'),
-      ('Epson EcoTank L3210'),
-      ('Epson EcoTank L15150')
+      ('EPSON EcoTank L8180'),
+      ('EPSON EcoTank L8050'),
+      ('EPSON EcoTank L18050'),
+      ('EPSON EcoTank L6490'),
+      ('EPSON EcoTank L6270'),
+      ('EPSON EcoTank L4260'),
+      ('EPSON EcoTank L11050'),
+      ('EPSON EcoTank L3250'),
+      ('EPSON EcoTank L3210'),
+      ('EPSON EcoTank L15150')
     ) as expected(name)
     left join public.products as product on product.name = expected.name
     group by expected.name
@@ -37,10 +37,10 @@ begin
     select 1
     from public.products
     where name in (
-      'Epson EcoTank L8180', 'Epson EcoTank L8050', 'Epson EcoTank L18050',
-      'Epson EcoTank L6490', 'Epson EcoTank L6270', 'Epson EcoTank L4260',
-      'Epson EcoTank L11050', 'Epson EcoTank L3250', 'Epson EcoTank L3210',
-      'Epson EcoTank L15150'
+      'EPSON EcoTank L8180', 'EPSON EcoTank L8050', 'EPSON EcoTank L18050',
+      'EPSON EcoTank L6490', 'EPSON EcoTank L6270', 'EPSON EcoTank L4260',
+      'EPSON EcoTank L11050', 'EPSON EcoTank L3250', 'EPSON EcoTank L3210',
+      'EPSON EcoTank L15150'
     )
       and category <> 'printers'
   ) then
@@ -51,16 +51,16 @@ $$;
 
 with approved(name, target_category) as (
   values
-    ('Epson EcoTank L8180', 'ecotank-6-color'),
-    ('Epson EcoTank L8050', 'ecotank-6-color'),
-    ('Epson EcoTank L18050', 'ecotank-6-color'),
-    ('Epson EcoTank L6490', 'ecotank'),
-    ('Epson EcoTank L6270', 'ecotank'),
-    ('Epson EcoTank L4260', 'ecotank'),
-    ('Epson EcoTank L11050', 'ecotank'),
-    ('Epson EcoTank L3250', 'ecotank'),
-    ('Epson EcoTank L3210', 'ecotank'),
-    ('Epson EcoTank L15150', 'ecotank')
+    ('EPSON EcoTank L8180', 'ecotank-6-color'),
+    ('EPSON EcoTank L8050', 'ecotank-6-color'),
+    ('EPSON EcoTank L18050', 'ecotank-6-color'),
+    ('EPSON EcoTank L6490', 'ecotank'),
+    ('EPSON EcoTank L6270', 'ecotank'),
+    ('EPSON EcoTank L4260', 'ecotank'),
+    ('EPSON EcoTank L11050', 'ecotank'),
+    ('EPSON EcoTank L3250', 'ecotank'),
+    ('EPSON EcoTank L3210', 'ecotank'),
+    ('EPSON EcoTank L15150', 'ecotank')
 )
 update public.products as product
 set category = approved.target_category
