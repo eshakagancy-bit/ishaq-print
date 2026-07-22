@@ -12,16 +12,16 @@ type ProductRecord = Record<string, unknown> & {
 };
 
 const approvedTargets = [
-  { name: "EPSON EcoTank L8180", category: "ecotank-6-color" },
-  { name: "EPSON EcoTank L8050", category: "ecotank-6-color" },
-  { name: "EPSON EcoTank L18050", category: "ecotank-6-color" },
-  { name: "EPSON EcoTank L6490", category: "ecotank" },
-  { name: "EPSON EcoTank L6270", category: "ecotank" },
-  { name: "EPSON EcoTank L4260", category: "ecotank" },
-  { name: "EPSON EcoTank L11050", category: "ecotank" },
-  { name: "EPSON EcoTank L3250", category: "ecotank" },
-  { name: "EPSON EcoTank L3210", category: "ecotank" },
-  { name: "EPSON EcoTank L15150", category: "ecotank" },
+  { name: "EPSON EcoTank L8180", sourceCategory: "printers", category: "ecotank-6-color" },
+  { name: "EPSON EcoTank L8050", sourceCategory: "printers", category: "ecotank-6-color" },
+  { name: "EPSON EcoTank L18050", sourceCategory: "printers", category: "ecotank-6-color" },
+  { name: "EPSON EcoTank L6490", sourceCategory: "printers", category: "ecotank" },
+  { name: "EPSON EcoTank L6270", sourceCategory: "printers", category: "ecotank" },
+  { name: "EPSON EcoTank L4260", sourceCategory: "printers", category: "ecotank" },
+  { name: "EPSON EcoTank L11050", sourceCategory: "ecotank-6-color", category: "ecotank" },
+  { name: "EPSON EcoTank L3250", sourceCategory: "printers", category: "ecotank" },
+  { name: "EPSON EcoTank L3210", sourceCategory: "printers", category: "ecotank" },
+  { name: "EPSON EcoTank L15150", sourceCategory: "printers", category: "ecotank" },
 ] as const;
 
 function canonicalize(value: unknown): unknown {
@@ -63,9 +63,9 @@ async function readAndValidateProducts() {
   if (invalidMatch) {
     throw new Error(`أُلغي الترحيل: الاسم ${invalidMatch.name} طابق ${invalidMatch.products.length} منتجًا بدلًا من منتج واحد`);
   }
-  const alreadyClassified = matches.find((match) => match.products[0].category !== "printers");
-  if (alreadyClassified) {
-    throw new Error(`أُلغي الترحيل: المنتج ${alreadyClassified.name} فئته الحالية ${alreadyClassified.products[0].category}`);
+  const unexpectedCategory = matches.find((match) => match.products[0].category !== match.sourceCategory);
+  if (unexpectedCategory) {
+    throw new Error(`أُلغي الترحيل: المنتج ${unexpectedCategory.name} فئته الحالية ${unexpectedCategory.products[0].category} بدلًا من ${unexpectedCategory.sourceCategory}`);
   }
   const counts = categoryCounts(products);
   if (counts.workforce !== 12) throw new Error(`أُلغي الترحيل: عدد WorkForce الحالي ${counts.workforce} بدلًا من 12`);
@@ -76,17 +76,22 @@ async function readAndValidateProducts() {
     targets: matches.map((match) => ({
       id: Number(match.products[0].id),
       name: match.name,
+      sourceCategory: match.sourceCategory,
       category: match.category,
     })),
     fingerprint: nonCategoryFingerprint(products),
   };
 }
 
-async function restoreUnclassifiedCategories(client: ReturnType<typeof getSupabaseAdmin>, targets: Array<{ id: number; category: string }>) {
-  for (const category of ["ecotank-6-color", "ecotank"] as const) {
-    const ids = targets.filter((target) => target.category === category).map((target) => target.id);
+async function restoreSourceCategories(client: ReturnType<typeof getSupabaseAdmin>, targets: Array<{ id: number; sourceCategory: string; category: string }>) {
+  const transitions = [...new Set(targets.map((target) => `${target.category}:${target.sourceCategory}`))];
+  for (const transition of transitions) {
+    const [category, sourceCategory] = transition.split(":");
+    const ids = targets
+      .filter((target) => target.category === category && target.sourceCategory === sourceCategory)
+      .map((target) => target.id);
     if (!ids.length) continue;
-    await client.from("products").update({ category: "printers" }).eq("category", category).in("id", ids);
+    await client.from("products").update({ category: sourceCategory }).eq("category", category).in("id", ids);
   }
 }
 
@@ -114,11 +119,13 @@ export async function POST() {
     preflight = await readAndValidateProducts();
     const updatedProducts: Array<{ id: number; name: string; category: string }> = [];
 
-    for (const category of ["ecotank-6-color", "ecotank"] as const) {
-      const targets = preflight.targets.filter((target) => target.category === category);
+    const transitions = [...new Set(preflight.targets.map((target) => `${target.sourceCategory}:${target.category}`))];
+    for (const transition of transitions) {
+      const [sourceCategory, category] = transition.split(":");
+      const targets = preflight.targets.filter((target) => target.sourceCategory === sourceCategory && target.category === category);
       const result = await preflight.client.from("products")
         .update({ category })
-        .eq("category", "printers")
+        .eq("category", sourceCategory)
         .in("id", targets.map((target) => target.id))
         .select("id,name,category");
       if (result.error) throw new Error(`تعذر تحديث فئة ${category}: ${result.error.message}`);
@@ -151,7 +158,7 @@ export async function POST() {
       nonCategoryFingerprintAfter: fingerprintAfter,
     }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
-    if (preflight) await restoreUnclassifiedCategories(preflight.client, preflight.targets);
+    if (preflight) await restoreSourceCategories(preflight.client, preflight.targets);
     return Response.json({ error: error instanceof Error ? error.message : "فشل ترحيل فئات EcoTank وتمت محاولة التراجع" }, { status: 500 });
   }
 }

@@ -35,38 +35,44 @@ begin
 
   if exists (
     select 1
-    from public.products
-    where name in (
-      'EPSON EcoTank L8180', 'EPSON EcoTank L8050', 'EPSON EcoTank L18050',
-      'EPSON EcoTank L6490', 'EPSON EcoTank L6270', 'EPSON EcoTank L4260',
-      'EPSON EcoTank L11050', 'EPSON EcoTank L3250', 'EPSON EcoTank L3210',
-      'EPSON EcoTank L15150'
-    )
-      and category <> 'printers'
+    from (values
+      ('EPSON EcoTank L8180', 'printers'),
+      ('EPSON EcoTank L8050', 'printers'),
+      ('EPSON EcoTank L18050', 'printers'),
+      ('EPSON EcoTank L6490', 'printers'),
+      ('EPSON EcoTank L6270', 'printers'),
+      ('EPSON EcoTank L4260', 'printers'),
+      ('EPSON EcoTank L11050', 'ecotank-6-color'),
+      ('EPSON EcoTank L3250', 'printers'),
+      ('EPSON EcoTank L3210', 'printers'),
+      ('EPSON EcoTank L15150', 'printers')
+    ) as expected(name, source_category)
+    join public.products as product on product.name = expected.name
+    where product.category <> expected.source_category
   ) then
-    raise exception 'An approved EcoTank product is not currently unclassified';
+    raise exception 'An approved EcoTank product has an unexpected source category';
   end if;
 end
 $$;
 
-with approved(name, target_category) as (
+with approved(name, source_category, target_category) as (
   values
-    ('EPSON EcoTank L8180', 'ecotank-6-color'),
-    ('EPSON EcoTank L8050', 'ecotank-6-color'),
-    ('EPSON EcoTank L18050', 'ecotank-6-color'),
-    ('EPSON EcoTank L6490', 'ecotank'),
-    ('EPSON EcoTank L6270', 'ecotank'),
-    ('EPSON EcoTank L4260', 'ecotank'),
-    ('EPSON EcoTank L11050', 'ecotank'),
-    ('EPSON EcoTank L3250', 'ecotank'),
-    ('EPSON EcoTank L3210', 'ecotank'),
-    ('EPSON EcoTank L15150', 'ecotank')
+    ('EPSON EcoTank L8180', 'printers', 'ecotank-6-color'),
+    ('EPSON EcoTank L8050', 'printers', 'ecotank-6-color'),
+    ('EPSON EcoTank L18050', 'printers', 'ecotank-6-color'),
+    ('EPSON EcoTank L6490', 'printers', 'ecotank'),
+    ('EPSON EcoTank L6270', 'printers', 'ecotank'),
+    ('EPSON EcoTank L4260', 'printers', 'ecotank'),
+    ('EPSON EcoTank L11050', 'ecotank-6-color', 'ecotank'),
+    ('EPSON EcoTank L3250', 'printers', 'ecotank'),
+    ('EPSON EcoTank L3210', 'printers', 'ecotank'),
+    ('EPSON EcoTank L15150', 'printers', 'ecotank')
 )
 update public.products as product
 set category = approved.target_category
 from approved
 where product.name = approved.name
-  and product.category = 'printers';
+  and product.category = approved.source_category;
 
 do $$
 begin
