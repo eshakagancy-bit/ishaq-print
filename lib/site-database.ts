@@ -54,78 +54,8 @@ type HeroSettingsRow = {
   pause_on_hover: boolean;
 };
 
-const verifiedLiveWorkforceProducts = [
-  { id: 1784646662025, name: "Epson WorkForce Pro EM-C800" },
-  { id: 1784646618603, name: "Epson WorkForce Pro WF-C8690" },
-  { id: 1784646445851, name: "Epson WorkForce Pro WF-C5890" },
-  { id: 1784646231295, name: "Epson WorkForce Pro WF-C5390" },
-  { id: 1784573743180, name: "Epson WorkForce Pro WF-C7835" },
-  { id: 1784573705610, name: "Epson WorkForce Pro WF-C579R" },
-  { id: 1784573671884, name: "Epson WorkForce Pro WF-C8610" },
-  { id: 1784573642246, name: "Epson WorkForce Pro WF-C878R" },
-  { id: 1784573559103, name: "Epson WorkForce Pro AM-C5000 / WF-C5000" },
-  { id: 1784573531690, name: "Epson WorkForce Pro AM-C4000 / WF-C4000" },
-  { id: 1784573512133, name: "Epson WorkForce Pro AM-C6000 / WF-C6000" },
-  { id: 1784573491085, name: "Epson WorkForce Pro WF-C20750" },
-] as const;
-
-let liveWorkforceMigrationPromise: Promise<void> | null = null;
-
 function databaseError(message: string, error: { message: string } | null) {
   if (error) throw new Error(`${message}: ${error.message}`);
-}
-
-async function applyVerifiedLiveWorkforceMigration() {
-  const client = getSupabaseAdmin();
-  const ids = verifiedLiveWorkforceProducts.map((product) => product.id);
-  const expectedNames = new Map<number, string>(verifiedLiveWorkforceProducts.map((product) => [product.id, product.name]));
-
-  const [countBefore, productsBefore] = await Promise.all([
-    client.from("products").select("id", { count: "exact", head: true }),
-    client.from("products").select("id,name,category").in("id", ids),
-  ]);
-  databaseError("تعذر التحقق من عدد المنتجات قبل ترحيل WorkForce", countBefore.error);
-  databaseError("تعذر التحقق من منتجات WorkForce قبل الترحيل", productsBefore.error);
-
-  if (countBefore.count !== 22) throw new Error(`أُلغي ترحيل WorkForce: العدد المتوقع 22 والفعلي ${countBefore.count ?? "غير معروف"}`);
-  if (productsBefore.data?.length !== verifiedLiveWorkforceProducts.length) {
-    throw new Error("أُلغي ترحيل WorkForce: لم تتطابق المنتجات الاثنا عشر المحددة");
-  }
-
-  const invalidProduct = productsBefore.data.find((product) =>
-    expectedNames.get(Number(product.id)) !== product.name ||
-    (product.category !== "printers" && product.category !== "workforce")
-  );
-  if (invalidProduct) throw new Error(`أُلغي ترحيل WorkForce: بيانات المنتج ${invalidProduct.id} لا تطابق القائمة المعتمدة`);
-
-  const pendingIds = productsBefore.data
-    .filter((product) => product.category === "printers")
-    .map((product) => Number(product.id));
-  if (pendingIds.length) {
-    const updateResult = await client.from("products")
-      .update({ category: "workforce" })
-      .eq("category", "printers")
-      .in("id", pendingIds);
-    databaseError("تعذر تنفيذ ترحيل تصنيف WorkForce", updateResult.error);
-  }
-
-  const [countAfter, productsAfter] = await Promise.all([
-    client.from("products").select("id", { count: "exact", head: true }),
-    client.from("products").select("id,name,category").in("id", ids),
-  ]);
-  databaseError("تعذر التحقق من عدد المنتجات بعد ترحيل WorkForce", countAfter.error);
-  databaseError("تعذر التحقق من منتجات WorkForce بعد الترحيل", productsAfter.error);
-  if (countAfter.count !== 22 || productsAfter.data?.length !== verifiedLiveWorkforceProducts.length || productsAfter.data.some((product) => product.category !== "workforce")) {
-    throw new Error("فشل التحقق النهائي من ترحيل WorkForce دون تغيير عدد المنتجات");
-  }
-}
-
-async function ensureVerifiedLiveWorkforceMigration() {
-  liveWorkforceMigrationPromise ??= applyVerifiedLiveWorkforceMigration().catch((error) => {
-    liveWorkforceMigrationPromise = null;
-    throw error;
-  });
-  await liveWorkforceMigrationPromise;
 }
 
 function normalizeFeatures(value: unknown) {
@@ -281,7 +211,6 @@ export async function ensureSiteDefaults() {
 
 export async function getSiteData() {
   await ensureSiteDefaults();
-  await ensureVerifiedLiveWorkforceMigration();
   const client = getSupabaseAdmin();
   const [settingsResult, productsResult] = await Promise.all([
     client.from("site_settings").select("payload").eq("id", 1).single(),
