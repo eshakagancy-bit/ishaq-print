@@ -2,6 +2,11 @@ import { getSupabaseAdmin } from "./supabase-server";
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "./media-url";
 import { isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
 import {
+  normalizePrinterSpecifications,
+  normalizeSpecificationsSourceUrl,
+  normalizeSpecificationsVerifiedAt,
+} from "../app/printer-specifications";
+import {
   defaultHeroSettings,
   defaultHeroSlides,
   defaultSiteSettings,
@@ -26,6 +31,9 @@ type ProductRow = {
   price: string | null;
   description: string;
   features: unknown;
+  specifications: unknown | null;
+  specifications_source_url: string | null;
+  specifications_verified_at: string | null;
   sort_order: number;
 };
 
@@ -104,6 +112,9 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     price: product.price || null,
     description: product.description,
     features: product.features,
+    specifications: product.specifications ?? null,
+    specifications_source_url: product.specificationsSourceUrl || null,
+    specifications_verified_at: product.specificationsVerifiedAt || null,
     sort_order: product.sortOrder ?? index,
   };
 }
@@ -126,6 +137,9 @@ function productFromRow(row: ProductRow): StoredProduct {
     price: row.price || undefined,
     description: row.description,
     features: normalizeFeatures(row.features),
+    specifications: normalizePrinterSpecifications(row.specifications),
+    specificationsSourceUrl: normalizeSpecificationsSourceUrl(row.specifications_source_url),
+    specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(row.specifications_verified_at),
     sortOrder: row.sort_order,
   };
 }
@@ -235,6 +249,25 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     p_products: products.map(productToRow),
   });
   databaseError("تعذر حفظ بيانات الموقع", result.error);
+
+  const productsWithStructuredSpecifications = products.filter((product) =>
+    product.specifications !== undefined || product.specificationsSourceUrl || product.specificationsVerifiedAt
+  );
+  const specificationResults = await Promise.all(productsWithStructuredSpecifications.map((product) => client
+    .from("products")
+    .update({
+      specifications: product.specifications ?? null,
+      specifications_source_url: product.specificationsSourceUrl || null,
+      specifications_verified_at: product.specificationsVerifiedAt || null,
+    })
+    .eq("id", product.id)
+    .select("id")
+    .maybeSingle()));
+  const failedSpecificationUpdate = specificationResults.find((updateResult) => updateResult.error || !updateResult.data);
+  if (failedSpecificationUpdate) {
+    databaseError("تعذر حفظ مواصفات الطابعة المنظمة", failedSpecificationUpdate.error);
+    throw new Error("تعذر العثور على المنتج أثناء حفظ مواصفاته المنظمة");
+  }
 }
 
 export async function ensureHeroDefaults() {

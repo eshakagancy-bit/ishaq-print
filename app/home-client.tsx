@@ -12,6 +12,11 @@ import {
   type PrinterCategoryFilter,
 } from "./printer-categories";
 import {
+  buildQuickViewSpecificationRows,
+  getProductCardSpecificationTags,
+  type PrinterSpecifications,
+} from "./printer-specifications";
+import {
   defaultHeroSettings,
   defaultHeroSlides,
   defaultSiteSettings,
@@ -41,6 +46,9 @@ type Product = {
   price?: string;
   description: string;
   features: string[];
+  specifications?: PrinterSpecifications;
+  specificationsSourceUrl?: string;
+  specificationsVerifiedAt?: string;
 };
 
 type HomeClientProps = {
@@ -373,6 +381,7 @@ export default function HomeClient({
   const toggleFavorite = (id: number) => setFavorites((current) =>
     current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
   );
+  const selectedSpecificationRows = selected ? buildQuickViewSpecificationRows(selected) : [];
 
   return (
     <main dir="rtl">
@@ -514,10 +523,13 @@ export default function HomeClient({
       <section className="products-section" id="products"><div className="container">
         <div className="section-heading"><div><span className="section-kicker">{activeCategory === "printers" ? "طابعات إبسون فقط" : "منتجات القسم"}</span><h2>{currentCategory.name}</h2><p>{currentCategory.description}.</p></div><a className="specialist-heading-link" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer"><span>●</span> واتساب المختص: <b dir="ltr">{categoryContacts[activeCategory].replace("967", "")}</b></a></div>
         {activeCategory === "printers" && <div className="filters" role="group" aria-label="تصنيف طابعات إبسون">{[ALL_PRINTERS_FILTER, ...PRINTER_CATEGORIES].map((item) => <button key={item.value} className={filter === item.value ? "active" : ""} onClick={() => setFilter(item.value)}>{item.label}</button>)}</div>}
-        {visibleProducts.length ? <div className="product-grid">{visibleProducts.map((product) => <article className="product-card" key={product.id}>
-          <div className="product-image">{product.badge && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /><button type="button" className="quick-view" onClick={() => setSelected(product)}>عرض سريع</button></div>
-          <div className="product-body"><span className="product-family">{product.family}</span><h3>{product.name}</h3><p>{product.description}</p><div className="product-tags"><span>{product.size}</span><span>{product.type}</span></div><div className="product-footer"><div className="price"><small>السعر</small><strong>{product.price || "اطلب عرض سعر"}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
-        </article>)}</div> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا"}</p><div className="empty-actions">{query ? <button type="button" onClick={() => { setQuery(""); setFilter(ALL_PRINTERS_FILTER.value); }}>عرض جميع المنتجات</button> : <a className="empty-specialist" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer">تواصل مع مختص القسم</a>}</div></div>}
+        {visibleProducts.length ? <div className="product-grid">{visibleProducts.map((product) => {
+          const cardTags = getProductCardSpecificationTags(product);
+          return <article className="product-card" key={product.id}>
+            <div className="product-image">{product.badge && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /><button type="button" className="quick-view" onClick={() => setSelected(product)}>عرض سريع</button></div>
+            <div className="product-body">{product.family && <span className="product-family">{product.family}</span>}<h3>{product.name}</h3>{product.description && <p>{product.description}</p>}{cardTags.length > 0 && <div className="product-tags">{cardTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}<div className="product-footer"><div className="price"><small>السعر</small><strong>{product.price || "اطلب عرض سعر"}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
+          </article>;
+        })}</div> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا"}</p><div className="empty-actions">{query ? <button type="button" onClick={() => { setQuery(""); setFilter(ALL_PRINTERS_FILTER.value); }}>عرض جميع المنتجات</button> : <a className="empty-specialist" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer">تواصل مع مختص القسم</a>}</div></div>}
       </div></section>
 
       <section className="feature-band"><div className="container feature-band-inner">
@@ -566,7 +578,7 @@ export default function HomeClient({
         {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={110} height={90} sizes="76px" /><div><b>{product.name}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={() => { setFavoritesOpen(false); setSelected(product); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
         {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح المفضلة</button>}
       </aside></div>}
-      {selected && <div className="modal-backdrop" onMouseDown={() => setSelected(null)}><div className="product-modal" role="dialog" aria-modal="true" aria-label={`تفاصيل ${selected.name}`} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="إغلاق">×</button><div className="modal-image"><Image src={imageSrcOrFallback(selected.image)} alt={selected.name} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" /></div><div className="modal-content"><span className="product-family">{selected.family}</span><h2>{selected.name}</h2><p>{selected.description}</p><div className="modal-specs">{selected.features.map((feature) => <span key={feature}>✓ {feature}</span>)}</div><a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div>}
+      {selected && <div className="modal-backdrop" onMouseDown={() => setSelected(null)}><div className="product-modal" role="dialog" aria-modal="true" aria-label={`تفاصيل ${selected.name}`} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="إغلاق">×</button><div className="modal-image"><Image src={imageSrcOrFallback(selected.image)} alt={selected.name} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" /></div><div className="modal-content">{selected.family && <span className="product-family">{selected.family}</span>}<h2>{selected.name}</h2>{selected.description && <p>{selected.description}</p>}{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div>}
     </main>
   );
 }

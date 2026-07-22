@@ -4,6 +4,11 @@ import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../admin-auth";
 import { normalizeBusinessTime, normalizeBusinessWeekdays, sanitizePhoneNumber } from "../../business-hours";
 import { resolvePrinterCategory } from "../../printer-categories";
 import {
+  normalizePrinterSpecifications,
+  normalizeSpecificationsSourceUrl,
+  normalizeSpecificationsVerifiedAt,
+} from "../../printer-specifications";
+import {
   defaultSiteSettings,
   normalizeLegacyArabicText,
   normalizeProductBrandName,
@@ -60,6 +65,9 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     features: Array.isArray(input.features)
       ? input.features.map(String).map((item) => item.trim().slice(0, 120)).filter(Boolean).slice(0, 8)
       : [],
+    specifications: normalizePrinterSpecifications(input.specifications),
+    specificationsSourceUrl: normalizeSpecificationsSourceUrl(input.specificationsSourceUrl),
+    specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(input.specificationsVerifiedAt),
     sortOrder: index,
   };
 }
