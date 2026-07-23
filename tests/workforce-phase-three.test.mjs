@@ -201,6 +201,16 @@ test("renders all twelve WorkForce quick views with speed and without EcoTank or
   });
   assert.equal(optionalRows.find((row) => row.key === "wifi-availability")?.value, "اختياري");
   assert.equal(optionalRows.find((row) => row.key === "fax-mode")?.value, "اختياري");
+
+  const c5390 = products.find((product) => product.newName.endsWith("WF-C5390"));
+  const printOnlyRows = buildQuickViewSpecificationRows({
+    printerCategory: "workforce",
+    specifications: normalizePrinterSpecifications(c5390.specifications),
+  });
+  assert.equal(printOnlyRows.find((row) => row.key === "functions")?.value, "طباعة فقط");
+  for (const hidden of ["scanner", "fax", "fax-mode", "adf", "adf-capacity", "duplex-scanning", "adf-duplex-type"]) {
+    assert.equal(printOnlyRows.some((row) => row.key === hidden), false, `${hidden} must be hidden for WF-C5390`);
+  }
 });
 
 test("admin exposes WorkForce-only controls and preserves legacy compatibility fields", async () => {

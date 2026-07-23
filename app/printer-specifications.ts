@@ -422,7 +422,10 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
   const isDotMatrix = product.printerCategory === "lq" || specifications.printerType === "طابعة نقطية";
   const isEcoTank = product.printerCategory === "ecotank" || product.printerCategory === "ecotank-6-color";
   const isWorkForce = product.printerCategory === "workforce";
-  const functionValue = isDotMatrix && specifications.functions.length === 1 && specifications.functions[0] === "طباعة"
+  const isPrintOnlyWorkForce = isWorkForce
+    && (specifications.printerType === "طباعة فقط"
+      || (specifications.functions.length === 1 && specifications.functions[0] === "طباعة"));
+  const functionValue = (isDotMatrix || isPrintOnlyWorkForce) && specifications.functions.length === 1 && specifications.functions[0] === "طباعة"
     ? "طباعة فقط"
     : specifications.functions.join("، ");
   const rows: Array<SpecificationDisplayRow | null> = [
@@ -441,16 +444,16 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
     isDotMatrix ? yesNoRow("serial", "منفذ تسلسلي Serial / RS-232", specifications.serial) : null,
     isDotMatrix ? yesNoRow("optional-interface", "يدعم واجهة اتصال اختيارية", specifications.optionalInterface) : null,
     !isDotMatrix ? yesNoRow("mobile-printing", "الطباعة من الجوال", specifications.mobilePrinting) : null,
-    !isDotMatrix ? yesNoRow("scanner", "الماسح الضوئي", specifications.scanner) : null,
-    !isDotMatrix && isWorkForce && specifications.faxMode
+    !isDotMatrix && !isPrintOnlyWorkForce ? yesNoRow("scanner", "الماسح الضوئي", specifications.scanner) : null,
+    !isDotMatrix && !isPrintOnlyWorkForce && isWorkForce && specifications.faxMode
       ? { key: "fax-mode", label: "الفاكس", value: availabilityModeLabels[specifications.faxMode] }
-      : !isDotMatrix ? yesNoRow("fax", "الفاكس", specifications.fax) : null,
+      : !isDotMatrix && !isPrintOnlyWorkForce ? yesNoRow("fax", "الفاكس", specifications.fax) : null,
     !isDotMatrix && specifications.duplexMode ? { key: "duplex-mode", label: "وضع الطباعة على الوجهين", value: duplexModeLabels[specifications.duplexMode] } : null,
     !isDotMatrix && !specifications.duplexMode ? yesNoRow("duplex", "الطباعة التلقائية على الوجهين", specifications.duplex) : null,
-    !isDotMatrix ? yesNoRow("adf", "ADF", specifications.adf) : null,
-    !isDotMatrix && specifications.adfCapacity !== null ? { key: "adf-capacity", label: "سعة ADF", value: `${specifications.adfCapacity} ورقة` } : null,
-    isWorkForce ? yesNoRow("duplex-scanning", "مسح الوجهين", specifications.duplexScanning) : null,
-    isWorkForce && specifications.adfDuplexType ? { key: "adf-duplex-type", label: "نوع مسح ADF", value: adfDuplexTypeLabels[specifications.adfDuplexType] } : null,
+    !isDotMatrix && !isPrintOnlyWorkForce ? yesNoRow("adf", "ADF", specifications.adf) : null,
+    !isDotMatrix && !isPrintOnlyWorkForce && specifications.adfCapacity !== null ? { key: "adf-capacity", label: "سعة ADF", value: `${specifications.adfCapacity} ورقة` } : null,
+    isWorkForce && !isPrintOnlyWorkForce ? yesNoRow("duplex-scanning", "مسح الوجهين", specifications.duplexScanning) : null,
+    isWorkForce && !isPrintOnlyWorkForce && specifications.adfDuplexType ? { key: "adf-duplex-type", label: "نوع مسح ADF", value: adfDuplexTypeLabels[specifications.adfDuplexType] } : null,
     !isDotMatrix && specifications.colorCount !== null ? { key: "color-count", label: "عدد الألوان", value: `${specifications.colorCount} ألوان` } : null,
     !isDotMatrix && specifications.colorMode ? { key: "color-mode", label: "نمط الألوان", value: specifications.colorMode } : null,
     !isEcoTank && specifications.printSpeed !== null ? {
