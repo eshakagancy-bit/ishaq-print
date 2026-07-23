@@ -178,6 +178,13 @@ test("uses the approved RDWF source pages for WF-C579R and WF-C878R capacities",
   assert.doesNotMatch(migration, /wf-c579rdtwf|wf-c878rdtwf/);
 });
 
+test("preserves the six approved Epson name corrections in the customer and admin data path", async () => {
+  const defaults = await read("app/site-defaults.ts");
+  const normalizer = defaults.match(/export function normalizeProductBrandName[\s\S]+?\n}/)?.[0] ?? "";
+  assert.match(normalizer, /return value\.trim\(\)/);
+  assert.doesNotMatch(normalizer, /replace|toUpperCase/);
+});
+
 test("renders all twelve WorkForce quick views with speed and without EcoTank or LQ-only fields", async () => {
   const { products } = await parseApprovedProducts();
 

@@ -55,7 +55,7 @@ export function normalizeLegacyArabicText(value: string) {
 }
 
 export function normalizeProductBrandName(value: string) {
-  return value.replace(/^Epson\b/, "EPSON");
+  return value.trim();
 }
 
 export type StoredProduct = {
