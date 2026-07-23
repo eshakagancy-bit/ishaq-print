@@ -206,6 +206,9 @@ export default function HomeClient({
   const [outgoingHeroSlide, setOutgoingHeroSlide] = useState<number | null>(null);
   const [heroPaused, setHeroPaused] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const quickViewTriggerRef = useRef<HTMLElement | null>(null);
+  const quickViewDialogRef = useRef<HTMLDivElement | null>(null);
+  const quickViewCloseRef = useRef<HTMLButtonElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
   const heroTransitionTimerRef = useRef<number | null>(null);
@@ -323,11 +326,10 @@ export default function HomeClient({
   }, []);
 
   useEffect(() => {
-    if (!favoritesOpen && !selected) return undefined;
+    if (!favoritesOpen || selected) return undefined;
     const closeDialog = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (selected) setSelected(null);
-      else setFavoritesOpen(false);
+      setFavoritesOpen(false);
     };
     document.addEventListener("keydown", closeDialog);
     return () => document.removeEventListener("keydown", closeDialog);
@@ -381,7 +383,85 @@ export default function HomeClient({
   const toggleFavorite = (id: number) => setFavorites((current) =>
     current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
   );
+  const openQuickView = useCallback((product: Product, trigger: HTMLElement | null = null) => {
+    quickViewTriggerRef.current = trigger
+      ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    setSelected(product);
+  }, []);
+  const closeQuickView = useCallback(() => setSelected(null), []);
   const selectedSpecificationRows = selected ? buildQuickViewSpecificationRows(selected) : [];
+
+  useEffect(() => {
+    if (!selected) return undefined;
+
+    const dialog = quickViewDialogRef.current;
+    if (!dialog) return undefined;
+
+    const backgroundElements = [...document.querySelectorAll<HTMLElement>("main > :not(.modal-backdrop)")];
+    const backgroundState = backgroundElements.map((element) => ({
+      element,
+      inert: element.inert,
+      ariaHidden: element.getAttribute("aria-hidden"),
+    }));
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+
+    for (const element of backgroundElements) {
+      element.inert = true;
+      element.setAttribute("aria-hidden", "true");
+    }
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    const focusCloseButton = window.requestAnimationFrame(() => quickViewCloseRef.current?.focus());
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeQuickView();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusableElements = [...dialog.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )].filter((element) => element.tabIndex >= 0 && element.getAttribute("aria-hidden") !== "true");
+      if (!focusableElements.length) {
+        event.preventDefault();
+        quickViewCloseRef.current?.focus();
+        return;
+      }
+
+      const firstFocusable = focusableElements[0];
+      const lastFocusable = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+      if (event.shiftKey && (activeElement === firstFocusable || !dialog.contains(activeElement))) {
+        event.preventDefault();
+        lastFocusable.focus();
+      } else if (!event.shiftKey && (activeElement === lastFocusable || !dialog.contains(activeElement))) {
+        event.preventDefault();
+        firstFocusable.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleDialogKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusCloseButton);
+      document.removeEventListener("keydown", handleDialogKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      for (const { element, inert, ariaHidden } of backgroundState) {
+        element.inert = inert;
+        if (ariaHidden === null) element.removeAttribute("aria-hidden");
+        else element.setAttribute("aria-hidden", ariaHidden);
+      }
+
+      const trigger = quickViewTriggerRef.current;
+      window.requestAnimationFrame(() => {
+        if (trigger?.isConnected) trigger.focus();
+        else document.querySelector<HTMLElement>(".favorite-counter")?.focus();
+      });
+    };
+  }, [closeQuickView, selected]);
 
   return (
     <main dir="rtl">
@@ -526,7 +606,7 @@ export default function HomeClient({
         {visibleProducts.length ? <div className="product-grid">{visibleProducts.map((product) => {
           const cardTags = getProductCardSpecificationTags(product);
           return <article className="product-card" key={product.id}>
-            <div className="product-image">{product.badge && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /><button type="button" className="quick-view" onClick={() => setSelected(product)}>عرض سريع</button></div>
+            <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)}>عرض سريع</button></div>
             <div className="product-body">{product.family && <span className="product-family">{product.family}</span>}<h3>{product.name}</h3>{product.description && <p>{product.description}</p>}{cardTags.length > 0 && <div className="product-tags">{cardTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}<div className="product-footer"><div className="price"><small>السعر</small><strong>{product.price || "اطلب عرض سعر"}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
           </article>;
         })}</div> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا"}</p><div className="empty-actions">{query ? <button type="button" onClick={() => { setQuery(""); setFilter(ALL_PRINTERS_FILTER.value); }}>عرض جميع المنتجات</button> : <a className="empty-specialist" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer">تواصل مع مختص القسم</a>}</div></div>}
@@ -575,10 +655,10 @@ export default function HomeClient({
       <a className="whatsapp-float" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer" aria-label={`تواصل مع مختص قسم ${currentCategory.name}`}>مختص القسم <span>◉</span></a>
       {favoritesOpen && <div className="modal-backdrop favorites-backdrop" onMouseDown={() => setFavoritesOpen(false)}><aside className="favorites-panel" role="dialog" aria-modal="true" aria-labelledby="favorites-title" onMouseDown={(event) => event.stopPropagation()}>
         <div className="favorites-header"><div><span>قائمتك المحفوظة</span><h2 id="favorites-title">المفضلة ({favorites.length})</h2></div><button type="button" onClick={() => setFavoritesOpen(false)} aria-label="إغلاق المفضلة">×</button></div>
-        {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={110} height={90} sizes="76px" /><div><b>{product.name}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={() => { setFavoritesOpen(false); setSelected(product); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
+        {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={product.name} width={110} height={90} sizes="76px" /><div><b>{product.name}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={(event) => { setFavoritesOpen(false); openQuickView(product, event.currentTarget); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
         {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح المفضلة</button>}
       </aside></div>}
-      {selected && <div className="modal-backdrop" onMouseDown={() => setSelected(null)}><div className="product-modal-shell" role="dialog" aria-modal="true" aria-label={`تفاصيل ${selected.name}`} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setSelected(null)} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image"><Image src={imageSrcOrFallback(selected.image)} alt={selected.name} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" /></div><div className="modal-content">{selected.family && <span className="product-family">{selected.family}</span>}<h2>{selected.name}</h2>{selected.description && <p>{selected.description}</p>}{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div></div>}
+      {selected && <div className="modal-backdrop" onMouseDown={closeQuickView}><div ref={quickViewDialogRef} className="product-modal-shell" role="dialog" aria-modal="true" aria-labelledby={`product-dialog-title-${selected.id}`} onMouseDown={(event) => event.stopPropagation()}><button ref={quickViewCloseRef} type="button" className="modal-close" onClick={closeQuickView} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image"><Image src={imageSrcOrFallback(selected.image)} alt={selected.name} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" /></div><div className="modal-content">{selected.badge?.trim() && <span className="modal-product-badge">{selected.badge}</span>}{selected.family && <span className="product-family">{selected.family}</span>}<h2 id={`product-dialog-title-${selected.id}`}>{selected.name}</h2>{selected.description && <p>{selected.description}</p>}<div className="modal-price"><small>السعر</small><strong>{selected.price?.trim() || "اطلب عرض سعر"}</strong></div>{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div></div>}
     </main>
   );
 }

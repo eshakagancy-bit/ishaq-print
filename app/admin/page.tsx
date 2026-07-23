@@ -1,8 +1,16 @@
 import { isAdminSession } from "../admin-auth";
+import type { Metadata } from "next";
 import Link from "next/link";
 import AdminDashboard from "./admin-dashboard";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+  },
+};
 
 export default async function AdminPage() {
   if (!await isAdminSession()) {

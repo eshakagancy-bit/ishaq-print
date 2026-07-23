@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  AVAILABILITY_MODE_OPTIONS,
   buildQuickViewSpecificationRows,
   createEmptyPrinterSpecifications,
   duplexModeToFormValue,
@@ -71,6 +72,8 @@ test("shows dot-matrix fields and characters per second while hiding inkjet-only
       printSpeed: 529,
       speedUnit: "حرف/ثانية",
       colorCount: 4,
+      wifi: false,
+      wifiDirect: false,
       mobilePrinting: false,
       scanner: false,
       fax: false,
@@ -98,9 +101,47 @@ test("shows dot-matrix fields and characters per second while hiding inkjet-only
   for (const shown of ["usb", "parallel", "serial", "optional-interface", "ink-type"]) {
     assert.equal(rows.some((row) => row.key === shown), true, `${shown} must be shown for LQ when defined`);
   }
-  for (const hidden of ["color-count", "scanner", "fax", "adf", "borderless", "mobile-printing"]) {
+  for (const hidden of ["wifi", "wifi-direct", "color-count", "scanner", "fax", "adf", "borderless", "mobile-printing"]) {
     assert.equal(rows.some((row) => row.key === hidden), false, `${hidden} must stay hidden for LQ`);
   }
+});
+
+test("hides Wi-Fi fields only for L3210 while preserving them for other EcoTank products", () => {
+  const specifications = {
+    ...createEmptyPrinterSpecifications(),
+    wifi: false,
+    wifiDirect: false,
+  };
+  const l3210Rows = buildQuickViewSpecificationRows({
+    name: "EPSON EcoTank L3210",
+    printerCategory: "ecotank",
+    specifications,
+  });
+  assert.equal(l3210Rows.some((row) => row.key === "wifi"), false);
+  assert.equal(l3210Rows.some((row) => row.key === "wifi-direct"), false);
+
+  const otherEcoTankRows = buildQuickViewSpecificationRows({
+    name: "EPSON EcoTank L3250",
+    printerCategory: "ecotank",
+    specifications,
+  });
+  assert.equal(otherEcoTankRows.find((row) => row.key === "wifi")?.value, "لا");
+  assert.equal(otherEcoTankRows.find((row) => row.key === "wifi-direct")?.value, "لا");
+});
+
+test("uses the approved Arabic label for unavailable Wi-Fi and fax modes", () => {
+  assert.equal(AVAILABILITY_MODE_OPTIONS.find((option) => option.value === "none")?.label, "غير موجود");
+  const rows = buildQuickViewSpecificationRows({
+    name: "EPSON WorkForce Pro WF-C5390",
+    printerCategory: "workforce",
+    specifications: {
+      ...createEmptyPrinterSpecifications(),
+      wifiAvailability: "none",
+      faxMode: "none",
+    },
+  });
+  assert.equal(rows.find((row) => row.key === "wifi-availability")?.value, "غير موجود");
+  assert.equal(rows.find((row) => row.key === "fax-mode")?.value, "غير موجود");
 });
 
 test("normalizes the three LQ interface fields as tri-state values", () => {

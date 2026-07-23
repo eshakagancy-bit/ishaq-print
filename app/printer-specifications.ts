@@ -103,7 +103,7 @@ export const AVAILABILITY_MODE_OPTIONS = [
   { value: "unknown", label: "غير محدد" },
   { value: "builtIn", label: "مدمج" },
   { value: "optional", label: "اختياري" },
-  { value: "none", label: "غير متوفر" },
+  { value: "none", label: "غير موجود" },
 ] as const;
 
 export const ADF_DUPLEX_TYPE_OPTIONS = [
@@ -349,6 +349,7 @@ export function normalizeSpecificationsVerifiedAt(value: unknown) {
 }
 
 type ProductSpecificationDisplayInput = {
+  name?: string;
   printerCategory?: PrinterCategory;
   specifications?: PrinterSpecifications;
   size?: string;
@@ -372,7 +373,7 @@ const duplexModeLabels: Record<Exclude<DuplexMode, null>, string> = {
 const availabilityModeLabels: Record<Exclude<AvailabilityMode, null>, string> = {
   builtIn: "مدمج",
   optional: "اختياري",
-  none: "غير متوفر",
+  none: "غير موجود",
 };
 const inkSystemLabels: Record<Exclude<InkSystem, null>, string> = {
   cartridges: "خراطيش",
@@ -422,6 +423,8 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
   const isDotMatrix = product.printerCategory === "lq" || specifications.printerType === "طابعة نقطية";
   const isEcoTank = product.printerCategory === "ecotank" || product.printerCategory === "ecotank-6-color";
   const isWorkForce = product.printerCategory === "workforce";
+  const hidesWifi = product.printerCategory === "lq"
+    || product.name?.trim().toLocaleLowerCase("en-US") === "epson ecotank l3210";
   const isPrintOnlyWorkForce = isWorkForce
     && (specifications.printerType === "طباعة فقط"
       || (specifications.functions.length === 1 && specifications.functions[0] === "طباعة"));
@@ -433,10 +436,10 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
     specifications.paperSize ? { key: "paper-size", label: "مقاس الورق", value: specifications.paperSize } : null,
     specifications.printerType ? { key: "printer-type", label: "نوع الطابعة", value: specifications.printerType } : null,
     specifications.printTechnology ? { key: "technology", label: "تقنية الطباعة", value: specifications.printTechnology } : null,
-    isWorkForce && specifications.wifiAvailability
+    !hidesWifi && isWorkForce && specifications.wifiAvailability
       ? { key: "wifi-availability", label: "Wi-Fi", value: availabilityModeLabels[specifications.wifiAvailability] }
-      : yesNoRow("wifi", "Wi-Fi", specifications.wifi),
-    isEcoTank || isWorkForce ? yesNoRow("wifi-direct", "Wi-Fi Direct", specifications.wifiDirect) : null,
+      : !hidesWifi ? yesNoRow("wifi", "Wi-Fi", specifications.wifi) : null,
+    !hidesWifi && (isEcoTank || isWorkForce) ? yesNoRow("wifi-direct", "Wi-Fi Direct", specifications.wifiDirect) : null,
     isWorkForce ? yesNoRow("nfc", "NFC", specifications.nfc) : null,
     yesNoRow("ethernet", "Ethernet", specifications.ethernet),
     yesNoRow("usb", "USB", specifications.usb),
