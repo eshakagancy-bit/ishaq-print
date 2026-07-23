@@ -138,6 +138,28 @@ for (const [name, approved] of Object.entries(approvedEcoTankProducts)) {
   assert.ok(product, `${name} must exist in the read-only live fixture`);
   Object.assign(product, approved);
 }
+const workForceMigration = await readFile(new URL("../supabase/migrations/20260723_populate_workforce_phase_three_specifications.sql", import.meta.url), "utf8");
+const approvedWorkForceTuples = [...workForceMigration.matchAll(
+  /\(\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'(\[[^']*\])'::jsonb,\s*'(\{[^']+\})'::jsonb,\s*'(https:\/\/[^']+)'\s*\)/g,
+)];
+assert.equal(approvedWorkForceTuples.length, 12, "the local WorkForce browser fixture must contain twelve approved products");
+const approvedWorkForceProducts = Object.fromEntries(approvedWorkForceTuples.map((match) => [match[2], {
+  oldName: match[1],
+  name: match[2],
+  family: match[3],
+  size: match[4],
+  type: match[5],
+  description: match[6],
+  features: JSON.parse(match[7]),
+  specifications: normalizePrinterSpecifications(JSON.parse(match[8])),
+  specificationsSourceUrl: match[9],
+  specificationsVerifiedAt: "2026-07-23T00:00:00.000Z",
+}]));
+for (const approved of Object.values(approvedWorkForceProducts)) {
+  const product = localTestData.products.find((item) => item.name === approved.oldName);
+  assert.ok(product, `${approved.oldName} must exist in the read-only live fixture`);
+  Object.assign(product, approved);
+}
 const lq350 = localTestData.products.find((product) => product.name === "LQ-350");
 assert.ok(lq350, "LQ-350 must exist in the read-only source data");
 Object.assign(lq350, {
@@ -231,6 +253,36 @@ for (const name of approvedEcoTankNames) {
   await page.waitFor("!document.querySelector('.product-modal')");
 }
 
+const workForceQuickViews = {};
+for (const [name, approved] of Object.entries(approvedWorkForceProducts)) {
+  await page.evaluate(`(() => {
+    const card = [...document.querySelectorAll('.product-card')].find((item) => item.querySelector('h3')?.textContent.trim() === ${JSON.stringify(name)});
+    card.querySelector('.quick-view').click();
+  })()`);
+  await page.waitFor("Boolean(document.querySelector('.product-modal'))");
+  const quickView = await page.evaluate(`(() => Object.fromEntries(
+    [...document.querySelectorAll('.modal-specs > div')].map((row) => [row.querySelector('dt').textContent.trim(), row.querySelector('dd').textContent.trim()])
+  ))()`);
+  workForceQuickViews[name] = quickView;
+  assert.equal(quickView["سرعة الطباعة"], `${approved.specifications.printSpeed} صفحة/دقيقة`, `${name}: speed`);
+  assert.equal(quickView["مقاس الورق"], approved.specifications.paperSize, `${name}: paper size`);
+  assert.equal(quickView["سعة الورق القياسية"], `${approved.specifications.standardPaperCapacity} ورقة`, `${name}: standard capacity`);
+  assert.equal(quickView["سعة الورق القصوى"], `${approved.specifications.maximumPaperCapacity} ورقة`, `${name}: maximum capacity`);
+  assert.ok(quickView["نظام الحبر"], `${name}: ink system`);
+  for (const hiddenLabel of ["طباعة CD/DVD", "طباعة البطاقات البلاستيكية", "زمن طباعة الصورة", "عدد الإبر", "عمر الشريط"]) {
+    assert.equal(hiddenLabel in quickView, false, `${name}: ${hiddenLabel} must stay hidden`);
+  }
+  if (approved.specifications.wifiAvailability === "optional") assert.equal(quickView["Wi-Fi"], "اختياري", `${name}: optional Wi-Fi`);
+  if (approved.specifications.faxMode === "optional") assert.equal(quickView["الفاكس"], "اختياري", `${name}: optional fax`);
+  const cardTags = await page.evaluate(`(() => {
+    const card = [...document.querySelectorAll('.product-card')].find((item) => item.querySelector('h3')?.textContent.trim() === ${JSON.stringify(name)});
+    return [...card.querySelectorAll('.product-tags span')].map((tag) => tag.textContent.trim());
+  })()`);
+  assert.ok(cardTags.includes(`${approved.specifications.printSpeed} صفحة/دقيقة`), `${name}: card speed tag`);
+  await page.evaluate("document.querySelector('.modal-close').click()");
+  await page.waitFor("!document.querySelector('.product-modal')");
+}
+
 await page.evaluate(`(() => {
   const card = [...document.querySelectorAll('.product-card')].find((item) => item.querySelector('h3')?.textContent.trim().endsWith('LQ-350'));
   card.querySelector('.quick-view').click();
@@ -293,6 +345,44 @@ const mobileCloseAfterScroll = await page.evaluate(`(() => {
 })()`);
 assert.equal(mobileCloseAfterScroll, true);
 await page.screenshot("ecotank-phase-two-quick-view-mobile.png");
+
+await page.evaluate("document.querySelector('.modal-close').click()");
+await page.waitFor("!document.querySelector('.product-modal')");
+await page.evaluate(`(() => {
+  const card = [...document.querySelectorAll('.product-card')].find((item) => item.querySelector('h3')?.textContent.trim() === 'Epson WorkForce Enterprise AM-C4000');
+  card.querySelector('.quick-view').click();
+})()`);
+await page.waitFor("Boolean(document.querySelector('.product-modal'))");
+const mobileWorkForceModal = await page.evaluate(`(() => {
+  const shell = document.querySelector('.product-modal-shell');
+  const modal = document.querySelector('.product-modal');
+  const close = document.querySelector('.modal-close');
+  const shellRect = shell.getBoundingClientRect();
+  const closeRect = close.getBoundingClientRect();
+  const values = Object.fromEntries([...document.querySelectorAll('.modal-specs > div')].map((row) => [
+    row.querySelector('dt').textContent.trim(), row.querySelector('dd').textContent.trim(),
+  ]));
+  return {
+    fitsViewport: shellRect.height <= innerHeight && shellRect.width <= innerWidth,
+    overflow: getComputedStyle(modal).overflowY,
+    noHorizontalScroll: modal.scrollWidth <= modal.clientWidth && document.documentElement.scrollWidth <= innerWidth,
+    closeVisible: closeRect.top >= 0 && closeRect.bottom <= innerHeight && closeRect.left >= 0 && closeRect.right <= innerWidth,
+    wifi: values["Wi-Fi"],
+    fax: values["الفاكس"],
+    speed: values["سرعة الطباعة"],
+    inkSystem: values["نظام الحبر"],
+  };
+})()`);
+assert.deepEqual(mobileWorkForceModal, {
+  fitsViewport: true, overflow: "auto", noHorizontalScroll: true, closeVisible: true,
+  wifi: "اختياري", fax: "اختياري", speed: "40 صفحة/دقيقة", inkSystem: "نظام حبر مؤسسي",
+});
+await page.evaluate("document.querySelector('.product-modal').scrollTop = document.querySelector('.product-modal').scrollHeight");
+assert.equal(await page.evaluate(`(() => {
+  const closeRect = document.querySelector('.modal-close').getBoundingClientRect();
+  return closeRect.top >= 0 && closeRect.bottom <= innerHeight && closeRect.left >= 0 && closeRect.right <= innerWidth;
+})()`), true);
+await page.screenshot("workforce-phase-three-quick-view-mobile.png");
 
 await page.send("Emulation.setDeviceMetricsOverride", { width: 1365, height: 900, deviceScaleFactor: 1, mobile: false });
 await page.navigate("http://localhost:3000/admin");
@@ -483,6 +573,96 @@ const restoredDraft = await page.evaluate(`(() => {
 })()`);
 assert.deepEqual(restoredDraft, { paperSize: "ورق متصل 80 عمود", printerType: "طابعة نقطية", parallel: "yes", serial: "no", optionalInterface: "yes" });
 
+await page.evaluate("document.querySelector('.product-editor button[type=button]').click()");
+await page.evaluate(`(() => {
+  const select = document.querySelector('.product-editor select[required]');
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, 'workforce');
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+})()`);
+await page.waitFor("Boolean(document.querySelector('.workforce-specifications'))");
+const workForceAdminState = await page.evaluate(`(() => {
+  const labels = [...document.querySelectorAll('.printer-specifications-editor label')].filter((label) => label.offsetParent !== null).map((label) => label.textContent.trim());
+  return {
+    family: document.querySelector('input[list="printer-family-options"]').value,
+    hasWifiAvailability: labels.some((label) => label.startsWith('توفر Wi-Fi')),
+    hasFaxMode: labels.some((label) => label.startsWith('توفر الفاكس')),
+    hasInkSystem: labels.some((label) => label.startsWith('نظام الحبر')),
+    hasDuplexScanning: labels.some((label) => label.startsWith('مسح الوجهين')),
+    hasPaperCapacity: labels.some((label) => label.startsWith('سعة الورق القياسية')),
+    hasPrintLanguages: document.querySelector('.printer-specifications-editor')?.textContent.includes('لغات الطباعة') === true,
+    hasEcoMedia: labels.some((label) => label.startsWith('طباعة CD/DVD') || label.startsWith('طباعة البطاقات البلاستيكية')),
+    hasLqFields: labels.some((label) => label.startsWith('عدد الإبر') || label.startsWith('منفذ متوازي Parallel')),
+  };
+})()`);
+assert.deepEqual(workForceAdminState, {
+  family: "Epson WorkForce Pro", hasWifiAvailability: true, hasFaxMode: true, hasInkSystem: true,
+  hasDuplexScanning: true, hasPaperCapacity: true, hasPrintLanguages: true, hasEcoMedia: false, hasLqFields: false,
+});
+await page.evaluate(`(() => {
+  const findControl = (labelText) => [...document.querySelectorAll('.printer-specifications-editor label')]
+    .find((label) => label.textContent.trim().startsWith(labelText))?.querySelector('input,select');
+  const setInput = (input, value) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  const setSelect = (select, value) => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, value);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+  setInput(document.querySelector('.product-editor input[required]'), 'منتج WorkForce محلي');
+  setSelect(findControl('توفر Wi-Fi'), 'optional');
+  setSelect(findControl('توفر الفاكس'), 'optional');
+  setSelect(findControl('نظام الحبر'), 'enterprise');
+  setSelect(findControl('نوع مسح ADF على الوجهين'), 'singlePass');
+  setSelect(findControl('مسح الوجهين'), 'yes');
+  setSelect(findControl('دعم وحدات التشطيب'), 'yes');
+  setInput(findControl('سعة الورق القياسية'), '1150');
+  setInput(findControl('سعة الورق القصوى'), '5150');
+  const pcl6 = [...document.querySelectorAll('.workforce-specifications .admin-check')].find((label) => label.textContent.trim() === 'PCL6')?.querySelector('input');
+  pcl6.click();
+})()`);
+await page.evaluate(`(() => {
+  const category = document.querySelector('.product-editor select[required]');
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(category, 'ecotank');
+  category.dispatchEvent(new Event('change', { bubbles: true }));
+})()`);
+await page.waitFor("!document.querySelector('.workforce-specifications')");
+await page.evaluate(`(() => {
+  const category = document.querySelector('.product-editor select[required]');
+  Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(category, 'workforce');
+  category.dispatchEvent(new Event('change', { bubbles: true }));
+})()`);
+await page.waitFor("Boolean(document.querySelector('.workforce-specifications'))");
+const restoredWorkForceDraft = await page.evaluate(`(() => {
+  const findControl = (labelText) => [...document.querySelectorAll('.printer-specifications-editor label')]
+    .find((label) => label.textContent.trim().startsWith(labelText))?.querySelector('input,select');
+  return {
+    wifiAvailability: findControl('توفر Wi-Fi').value,
+    faxMode: findControl('توفر الفاكس').value,
+    inkSystem: findControl('نظام الحبر').value,
+    adfDuplexType: findControl('نوع مسح ADF على الوجهين').value,
+    duplexScanning: findControl('مسح الوجهين').value,
+    finisherSupport: findControl('دعم وحدات التشطيب').value,
+    standardPaperCapacity: findControl('سعة الورق القياسية').value,
+    maximumPaperCapacity: findControl('سعة الورق القصوى').value,
+    pcl6: [...document.querySelectorAll('.workforce-specifications .admin-check')].find((label) => label.textContent.trim() === 'PCL6')?.querySelector('input').checked,
+  };
+})()`);
+assert.deepEqual(restoredWorkForceDraft, {
+  wifiAvailability: "optional", faxMode: "optional", inkSystem: "enterprise", adfDuplexType: "singlePass",
+  duplexScanning: "yes", finisherSupport: "yes", standardPaperCapacity: "1150", maximumPaperCapacity: "5150", pcl6: true,
+});
+await page.evaluate("document.querySelector('.product-editor button[type=submit]').click()");
+await page.waitFor(`document.querySelectorAll('.products-manager article').length === ${initialAdminProductCount + 3}`);
+await page.evaluate(`(() => {
+  const product = [...document.querySelectorAll('.products-manager article')].find((item) => item.querySelector('b')?.textContent.trim() === 'منتج WorkForce محلي');
+  product.querySelector('button:not(.delete-product)').click();
+})()`);
+await page.waitFor("document.querySelector('.product-editor input[required]').value === 'منتج WorkForce محلي'");
+assert.equal(await page.evaluate(`([...document.querySelectorAll('.printer-specifications-editor label')]
+  .find((label) => label.textContent.trim().startsWith('توفر Wi-Fi'))?.querySelector('select').value)`), "optional");
+await page.screenshot("workforce-phase-three-admin-fields.png");
+
 await page.evaluate(`(() => {
   const textarea = [...document.querySelectorAll('.product-editor textarea')].find((item) => item.closest('label')?.textContent.includes('الوصف القصير'));
   Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(textarea, 'س'.repeat(161));
@@ -490,12 +670,12 @@ await page.evaluate(`(() => {
 })()`);
 await page.waitFor("document.querySelector('.description-counter').classList.contains('over-limit')");
 assert.equal(await page.evaluate("document.querySelector('.admin-field-error[role=alert]').textContent.includes('160')"), true);
-await page.evaluate("document.querySelector('.lq-specifications').scrollIntoView({ block: 'center' })");
+await page.evaluate("document.querySelector('.workforce-specifications').scrollIntoView({ block: 'center' })");
 await page.screenshot("printer-specifications-admin.png");
 
 await page.screenshot("ecotank-phase-two-admin.png");
 assert.deepEqual(page.javascriptErrors, [], `browser JavaScript errors: ${page.javascriptErrors.join(" | ")}`);
 assert.deepEqual(page.resourceErrors, [], `browser resource errors: ${page.resourceErrors.join(" | ")}`);
 
-console.log(JSON.stringify({ liveCounts, testedEcoTankQuickViews: Object.keys(ecoTankQuickViews).length, javascriptErrors: page.javascriptErrors.length, resourceErrors: page.resourceErrors.length, lqQuickView, mobileModal, mobileEcoTankModal, mobileCloseAfterScroll, ecoTankAdminState, restoredEcoTankDraft, lqState, restoredDraft, result: "passed" }, null, 2));
+console.log(JSON.stringify({ liveCounts, testedEcoTankQuickViews: Object.keys(ecoTankQuickViews).length, testedWorkForceQuickViews: Object.keys(workForceQuickViews).length, javascriptErrors: page.javascriptErrors.length, resourceErrors: page.resourceErrors.length, lqQuickView, mobileModal, mobileEcoTankModal, mobileWorkForceModal, mobileCloseAfterScroll, ecoTankAdminState, restoredEcoTankDraft, lqState, restoredDraft, workForceAdminState, restoredWorkForceDraft, result: "passed" }, null, 2));
 page.socket.close();

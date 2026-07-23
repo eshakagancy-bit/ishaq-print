@@ -30,6 +30,7 @@ test("normalizes structured specifications for save and edit without inventing d
     printerType: "طابعة صور",
     functions: ["طباعة", "مسح ضوئي"],
     wifi: true,
+    wifiAvailability: "builtIn",
     ethernet: false,
     colorCount: 6,
     printSpeed: 18.5,
@@ -159,6 +160,78 @@ test("keeps speed visible outside EcoTank categories", () => {
   assert.equal(rows.find((row) => row.key === "print-speed")?.value, "25 صفحة/دقيقة");
 });
 
+test("normalizes WorkForce fields and keeps optional availability distinct from legacy booleans", () => {
+  const optional = normalizePrinterSpecifications({
+    wifi: true,
+    wifiAvailability: "optional",
+    fax: true,
+    faxMode: "optional",
+    inkSystem: "enterprise",
+    duplexScanning: true,
+    adfDuplexType: "singlePass",
+    printLanguages: ["PCL6", "PCL6", "PostScript3", "غير معتمد"],
+    standardPaperCapacity: "1150",
+    maximumPaperCapacity: 5150,
+    finisherSupport: true,
+    nfc: true,
+  });
+  assert.equal(optional?.wifiAvailability, "optional");
+  assert.equal(optional?.faxMode, "optional");
+  assert.equal(optional?.inkSystem, "enterprise");
+  assert.equal(optional?.duplexScanning, true);
+  assert.equal(optional?.adfDuplexType, "singlePass");
+  assert.deepEqual(optional?.printLanguages, ["PCL6", "PostScript3"]);
+  assert.equal(optional?.standardPaperCapacity, 1150);
+  assert.equal(optional?.maximumPaperCapacity, 5150);
+  assert.equal(optional?.finisherSupport, true);
+  assert.equal(optional?.nfc, true);
+
+  assert.equal(normalizePrinterSpecifications({ wifi: true })?.wifiAvailability, "builtIn");
+  assert.equal(normalizePrinterSpecifications({ wifi: false })?.wifiAvailability, "none");
+  assert.equal(normalizePrinterSpecifications({ fax: true })?.faxMode, "builtIn");
+  assert.equal(normalizePrinterSpecifications({ fax: false })?.faxMode, "none");
+});
+
+test("shows WorkForce business fields, optionals and capacities while hiding unrelated media", () => {
+  const rows = buildQuickViewSpecificationRows({
+    printerCategory: "workforce",
+    specifications: {
+      ...createEmptyPrinterSpecifications(),
+      paperSize: "A3",
+      printerType: "متعددة الوظائف",
+      printSpeed: 40,
+      speedUnit: "صفحة/دقيقة",
+      inkType: "حبر صبغي",
+      inkSystem: "enterprise",
+      wifiAvailability: "optional",
+      wifi: null,
+      faxMode: "optional",
+      fax: null,
+      duplexScanning: true,
+      adfDuplexType: "singlePass",
+      standardPaperCapacity: 1150,
+      maximumPaperCapacity: 5150,
+      printLanguages: ["PCL6", "PostScript3"],
+      finisherSupport: true,
+      cdDvdPrinting: true,
+      plasticCardPrinting: true,
+      photoPrintTimeSeconds: 25,
+    },
+  });
+
+  assert.equal(rows.find((row) => row.key === "wifi-availability")?.value, "اختياري");
+  assert.equal(rows.find((row) => row.key === "fax-mode")?.value, "اختياري");
+  assert.equal(rows.find((row) => row.key === "print-speed")?.value, "40 صفحة/دقيقة");
+  assert.equal(rows.find((row) => row.key === "ink-system")?.value, "نظام حبر مؤسسي");
+  assert.equal(rows.find((row) => row.key === "standard-paper-capacity")?.value, "1150 ورقة");
+  assert.equal(rows.find((row) => row.key === "maximum-paper-capacity")?.value, "5150 ورقة");
+  assert.equal(rows.find((row) => row.key === "print-languages")?.value, "PCL6، PostScript3");
+  assert.equal(rows.find((row) => row.key === "adf-duplex-type")?.value, "مسح الوجهين بتمرير واحد");
+  for (const hidden of ["cd-dvd-printing", "plastic-card-printing", "photo-print-time"]) {
+    assert.equal(rows.some((row) => row.key === hidden), false);
+  }
+});
+
 test("keeps cards concise and uses legacy values only without structured specifications", () => {
   assert.deepEqual(getProductCardSpecificationTags({
     specifications: { ...createEmptyPrinterSpecifications(), paperSize: "A3", printerType: "طباعة فقط", wifi: true },
@@ -167,4 +240,8 @@ test("keeps cards concise and uses legacy values only without structured specifi
   }), ["A3", "طباعة فقط"]);
   assert.deepEqual(getProductCardSpecificationTags({ size: "A4", type: "متعددة الوظائف" }), ["A4", "متعددة الوظائف"]);
   assert.deepEqual(getProductCardSpecificationTags({ specifications: createEmptyPrinterSpecifications(), size: "A4", type: "متعددة الوظائف" }), []);
+  assert.deepEqual(getProductCardSpecificationTags({
+    printerCategory: "workforce",
+    specifications: { ...createEmptyPrinterSpecifications(), paperSize: "A4", printerType: "طباعة فقط", printSpeed: 25, speedUnit: "صفحة/دقيقة" },
+  }), ["A4", "طباعة فقط", "25 صفحة/دقيقة"]);
 });

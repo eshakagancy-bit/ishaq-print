@@ -2,6 +2,9 @@ import type { PrinterCategory } from "./printer-categories";
 
 export type TriState = boolean | null;
 export type DuplexMode = "none" | "manual" | "automatic" | null;
+export type InkSystem = "cartridges" | "rips" | "enterprise" | null;
+export type AvailabilityMode = "builtIn" | "optional" | "none" | null;
+export type AdfDuplexType = "singlePass" | "reversing" | "simplex" | null;
 
 export type PrinterSpecifications = {
   paperSize: string | null;
@@ -11,7 +14,9 @@ export type PrinterSpecifications = {
   colorCount: number | null;
   colorMode: string | null;
   wifi: TriState;
+  wifiAvailability: AvailabilityMode;
   wifiDirect: TriState;
+  nfc: TriState;
   ethernet: TriState;
   usb: TriState;
   parallel: TriState;
@@ -19,19 +24,27 @@ export type PrinterSpecifications = {
   optionalInterface: TriState;
   scanner: TriState;
   fax: TriState;
+  faxMode: AvailabilityMode;
   duplex: TriState;
   duplexMode: DuplexMode;
   adf: TriState;
   adfCapacity: number | null;
+  duplexScanning: TriState;
+  adfDuplexType: AdfDuplexType;
   printSpeed: number | null;
   speedUnit: string | null;
   inkType: string | null;
+  inkSystem: InkSystem;
   borderless: TriState;
   mobilePrinting: TriState;
   cdDvdPrinting: TriState;
   plasticCardPrinting: TriState;
   photoPrintTimeSeconds: number | null;
   usage: string[];
+  printLanguages: string[];
+  standardPaperCapacity: number | null;
+  maximumPaperCapacity: number | null;
+  finisherSupport: TriState;
   dotMatrixPins: number | null;
   printColumns: number | null;
   multipartCopies: number | null;
@@ -39,19 +52,20 @@ export type PrinterSpecifications = {
 };
 
 export const PRINTER_FAMILY_OPTIONS = [
-  "WorkForce Pro",
-  "WorkForce Enterprise",
+  "Epson WorkForce",
+  "Epson WorkForce Pro",
+  "Epson WorkForce Enterprise",
   "Epson EcoTank",
   "Epson EcoTank Photo",
   "Epson LQ",
   "Epson FX",
 ] as const;
 
-export const PAPER_SIZE_OPTIONS = ["A4", "A3", "A3+", "A5", "ورق متصل 80 عمود", "ورق متصل 106 أعمدة", "أخرى"] as const;
+export const PAPER_SIZE_OPTIONS = ["A4", "A3", "A3+", "A3+/SRA3", "A5", "ورق متصل 80 عمود", "ورق متصل 106 أعمدة", "أخرى"] as const;
 export const PRINTER_TYPE_OPTIONS = ["طباعة فقط", "متعددة الوظائف", "طابعة صور", "متعددة الوظائف للصور", "طابعة نقطية"] as const;
 export const PRINTER_FUNCTION_OPTIONS = ["طباعة", "نسخ", "مسح ضوئي", "فاكس"] as const;
 export const SPEED_UNIT_OPTIONS = ["صفحة/دقيقة", "صورة/دقيقة", "حرف/ثانية"] as const;
-export const INK_TYPE_OPTIONS = ["خزانات حبر", "أكياس حبر", "خراطيش حبر", "DURABrite ET صبغي", "Dye", "أسود صبغي وألوان Dye", "صبغي", "أسود صبغي، أسود صور، وألوان Dye", "شريط طباعة"] as const;
+export const INK_TYPE_OPTIONS = ["خزانات حبر", "أكياس حبر", "خراطيش حبر", "حبر صبغي", "DURABrite ET صبغي", "Dye", "أسود صبغي وألوان Dye", "صبغي", "أسود صبغي، أسود صور، وألوان Dye", "شريط طباعة"] as const;
 export const PRINTER_USAGE_OPTIONS = [
   "شخصي", "مكتبي", "شركات ومؤسسات", "تصوير فوتوجرافي", "فواتير وسندات",
   "مكاتب", "طباعة A3+", "أحجام طباعة مرتفعة", "أعمال", "مجموعات عمل",
@@ -76,6 +90,37 @@ export const DUPLEX_MODE_OPTIONS = [
   { value: "none", label: "لا يوجد" },
   { value: "manual", label: "يدوي" },
   { value: "automatic", label: "تلقائي" },
+] as const;
+
+export const INK_SYSTEM_OPTIONS = [
+  { value: "unknown", label: "غير محدد" },
+  { value: "cartridges", label: "خراطيش" },
+  { value: "rips", label: "نظام أكياس حبر RIPS" },
+  { value: "enterprise", label: "نظام حبر مؤسسي" },
+] as const;
+
+export const AVAILABILITY_MODE_OPTIONS = [
+  { value: "unknown", label: "غير محدد" },
+  { value: "builtIn", label: "مدمج" },
+  { value: "optional", label: "اختياري" },
+  { value: "none", label: "غير متوفر" },
+] as const;
+
+export const ADF_DUPLEX_TYPE_OPTIONS = [
+  { value: "unknown", label: "غير محدد" },
+  { value: "singlePass", label: "مسح الوجهين بتمرير واحد" },
+  { value: "reversing", label: "مسح الوجهين بعكس الورقة" },
+  { value: "simplex", label: "مسح وجه واحد" },
+] as const;
+
+export const PRINT_LANGUAGE_OPTIONS = [
+  "PCL",
+  "PCL5",
+  "PCL5c",
+  "PCL6",
+  "PostScript3",
+  "PDF1.7",
+  "ESC/P-R",
 ] as const;
 
 export const BOOLEAN_SPECIFICATION_FIELDS = [
@@ -111,7 +156,9 @@ export function createEmptyPrinterSpecifications(): PrinterSpecifications {
     colorCount: null,
     colorMode: null,
     wifi: null,
+    wifiAvailability: null,
     wifiDirect: null,
+    nfc: null,
     ethernet: null,
     usb: null,
     parallel: null,
@@ -119,19 +166,27 @@ export function createEmptyPrinterSpecifications(): PrinterSpecifications {
     optionalInterface: null,
     scanner: null,
     fax: null,
+    faxMode: null,
     duplex: null,
     duplexMode: null,
     adf: null,
     adfCapacity: null,
+    duplexScanning: null,
+    adfDuplexType: null,
     printSpeed: null,
     speedUnit: null,
     inkType: null,
+    inkSystem: null,
     borderless: null,
     mobilePrinting: null,
     cdDvdPrinting: null,
     plasticCardPrinting: null,
     photoPrintTimeSeconds: null,
     usage: [],
+    printLanguages: [],
+    standardPaperCapacity: null,
+    maximumPaperCapacity: null,
+    finisherSupport: null,
     dotMatrixPins: null,
     printColumns: null,
     multipartCopies: null,
@@ -158,6 +213,18 @@ function nullableDuplexMode(value: unknown): DuplexMode {
   return value === "none" || value === "manual" || value === "automatic" ? value : null;
 }
 
+function nullableInkSystem(value: unknown): InkSystem {
+  return value === "cartridges" || value === "rips" || value === "enterprise" ? value : null;
+}
+
+function nullableAvailabilityMode(value: unknown): AvailabilityMode {
+  return value === "builtIn" || value === "optional" || value === "none" ? value : null;
+}
+
+function nullableAdfDuplexType(value: unknown): AdfDuplexType {
+  return value === "singlePass" || value === "reversing" || value === "simplex" ? value : null;
+}
+
 function stringList(value: unknown, allowed?: readonly string[]) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map(String).map((item) => item.trim()).filter((item) => item && (!allowed || allowed.includes(item))))].slice(0, 12);
@@ -167,6 +234,8 @@ export function normalizePrinterSpecifications(value: unknown): PrinterSpecifica
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const input = value as Record<string, unknown>;
   const duplex = nullableBoolean(input.duplex);
+  const wifi = nullableBoolean(input.wifi);
+  const fax = nullableBoolean(input.fax);
   return {
     paperSize: nullableText(input.paperSize),
     printerType: nullableText(input.printerType),
@@ -174,28 +243,38 @@ export function normalizePrinterSpecifications(value: unknown): PrinterSpecifica
     printTechnology: nullableText(input.printTechnology),
     colorCount: nullableNumber(input.colorCount),
     colorMode: nullableText(input.colorMode),
-    wifi: nullableBoolean(input.wifi),
+    wifi,
+    wifiAvailability: nullableAvailabilityMode(input.wifiAvailability) ?? (wifi === true ? "builtIn" : wifi === false ? "none" : null),
     wifiDirect: nullableBoolean(input.wifiDirect),
+    nfc: nullableBoolean(input.nfc),
     ethernet: nullableBoolean(input.ethernet),
     usb: nullableBoolean(input.usb),
     parallel: nullableBoolean(input.parallel),
     serial: nullableBoolean(input.serial),
     optionalInterface: nullableBoolean(input.optionalInterface),
     scanner: nullableBoolean(input.scanner),
-    fax: nullableBoolean(input.fax),
+    fax,
+    faxMode: nullableAvailabilityMode(input.faxMode) ?? (fax === true ? "builtIn" : fax === false ? "none" : null),
     duplex,
     duplexMode: nullableDuplexMode(input.duplexMode) ?? (duplex === true ? "automatic" : null),
     adf: nullableBoolean(input.adf),
     adfCapacity: nullableNumber(input.adfCapacity),
+    duplexScanning: nullableBoolean(input.duplexScanning),
+    adfDuplexType: nullableAdfDuplexType(input.adfDuplexType),
     printSpeed: nullableNumber(input.printSpeed),
     speedUnit: nullableText(input.speedUnit),
     inkType: nullableText(input.inkType),
+    inkSystem: nullableInkSystem(input.inkSystem),
     borderless: nullableBoolean(input.borderless),
     mobilePrinting: nullableBoolean(input.mobilePrinting),
     cdDvdPrinting: nullableBoolean(input.cdDvdPrinting),
     plasticCardPrinting: nullableBoolean(input.plasticCardPrinting),
     photoPrintTimeSeconds: nullableNumber(input.photoPrintTimeSeconds),
     usage: stringList(input.usage, PRINTER_USAGE_OPTIONS),
+    printLanguages: stringList(input.printLanguages, PRINT_LANGUAGE_OPTIONS),
+    standardPaperCapacity: nullableNumber(input.standardPaperCapacity),
+    maximumPaperCapacity: nullableNumber(input.maximumPaperCapacity),
+    finisherSupport: nullableBoolean(input.finisherSupport),
     dotMatrixPins: nullableNumber(input.dotMatrixPins),
     printColumns: nullableNumber(input.printColumns),
     multipartCopies: nullableNumber(input.multipartCopies),
@@ -219,8 +298,32 @@ export function formValueToDuplexMode(value: string): DuplexMode {
   return value === "none" || value === "manual" || value === "automatic" ? value : null;
 }
 
+export function availabilityModeToFormValue(value: AvailabilityMode) {
+  return value ?? "unknown";
+}
+
+export function formValueToAvailabilityMode(value: string): AvailabilityMode {
+  return value === "builtIn" || value === "optional" || value === "none" ? value : null;
+}
+
+export function inkSystemToFormValue(value: InkSystem) {
+  return value ?? "unknown";
+}
+
+export function formValueToInkSystem(value: string): InkSystem {
+  return value === "cartridges" || value === "rips" || value === "enterprise" ? value : null;
+}
+
+export function adfDuplexTypeToFormValue(value: AdfDuplexType) {
+  return value ?? "unknown";
+}
+
+export function formValueToAdfDuplexType(value: string): AdfDuplexType {
+  return value === "singlePass" || value === "reversing" || value === "simplex" ? value : null;
+}
+
 export function suggestPrinterFamily(category: PrinterCategory | undefined) {
-  if (category === "workforce") return "WorkForce Pro";
+  if (category === "workforce") return "Epson WorkForce Pro";
   if (category === "ecotank") return "Epson EcoTank";
   if (category === "ecotank-6-color") return "Epson EcoTank Photo";
   if (category === "lq") return "Epson LQ";
@@ -266,6 +369,21 @@ const duplexModeLabels: Record<Exclude<DuplexMode, null>, string> = {
   manual: "طباعة يدوية على الوجهين",
   automatic: "طباعة تلقائية على الوجهين",
 };
+const availabilityModeLabels: Record<Exclude<AvailabilityMode, null>, string> = {
+  builtIn: "مدمج",
+  optional: "اختياري",
+  none: "غير متوفر",
+};
+const inkSystemLabels: Record<Exclude<InkSystem, null>, string> = {
+  cartridges: "خراطيش",
+  rips: "نظام أكياس حبر RIPS",
+  enterprise: "نظام حبر مؤسسي",
+};
+const adfDuplexTypeLabels: Record<Exclude<AdfDuplexType, null>, string> = {
+  singlePass: "مسح الوجهين بتمرير واحد",
+  reversing: "مسح الوجهين بعكس الورقة",
+  simplex: "مسح وجه واحد",
+};
 
 function yesNoRow(key: string, label: string, value: TriState): SpecificationDisplayRow | null {
   if (value === null) return null;
@@ -283,7 +401,10 @@ function formatRibbonYield(value: number) {
 
 export function getProductCardSpecificationTags(product: ProductSpecificationDisplayInput) {
   if (product.specifications) {
-    return [product.specifications.paperSize, product.specifications.printerType].filter((value): value is string => Boolean(value));
+    const speed = product.printerCategory === "workforce" && product.specifications.printSpeed !== null
+      ? `${product.specifications.printSpeed}${product.specifications.speedUnit ? ` ${product.specifications.speedUnit}` : ""}`
+      : null;
+    return [product.specifications.paperSize, product.specifications.printerType, speed].filter((value): value is string => Boolean(value));
   }
   return [product.size, product.type].map((value) => value?.trim()).filter((value): value is string => Boolean(value));
 }
@@ -300,6 +421,7 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
 
   const isDotMatrix = product.printerCategory === "lq" || specifications.printerType === "طابعة نقطية";
   const isEcoTank = product.printerCategory === "ecotank" || product.printerCategory === "ecotank-6-color";
+  const isWorkForce = product.printerCategory === "workforce";
   const functionValue = isDotMatrix && specifications.functions.length === 1 && specifications.functions[0] === "طباعة"
     ? "طباعة فقط"
     : specifications.functions.join("، ");
@@ -308,8 +430,11 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
     specifications.paperSize ? { key: "paper-size", label: "مقاس الورق", value: specifications.paperSize } : null,
     specifications.printerType ? { key: "printer-type", label: "نوع الطابعة", value: specifications.printerType } : null,
     specifications.printTechnology ? { key: "technology", label: "تقنية الطباعة", value: specifications.printTechnology } : null,
-    yesNoRow("wifi", "Wi-Fi", specifications.wifi),
-    isEcoTank ? yesNoRow("wifi-direct", "Wi-Fi Direct", specifications.wifiDirect) : null,
+    isWorkForce && specifications.wifiAvailability
+      ? { key: "wifi-availability", label: "Wi-Fi", value: availabilityModeLabels[specifications.wifiAvailability] }
+      : yesNoRow("wifi", "Wi-Fi", specifications.wifi),
+    isEcoTank || isWorkForce ? yesNoRow("wifi-direct", "Wi-Fi Direct", specifications.wifiDirect) : null,
+    isWorkForce ? yesNoRow("nfc", "NFC", specifications.nfc) : null,
     yesNoRow("ethernet", "Ethernet", specifications.ethernet),
     yesNoRow("usb", "USB", specifications.usb),
     isDotMatrix ? yesNoRow("parallel", "منفذ متوازي Parallel", specifications.parallel) : null,
@@ -317,11 +442,15 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
     isDotMatrix ? yesNoRow("optional-interface", "يدعم واجهة اتصال اختيارية", specifications.optionalInterface) : null,
     !isDotMatrix ? yesNoRow("mobile-printing", "الطباعة من الجوال", specifications.mobilePrinting) : null,
     !isDotMatrix ? yesNoRow("scanner", "الماسح الضوئي", specifications.scanner) : null,
-    !isDotMatrix ? yesNoRow("fax", "الفاكس", specifications.fax) : null,
+    !isDotMatrix && isWorkForce && specifications.faxMode
+      ? { key: "fax-mode", label: "الفاكس", value: availabilityModeLabels[specifications.faxMode] }
+      : !isDotMatrix ? yesNoRow("fax", "الفاكس", specifications.fax) : null,
     !isDotMatrix && specifications.duplexMode ? { key: "duplex-mode", label: "وضع الطباعة على الوجهين", value: duplexModeLabels[specifications.duplexMode] } : null,
     !isDotMatrix && !specifications.duplexMode ? yesNoRow("duplex", "الطباعة التلقائية على الوجهين", specifications.duplex) : null,
     !isDotMatrix ? yesNoRow("adf", "ADF", specifications.adf) : null,
-    !isDotMatrix && specifications.adfCapacity !== null ? { key: "adf-capacity", label: "سعة ADF", value: `${specifications.adfCapacity}` } : null,
+    !isDotMatrix && specifications.adfCapacity !== null ? { key: "adf-capacity", label: "سعة ADF", value: `${specifications.adfCapacity} ورقة` } : null,
+    isWorkForce ? yesNoRow("duplex-scanning", "مسح الوجهين", specifications.duplexScanning) : null,
+    isWorkForce && specifications.adfDuplexType ? { key: "adf-duplex-type", label: "نوع مسح ADF", value: adfDuplexTypeLabels[specifications.adfDuplexType] } : null,
     !isDotMatrix && specifications.colorCount !== null ? { key: "color-count", label: "عدد الألوان", value: `${specifications.colorCount} ألوان` } : null,
     !isDotMatrix && specifications.colorMode ? { key: "color-mode", label: "نمط الألوان", value: specifications.colorMode } : null,
     !isEcoTank && specifications.printSpeed !== null ? {
@@ -330,6 +459,11 @@ export function buildQuickViewSpecificationRows(product: ProductSpecificationDis
       value: `${specifications.printSpeed}${specifications.speedUnit ? ` ${speedUnitLabels[specifications.speedUnit] ?? specifications.speedUnit}` : ""}`,
     } : null,
     specifications.inkType ? { key: "ink-type", label: isDotMatrix ? "نوع المستهلك" : "نوع الحبر", value: specifications.inkType } : null,
+    isWorkForce && specifications.inkSystem ? { key: "ink-system", label: "نظام الحبر", value: inkSystemLabels[specifications.inkSystem] } : null,
+    isWorkForce && specifications.standardPaperCapacity !== null ? { key: "standard-paper-capacity", label: "سعة الورق القياسية", value: `${specifications.standardPaperCapacity} ورقة` } : null,
+    isWorkForce && specifications.maximumPaperCapacity !== null ? { key: "maximum-paper-capacity", label: "سعة الورق القصوى", value: `${specifications.maximumPaperCapacity} ورقة` } : null,
+    isWorkForce && specifications.printLanguages.length ? { key: "print-languages", label: "لغات الطباعة", value: specifications.printLanguages.join("، ") } : null,
+    isWorkForce ? yesNoRow("finisher-support", "دعم وحدات التشطيب", specifications.finisherSupport) : null,
     !isDotMatrix ? yesNoRow("borderless", "الطباعة بدون حواف", specifications.borderless) : null,
     isEcoTank ? yesNoRow("cd-dvd-printing", "طباعة CD/DVD", specifications.cdDvdPrinting) : null,
     isEcoTank ? yesNoRow("plastic-card-printing", "طباعة البطاقات البلاستيكية", specifications.plasticCardPrinting) : null,

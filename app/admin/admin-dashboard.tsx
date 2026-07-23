@@ -9,12 +9,16 @@ import { optimizeImageForUpload } from "../image-upload-optimizer";
 import { businessWeekdays, formatArabicBusinessHours, normalizeBusinessTime, sanitizePhoneNumber } from "../business-hours";
 import { PRINTER_CATEGORIES, getPrinterCategoryLabel, isPrinterCategory, resolvePrinterCategory } from "../printer-categories";
 import {
+  ADF_DUPLEX_TYPE_OPTIONS,
+  AVAILABILITY_MODE_OPTIONS,
   BOOLEAN_SPECIFICATION_FIELDS,
   DUPLEX_MODE_OPTIONS,
   ECOTANK_BOOLEAN_SPECIFICATION_FIELDS,
+  INK_SYSTEM_OPTIONS,
   INK_TYPE_OPTIONS,
   LQ_INTERFACE_SPECIFICATION_FIELDS,
   PAPER_SIZE_OPTIONS,
+  PRINT_LANGUAGE_OPTIONS,
   PRICE_MODE_OPTIONS,
   PRINTER_FAMILY_OPTIONS,
   PRINTER_FUNCTION_OPTIONS,
@@ -23,10 +27,16 @@ import {
   PRODUCT_BADGE_OPTIONS,
   SPEED_UNIT_OPTIONS,
   TRI_STATE_OPTIONS,
+  adfDuplexTypeToFormValue,
+  availabilityModeToFormValue,
   createEmptyPrinterSpecifications,
   duplexModeToFormValue,
+  formValueToAdfDuplexType,
+  formValueToAvailabilityMode,
+  formValueToInkSystem,
   formValueToTriState,
   formValueToDuplexMode,
+  inkSystemToFormValue,
   suggestPrinterFamily,
   triStateToFormValue,
   type PriceMode,
@@ -610,17 +620,20 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
   const specifications = product.specifications ?? createEmptyPrinterSpecifications();
   const isLq = product.printerCategory === "lq";
   const isEcoTank = product.printerCategory === "ecotank" || product.printerCategory === "ecotank-6-color";
+  const isWorkForce = product.printerCategory === "workforce";
   const updateSpecifications = (patch: Partial<PrinterSpecifications>) => onChange({
     specifications: { ...specifications, ...patch },
   });
-  const toggleListValue = (key: "functions" | "usage", value: string) => {
+  const toggleListValue = (key: "functions" | "usage" | "printLanguages", value: string) => {
     const values = specifications[key];
     updateSpecifications({ [key]: values.includes(value) ? values.filter((item) => item !== value) : [...values, value] });
   };
   const numberOrNull = (value: string) => value === "" ? null : Number(value);
-  const connectionFields = BOOLEAN_SPECIFICATION_FIELDS.slice(0, 4);
+  const connectionFields = BOOLEAN_SPECIFICATION_FIELDS.slice(0, 4).filter((field) => !isWorkForce || field.key !== "wifi");
   const propertyFields = BOOLEAN_SPECIFICATION_FIELDS.slice(4).filter((field) =>
-    (!isLq || (field.key !== "scanner" && field.key !== "adf")) && (!isEcoTank || field.key !== "duplex")
+    (!isLq || (field.key !== "scanner" && field.key !== "adf"))
+      && (!(isEcoTank || isWorkForce) || field.key !== "duplex")
+      && (!isWorkForce || field.key !== "fax")
   );
 
   return <fieldset className="printer-specifications-editor">
@@ -641,9 +654,42 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
 
     <div className="admin-option-group"><span>الاتصال</span><div className="admin-tristate-grid">{connectionFields.map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div>
     {isEcoTank && <div className="admin-option-group"><span>اتصال EcoTank</span><div className="admin-tristate-grid"><TriStateField label={ECOTANK_BOOLEAN_SPECIFICATION_FIELDS[0].label} value={specifications.wifiDirect} onChange={(value) => updateSpecifications({ wifiDirect: value })} /></div></div>}
+    {isWorkForce && <div className="admin-option-group workforce-specifications"><span>اتصال WorkForce</span><div className="admin-tristate-grid">
+      <label>توفر Wi-Fi<select value={availabilityModeToFormValue(specifications.wifiAvailability)} onChange={(event) => {
+        const wifiAvailability = formValueToAvailabilityMode(event.target.value);
+        updateSpecifications({ wifiAvailability, wifi: wifiAvailability === "builtIn" ? true : wifiAvailability === "none" ? false : null });
+      }}>{AVAILABILITY_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+      <TriStateField label="Wi-Fi Direct" value={specifications.wifiDirect} onChange={(value) => updateSpecifications({ wifiDirect: value })} />
+      <TriStateField label="NFC" value={specifications.nfc} onChange={(value) => updateSpecifications({ nfc: value })} />
+    </div></div>}
     <div className="admin-option-group"><span>الخصائص</span><div className="admin-tristate-grid">{propertyFields.map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div>
 
-    {isEcoTank && <><label>وضع الدوبلكس<select value={duplexModeToFormValue(specifications.duplexMode)} onChange={(event) => updateSpecifications({ duplexMode: formValueToDuplexMode(event.target.value) })}>{DUPLEX_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><div className="admin-option-group"><span>وسائط EcoTank</span><div className="admin-tristate-grid">{ECOTANK_BOOLEAN_SPECIFICATION_FIELDS.slice(1).map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div></>}
+    {(isEcoTank || isWorkForce) && <label>وضع الدوبلكس<select value={duplexModeToFormValue(specifications.duplexMode)} onChange={(event) => {
+      const duplexMode = formValueToDuplexMode(event.target.value);
+      updateSpecifications({ duplexMode, duplex: duplexMode === "automatic" ? true : duplexMode === "none" ? false : null });
+    }}>{DUPLEX_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
+    {isEcoTank && <div className="admin-option-group"><span>وسائط EcoTank</span><div className="admin-tristate-grid">{ECOTANK_BOOLEAN_SPECIFICATION_FIELDS.slice(1).map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div>}
+
+    {isWorkForce && <div className="workforce-specifications">
+      <h3>مواصفات WorkForce للأعمال</h3>
+      <div className="admin-three-columns">
+        <label>نظام الحبر<select value={inkSystemToFormValue(specifications.inkSystem)} onChange={(event) => updateSpecifications({ inkSystem: formValueToInkSystem(event.target.value) })}>{INK_SYSTEM_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        <label>توفر الفاكس<select value={availabilityModeToFormValue(specifications.faxMode)} onChange={(event) => {
+          const faxMode = formValueToAvailabilityMode(event.target.value);
+          updateSpecifications({ faxMode, fax: faxMode === "builtIn" ? true : faxMode === "none" ? false : null });
+        }}>{AVAILABILITY_MODE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        <label>نوع مسح ADF على الوجهين<select value={adfDuplexTypeToFormValue(specifications.adfDuplexType)} onChange={(event) => updateSpecifications({ adfDuplexType: formValueToAdfDuplexType(event.target.value) })}>{ADF_DUPLEX_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+      </div>
+      <div className="admin-tristate-grid">
+        <TriStateField label="مسح الوجهين" value={specifications.duplexScanning} onChange={(value) => updateSpecifications({ duplexScanning: value })} />
+        <TriStateField label="دعم وحدات التشطيب" value={specifications.finisherSupport} onChange={(value) => updateSpecifications({ finisherSupport: value })} />
+      </div>
+      <div className="admin-two-columns">
+        <label>سعة الورق القياسية<input type="number" min="0" value={specifications.standardPaperCapacity ?? ""} onChange={(event) => updateSpecifications({ standardPaperCapacity: numberOrNull(event.target.value) })} /></label>
+        <label>سعة الورق القصوى<input type="number" min="0" value={specifications.maximumPaperCapacity ?? ""} onChange={(event) => updateSpecifications({ maximumPaperCapacity: numberOrNull(event.target.value) })} /></label>
+      </div>
+      <div className="admin-option-group"><span>لغات الطباعة</span><div className="admin-options-grid">{PRINT_LANGUAGE_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.printLanguages.includes(option)} onChange={() => toggleListValue("printLanguages", option)} /> {option}</label>)}</div></div>
+    </div>}
 
     <div className="admin-three-columns">
       {!isLq && <label>عدد الألوان<input type="number" min="0" value={specifications.colorCount ?? ""} onChange={(event) => updateSpecifications({ colorCount: numberOrNull(event.target.value) })} /></label>}
