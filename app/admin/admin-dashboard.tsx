@@ -43,6 +43,22 @@ import {
   type PrinterSpecifications,
   type TriState,
 } from "../printer-specifications";
+import {
+  PAPER_AVAILABILITY_OPTIONS,
+  PAPER_PRINTER_COMPATIBILITY_OPTIONS,
+  PAPER_PRINT_SIDE_OPTIONS,
+  PAPER_SIZE_OPTIONS as PAPER_PRODUCT_SIZE_OPTIONS,
+  PAPER_SURFACE_OPTIONS,
+  PAPER_TYPE_OPTIONS,
+  PAPER_USAGE_OPTIONS,
+  createEmptyPaperSpecifications,
+  isDoubleSidePaperType,
+  isSelfAdhesivePaperType,
+  isSublimationPaperType,
+  type PaperAvailability,
+  type PaperPrintSides,
+  type PaperSpecifications,
+} from "../paper-specifications";
 import { defaultHeroSettings, defaultSiteSettings, type HeroSettings, type HeroSlide, type SiteSettings, type StoredProduct } from "../site-defaults";
 
 const categories = [
@@ -54,7 +70,8 @@ const categories = [
 
 const emptyProduct: StoredProduct = {
   id: 0, name: "", family: "", image: "", category: "printers", type: "", size: "",
-  printerCategory: undefined, badge: "", price: "", description: "", features: [], specifications: undefined,
+  printerCategory: undefined, badge: "", price: "", description: "", features: [],
+  specifications: undefined, paperSpecifications: undefined,
 };
 
 const emptyHeroSlide: HeroSlide = {
@@ -198,6 +215,8 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       ...current,
       category,
       printerCategory: category === "printers" ? current.printerCategory : undefined,
+      specifications: category === "printers" ? current.specifications : undefined,
+      paperSpecifications: category === "papers" ? current.paperSpecifications : undefined,
     }));
     setPrinterCategoryError("");
     markDirty("product-form");
@@ -595,10 +614,11 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
           <option value="">اختر فئة الطابعة</option>
           {PRINTER_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
         </select>{printerCategoryError && <span className="admin-field-error" id="printer-category-error" role="alert">{printerCategoryError}</span>}</label>}
-        <label>اسم المنتج<input required value={productForm.name} onChange={(e) => updateProductForm({ name: e.target.value })} /></label>
-        <label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
-        <datalist id="printer-family-options">{PRINTER_FAMILY_OPTIONS.map((family) => <option key={family} value={family} />)}</datalist>
+        {productForm.category !== "papers" && <label>اسم المنتج<input required value={productForm.name} onChange={(e) => updateProductForm({ name: e.target.value })} /></label>}
+        {productForm.category !== "papers" && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
+        <datalist id="printer-family-options">{PRINTER_FAMILY_OPTIONS.map((family) => <option key={family} value={family} />)}</datalist></>}
         {productForm.category === "printers" && <PrinterSpecificationsEditor product={productForm} onChange={updateProductForm} />}
+        {productForm.category === "papers" && <PaperSpecificationsEditor product={productForm} onChange={updateProductForm} />}
         <div className="admin-two-columns"><label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label><label>نمط السعر<select value={priceMode} onChange={(event) => {
           const mode = event.target.value as PriceMode;
           setPriceMode(mode);
@@ -614,6 +634,101 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
     </section>}
   </main>;
+}
+
+function PaperSpecificationsEditor({ product, onChange }: { product: StoredProduct; onChange: (patch: Partial<StoredProduct>) => void }) {
+  const specifications = product.paperSpecifications ?? {
+    ...createEmptyPaperSpecifications(),
+    nameAr: product.name || null,
+    brand: product.family || null,
+    paperType: product.type || null,
+    size: product.size || null,
+  };
+  const updateSpecifications = (patch: Partial<PaperSpecifications>, productPatch: Partial<StoredProduct> = {}) => onChange({
+    ...productPatch,
+    paperSpecifications: { ...specifications, ...patch },
+  });
+  const numberOrNull = (value: string) => value === "" ? null : Number(value);
+  const toggleListValue = (key: "printerCompatibility" | "uses", value: string) => {
+    const values = specifications[key];
+    updateSpecifications({ [key]: values.includes(value) ? values.filter((item) => item !== value) : [...values, value] });
+  };
+  const customUses = specifications.uses.filter((value) => !PAPER_USAGE_OPTIONS.includes(value as typeof PAPER_USAGE_OPTIONS[number]));
+
+  return <fieldset className="printer-specifications-editor paper-specifications-editor">
+    <legend>مواصفات الأوراق المنظمة</legend>
+    <p className="admin-help-text">أدخل المواصفات المتاحة فقط. ستظهر أهم أربع مواصفات في البطاقة، وبقية التفاصيل داخل صفحة المنتج.</p>
+
+    <div className="admin-two-columns">
+      <label>الاسم العربي<input required value={specifications.nameAr ?? ""} onChange={(event) => {
+        const nameAr = event.target.value;
+        updateSpecifications({ nameAr: nameAr || null }, { name: nameAr || specifications.nameEn || "" });
+      }} /></label>
+      <label>الاسم الإنجليزي<input dir="ltr" value={specifications.nameEn ?? ""} onChange={(event) => {
+        const nameEn = event.target.value;
+        updateSpecifications({ nameEn: nameEn || null }, { name: specifications.nameAr || nameEn });
+      }} /></label>
+    </div>
+
+    <div className="admin-two-columns">
+      <label>العلامة التجارية<input value={specifications.brand ?? ""} onChange={(event) => {
+        const brand = event.target.value;
+        updateSpecifications({ brand: brand || null }, { family: [brand, specifications.series].filter(Boolean).join(" ") });
+      }} /></label>
+      <label>السلسلة<input value={specifications.series ?? ""} onChange={(event) => {
+        const series = event.target.value;
+        updateSpecifications({ series: series || null }, { family: [specifications.brand, series].filter(Boolean).join(" ") });
+      }} /></label>
+    </div>
+
+    <div className="admin-two-columns">
+      <label>نوع الورق<select value={specifications.paperType ?? ""} onChange={(event) => {
+        const paperType = event.target.value || null;
+        updateSpecifications({
+          paperType,
+          printSides: isDoubleSidePaperType(paperType) ? "double" : specifications.printSides,
+          selfAdhesive: isSelfAdhesivePaperType(paperType) ? true : null,
+          thermalTransfer: isSublimationPaperType(paperType) ? specifications.thermalTransfer : null,
+          inkCompatibility: isSublimationPaperType(paperType) ? specifications.inkCompatibility : null,
+          quickDry: isSublimationPaperType(paperType) ? specifications.quickDry : null,
+        }, { type: paperType ?? "" });
+      }}><option value="">غير محدد</option>{PAPER_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+      <label>السطح<select value={specifications.surface ?? ""} onChange={(event) => updateSpecifications({ surface: event.target.value || null })}><option value="">غير محدد</option>{PAPER_SURFACE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+    </div>
+
+    <div className="admin-two-columns">
+      <label>المقاس<select value={specifications.size ?? ""} onChange={(event) => {
+        const size = event.target.value || null;
+        updateSpecifications({ size }, { size: size ?? "" });
+      }}><option value="">غير محدد</option>{PAPER_PRODUCT_SIZE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+      <label>الأبعاد<input dir="ltr" value={specifications.dimensions ?? ""} onChange={(event) => updateSpecifications({ dimensions: event.target.value || null })} placeholder="210 × 297 mm" /></label>
+    </div>
+
+    <div className="admin-three-columns">
+      <label>الوزن gsm<input type="number" min="0" step="any" value={specifications.weightGsm ?? ""} onChange={(event) => updateSpecifications({ weightGsm: numberOrNull(event.target.value) })} /></label>
+      <label>عدد الأوراق<input type="number" min="0" value={specifications.sheetCount ?? ""} onChange={(event) => updateSpecifications({ sheetCount: numberOrNull(event.target.value) })} /></label>
+      <label>أوجه الطباعة<select disabled={isDoubleSidePaperType(specifications.paperType)} value={specifications.printSides ?? "unknown"} onChange={(event) => updateSpecifications({ printSides: event.target.value === "single" || event.target.value === "double" ? event.target.value as PaperPrintSides : null })}>{PAPER_PRINT_SIDE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>{isDoubleSidePaperType(specifications.paperType) && <small>ضُبط تلقائياً حسب نوع الورق</small>}</label>
+    </div>
+
+    <div className="admin-option-group"><span>توافق الطابعات</span><div className="admin-options-grid">{PAPER_PRINTER_COMPATIBILITY_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.printerCompatibility.includes(option)} onChange={() => toggleListValue("printerCompatibility", option)} /> {option}</label>)}</div></div>
+
+    {isSelfAdhesivePaperType(specifications.paperType) && <div className="paper-dynamic-specifications"><h3>مواصفات الورق ذاتي اللصق</h3><TriStateField label="ذاتي اللصق" value={specifications.selfAdhesive} onChange={(value) => updateSpecifications({ selfAdhesive: value })} /></div>}
+
+    {isSublimationPaperType(specifications.paperType) && <div className="paper-dynamic-specifications"><h3>مواصفات السبلميشن والنقل الحراري</h3><div className="admin-three-columns">
+      <TriStateField label="سبلميشن / نقل حراري" value={specifications.thermalTransfer} onChange={(value) => updateSpecifications({ thermalTransfer: value })} />
+      <label>الحبر المتوافق<input value={specifications.inkCompatibility ?? ""} onChange={(event) => updateSpecifications({ inkCompatibility: event.target.value || null })} placeholder="حبر سبلميشن" /></label>
+      <TriStateField label="سريع الجفاف" value={specifications.quickDry} onChange={(value) => updateSpecifications({ quickDry: value })} />
+    </div></div>}
+
+    <div className="admin-option-group"><span>الاستخدامات</span><div className="admin-options-grid">{PAPER_USAGE_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.uses.includes(option)} onChange={() => toggleListValue("uses", option)} /> {option}</label>)}</div></div>
+    <label>استخدامات أخرى، افصل بفاصلة<input value={customUses.join(", ")} onChange={(event) => {
+      const presetUses = specifications.uses.filter((value) => PAPER_USAGE_OPTIONS.includes(value as typeof PAPER_USAGE_OPTIONS[number]));
+      const nextCustomUses = event.target.value.split(",").map((value) => value.trim()).filter(Boolean);
+      updateSpecifications({ uses: [...presetUses, ...nextCustomUses] });
+    }} /></label>
+
+    <label>التوفر<select value={specifications.availability ?? "unknown"} onChange={(event) => updateSpecifications({ availability: event.target.value === "inStock" || event.target.value === "outOfStock" || event.target.value === "onRequest" ? event.target.value as PaperAvailability : null })}>{PAPER_AVAILABILITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+  </fieldset>;
 }
 
 function PrinterSpecificationsEditor({ product, onChange }: { product: StoredProduct; onChange: (patch: Partial<StoredProduct>) => void }) {

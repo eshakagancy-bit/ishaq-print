@@ -13,9 +13,14 @@ import {
 } from "./printer-categories";
 import {
   buildQuickViewSpecificationRows,
-  getProductCardSpecificationTags,
+  getProductCardSpecificationTags as getPrinterCardSpecificationTags,
   type PrinterSpecifications,
 } from "./printer-specifications";
+import {
+  buildPaperSpecificationRows,
+  getPaperCardSpecificationTags,
+  type PaperSpecifications,
+} from "./paper-specifications";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
@@ -47,6 +52,7 @@ type Product = {
   description: string;
   features: string[];
   specifications?: PrinterSpecifications;
+  paperSpecifications?: PaperSpecifications;
   specificationsSourceUrl?: string;
   specificationsVerifiedAt?: string;
 };
@@ -114,6 +120,12 @@ function normalizeInitialProduct(product: StoredProduct): Product {
       ? resolvePrinterCategory(product.printerCategory, product.name)
       : undefined,
   };
+}
+
+function getProductCardSpecificationTags(product: Product) {
+  return product.category === "papers"
+    ? getPaperCardSpecificationTags(product)
+    : getPrinterCardSpecificationTags(product);
 }
 
 const categoryContacts: Record<CategoryId, string> = {
@@ -389,7 +401,11 @@ export default function HomeClient({
     setSelected(product);
   }, []);
   const closeQuickView = useCallback(() => setSelected(null), []);
-  const selectedSpecificationRows = selected ? buildQuickViewSpecificationRows(selected) : [];
+  const selectedSpecificationRows = selected
+    ? selected.category === "papers"
+      ? buildPaperSpecificationRows(selected)
+      : buildQuickViewSpecificationRows(selected)
+    : [];
 
   useEffect(() => {
     if (!selected) return undefined;

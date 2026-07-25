@@ -6,6 +6,7 @@ import {
   normalizeSpecificationsSourceUrl,
   normalizeSpecificationsVerifiedAt,
 } from "../app/printer-specifications";
+import { normalizePaperSpecifications } from "../app/paper-specifications";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
@@ -112,7 +113,9 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     price: product.price || null,
     description: product.description,
     features: product.features,
-    specifications: product.specifications ?? null,
+    specifications: product.category === "papers"
+      ? product.paperSpecifications ?? null
+      : product.specifications ?? null,
     specifications_source_url: product.specificationsSourceUrl || null,
     specifications_verified_at: product.specificationsVerifiedAt || null,
     sort_order: product.sortOrder ?? index,
@@ -137,7 +140,8 @@ function productFromRow(row: ProductRow): StoredProduct {
     price: row.price || undefined,
     description: row.description,
     features: normalizeFeatures(row.features),
-    specifications: normalizePrinterSpecifications(row.specifications),
+    specifications: category === "printers" ? normalizePrinterSpecifications(row.specifications) : undefined,
+    paperSpecifications: category === "papers" ? normalizePaperSpecifications(row.specifications) : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(row.specifications_source_url),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(row.specifications_verified_at),
     sortOrder: row.sort_order,
@@ -251,12 +255,15 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
   databaseError("تعذر حفظ بيانات الموقع", result.error);
 
   const productsWithStructuredSpecifications = products.filter((product) =>
-    product.specifications !== undefined || product.specificationsSourceUrl || product.specificationsVerifiedAt
+    product.specifications !== undefined || product.paperSpecifications !== undefined
+      || product.specificationsSourceUrl || product.specificationsVerifiedAt
   );
   const specificationResults = await Promise.all(productsWithStructuredSpecifications.map((product) => client
     .from("products")
     .update({
-      specifications: product.specifications ?? null,
+      specifications: product.category === "papers"
+        ? product.paperSpecifications ?? null
+        : product.specifications ?? null,
       specifications_source_url: product.specificationsSourceUrl || null,
       specifications_verified_at: product.specificationsVerifiedAt || null,
     })
@@ -265,7 +272,7 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     .maybeSingle()));
   const failedSpecificationUpdate = specificationResults.find((updateResult) => updateResult.error || !updateResult.data);
   if (failedSpecificationUpdate) {
-    databaseError("تعذر حفظ مواصفات الطابعة المنظمة", failedSpecificationUpdate.error);
+    databaseError("تعذر حفظ مواصفات المنتج المنظمة", failedSpecificationUpdate.error);
     throw new Error("تعذر العثور على المنتج أثناء حفظ مواصفاته المنظمة");
   }
 }

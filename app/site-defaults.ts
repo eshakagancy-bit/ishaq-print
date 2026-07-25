@@ -1,5 +1,6 @@
 import { resolvePrinterCategory, type PrinterCategory } from "./printer-categories";
 import type { PrinterSpecifications } from "./printer-specifications";
+import type { PaperSpecifications } from "./paper-specifications";
 
 export type SiteSettings = {
   logoImage: string;
@@ -72,6 +73,7 @@ export type StoredProduct = {
   description: string;
   features: string[];
   specifications?: PrinterSpecifications;
+  paperSpecifications?: PaperSpecifications;
   specificationsSourceUrl?: string;
   specificationsVerifiedAt?: string;
   sortOrder?: number;

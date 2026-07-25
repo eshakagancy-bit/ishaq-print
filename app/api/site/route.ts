@@ -8,6 +8,7 @@ import {
   normalizeSpecificationsSourceUrl,
   normalizeSpecificationsVerifiedAt,
 } from "../../printer-specifications";
+import { normalizePaperSpecifications } from "../../paper-specifications";
 import {
   defaultSiteSettings,
   normalizeLegacyArabicText,
@@ -65,7 +66,10 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     features: Array.isArray(input.features)
       ? input.features.map(String).map((item) => item.trim().slice(0, 120)).filter(Boolean).slice(0, 8)
       : [],
-    specifications: normalizePrinterSpecifications(input.specifications),
+    specifications: category === "printers" ? normalizePrinterSpecifications(input.specifications) : undefined,
+    paperSpecifications: category === "papers"
+      ? normalizePaperSpecifications(input.paperSpecifications ?? input.specifications)
+      : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(input.specificationsSourceUrl),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(input.specificationsVerifiedAt),
     sortOrder: index,
