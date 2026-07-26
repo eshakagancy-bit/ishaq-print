@@ -130,7 +130,7 @@ function getProductCardSpecificationTags(product: Product) {
 
 function getProductDisplayName(product: Product) {
   return product.category === "papers"
-    ? product.paperSpecifications?.nameAr?.trim() || product.name
+    ? product.paperSpecifications?.nameEn?.trim() || product.name
     : product.name;
 }
 

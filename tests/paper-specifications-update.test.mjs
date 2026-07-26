@@ -73,10 +73,12 @@ test("all eight target specifications render non-empty cards and details", () =>
 });
 
 test("temporary admin route stays authenticated and database writes specifications only", async () => {
-  const [route, database, admin] = await Promise.all([
+  const [route, database, admin, home, paperSpecifications] = await Promise.all([
     readFile(new URL("../app/api/admin/paper-specifications-update/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/site-database.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/paper-specifications.ts", import.meta.url), "utf8"),
   ]);
   assert.match(route, /requireAdminApi\(\)/);
   assert.match(route, /export async function GET/);
@@ -87,6 +89,9 @@ test("temporary admin route stays authenticated and database writes specificatio
   assert.match(database, /pendingCount !== 0/);
   assert.match(admin, /تحديث مواصفات الأوراق الحالية/);
   assert.match(admin, /عرض المعاينة/);
+  assert.match(home, /product\.paperSpecifications\?\.nameEn\?\.trim\(\) \|\| product\.name/);
+  assert.doesNotMatch(home, /product\.paperSpecifications\?\.nameAr\?\.trim\(\) \|\| product\.name/);
+  assert.match(paperSpecifications, /key: "name-ar", label: "الاسم العربي"/);
 
   const updateCall = database.match(/\.update\(\{ specifications: desiredSpecifications \}\)[\s\S]+?\.maybeSingle\(\)/)?.[0] ?? "";
   for (const protectedField of ["name:", "image:", "price:", "sortOrder:", "category:"]) {
