@@ -92,6 +92,21 @@ const emptyHeroSlide: HeroSlide = {
 
 const UNSAVED_CHANGES_MESSAGE = "توجد تعديلات لم يتم حفظها. هل تريد مغادرة الصفحة؟";
 type DirtyScope = "site" | "product-form" | "hero-form" | "hero-settings";
+type PaperUpdatePreview = {
+  matchedCount: number;
+  expectedCount: number;
+  pendingCount: number;
+  ready: boolean;
+  names: string[];
+  products: Array<{ name: string; found: boolean; alreadyCurrent: boolean; changes: string[] }>;
+};
+type PaperUpdateResult = {
+  success: boolean;
+  matchedCount: number;
+  updatedCount: number;
+  names: string[];
+  preview: PaperUpdatePreview;
+};
 
 export default function AdminDashboard({ userName, signOutPath }: { userName: string; signOutPath: string }) {
   const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
@@ -100,6 +115,10 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const [featuresText, setFeaturesText] = useState("");
   const [priceMode, setPriceMode] = useState<PriceMode>("quote");
   const [printerCategoryError, setPrinterCategoryError] = useState("");
+  const [paperUpdatePreview, setPaperUpdatePreview] = useState<PaperUpdatePreview | null>(null);
+  const [paperUpdateResult, setPaperUpdateResult] = useState<PaperUpdateResult | null>(null);
+  const [paperUpdateLoading, setPaperUpdateLoading] = useState(false);
+  const [paperUpdateError, setPaperUpdateError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(defaultHeroSettings);
@@ -400,6 +419,53 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     setStatus("تم تجهيز تعديل المنتجات، اضغط حفظ جميع التعديلات");
   };
 
+  const previewPaperSpecificationsUpdate = async () => {
+    setPaperUpdateLoading(true);
+    setPaperUpdateError("");
+    setPaperUpdateResult(null);
+    try {
+      const response = await fetch("/api/admin/paper-specifications-update", { cache: "no-store" });
+      const data = await response.json() as { error?: string; preview?: PaperUpdatePreview };
+      if (!response.ok || !data.preview) throw new Error(data.error || "تعذر تحميل المعاينة");
+      setPaperUpdatePreview(data.preview);
+    } catch (error) {
+      setPaperUpdatePreview(null);
+      setPaperUpdateError(error instanceof Error ? error.message : "تعذر تحميل المعاينة");
+    } finally {
+      setPaperUpdateLoading(false);
+    }
+  };
+
+  const executePaperSpecificationsUpdate = async () => {
+    if (!paperUpdatePreview?.ready || !window.confirm("سيتم تحديث حقل المواصفات فقط للمنتجات الثمانية الظاهرة في المعاينة. هل تريد المتابعة؟")) return;
+    setPaperUpdateLoading(true);
+    setPaperUpdateError("");
+    try {
+      const response = await fetch("/api/admin/paper-specifications-update", { method: "POST" });
+      const data = await response.json() as PaperUpdateResult & { error?: string };
+      if (!response.ok || !data.success) throw new Error(data.error || "تعذر تنفيذ التحديث");
+      setPaperUpdateResult(data);
+      setPaperUpdatePreview(data.preview);
+
+      const siteResponse = await fetch("/api/site", { cache: "no-store" });
+      const siteData = await siteResponse.json() as { error?: string; products?: StoredProduct[] };
+      if (!siteResponse.ok) throw new Error(siteData.error || "تم التحديث لكن تعذر إعادة تحميل المنتجات");
+      if (Array.isArray(siteData.products)) {
+        setProducts(siteData.products.map((product) => ({
+          ...product,
+          image: normalizeMediaUrl(product.image),
+          printerCategory: product.category === "printers"
+            ? resolvePrinterCategory(product.printerCategory, product.name)
+            : undefined,
+        })));
+      }
+    } catch (error) {
+      setPaperUpdateError(error instanceof Error ? error.message : "تعذر تنفيذ التحديث");
+    } finally {
+      setPaperUpdateLoading(false);
+    }
+  };
+
   const saveHeroSlide = async (event: FormEvent) => {
     event.preventDefault();
     setHeroSaving(true);
@@ -594,7 +660,21 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       </div>
     </section>}
 
-    {activeTab === "products" && <section className="product-admin-layout">
+    {activeTab === "products" && <>
+      <section className="real-admin-card paper-update-tool" aria-labelledby="paper-update-title">
+        <div className="paper-update-head"><div><h2 id="paper-update-title">تحديث مواصفات الأوراق الحالية</h2><p>إجراء مؤقت ومحمي يحدّث حقل المواصفات فقط للمنتجات الثمانية المطابقة بالاسم.</p></div><button type="button" onClick={previewPaperSpecificationsUpdate} disabled={paperUpdateLoading}>{paperUpdateLoading ? "جاري الفحص..." : "عرض المعاينة"}</button></div>
+        {paperUpdateError && <p className="admin-field-error" role="alert">{paperUpdateError}</p>}
+        {paperUpdatePreview && <div className="paper-update-preview">
+          <div className="paper-update-counts"><span>المتوقع: <b>{paperUpdatePreview.expectedCount}</b></span><span>المطابق: <b>{paperUpdatePreview.matchedCount}</b></span><span>بانتظار التحديث: <b>{paperUpdatePreview.pendingCount}</b></span><span className={paperUpdatePreview.ready ? "positive" : "negative"}>{paperUpdatePreview.ready ? "جاهز للتنفيذ" : "التنفيذ موقوف"}</span></div>
+          <div className="paper-update-products">{paperUpdatePreview.products.map((product) => <article key={product.name} className={product.found ? "" : "missing"}>
+            <div><b>{product.name}</b><span>{!product.found ? "غير موجود أو مكرر" : product.alreadyCurrent ? "محدّث مسبقًا" : "سيتم تحديث المواصفات"}</span></div>
+            <ul>{product.changes.map((change) => <li key={change}>{change}</li>)}</ul>
+          </article>)}</div>
+          <button className="paper-update-execute" type="button" disabled={!paperUpdatePreview.ready || paperUpdateLoading} onClick={executePaperSpecificationsUpdate}>{paperUpdateLoading ? "جاري التنفيذ..." : paperUpdatePreview.pendingCount ? "تنفيذ تحديث المواصفات" : "المواصفات محدثة بالفعل"}</button>
+        </div>}
+        {paperUpdateResult && <div className="paper-update-result" role="status"><b>Success</b><span>المنتجات المطابقة: {paperUpdateResult.matchedCount}</span><span>المنتجات المحدثة: {paperUpdateResult.updatedCount}</span><span>الأسماء: {paperUpdateResult.names.join("، ")}</span></div>}
+      </section>
+      <section className="product-admin-layout">
       <form className="real-admin-card product-editor" onSubmit={saveProductDraft}><h2>{editingId ? "تعديل المنتج" : "إضافة منتج"}</h2>
         <label>القسم<select value={productForm.category} onChange={(e) => updateProductSection(e.target.value)}>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         {productForm.category === "printers" && <label>الفئة<select
@@ -632,7 +712,8 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         <div className="product-editor-actions"><button type="submit">{editingId ? "تجهيز التعديل" : "إضافة للقائمة"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
       <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
-    </section>}
+      </section>
+    </>}
   </main>;
 }
 
@@ -660,11 +741,11 @@ function PaperSpecificationsEditor({ product, onChange }: { product: StoredProdu
     <p className="admin-help-text">أدخل المواصفات المتاحة فقط. ستظهر أهم أربع مواصفات في البطاقة، وبقية التفاصيل داخل صفحة المنتج.</p>
 
     <div className="admin-two-columns">
-      <label>الاسم العربي<input required value={specifications.nameAr ?? ""} onChange={(event) => {
+      <label>الاسم العربي<input required={!specifications.nameEn} value={specifications.nameAr ?? ""} onChange={(event) => {
         const nameAr = event.target.value;
         updateSpecifications({ nameAr: nameAr || null }, { name: nameAr || specifications.nameEn || "" });
       }} /></label>
-      <label>الاسم الإنجليزي<input dir="ltr" value={specifications.nameEn ?? ""} onChange={(event) => {
+      <label>الاسم الإنجليزي<input dir="ltr" required={!specifications.nameAr} value={specifications.nameEn ?? ""} onChange={(event) => {
         const nameEn = event.target.value;
         updateSpecifications({ nameEn: nameEn || null }, { name: specifications.nameAr || nameEn });
       }} /></label>
@@ -692,8 +773,8 @@ function PaperSpecificationsEditor({ product, onChange }: { product: StoredProdu
           inkCompatibility: isSublimationPaperType(paperType) ? specifications.inkCompatibility : null,
           quickDry: isSublimationPaperType(paperType) ? specifications.quickDry : null,
         }, { type: paperType ?? "" });
-      }}><option value="">غير محدد</option>{PAPER_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-      <label>السطح<select value={specifications.surface ?? ""} onChange={(event) => updateSpecifications({ surface: event.target.value || null })}><option value="">غير محدد</option>{PAPER_SURFACE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+      }}><option value="">غير محدد</option>{specifications.paperType && !PAPER_TYPE_OPTIONS.includes(specifications.paperType as typeof PAPER_TYPE_OPTIONS[number]) && <option value={specifications.paperType}>{specifications.paperType} (قيمة حالية)</option>}{PAPER_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+      <label>السطح<select value={specifications.surface ?? ""} onChange={(event) => updateSpecifications({ surface: event.target.value || null })}><option value="">غير محدد</option>{specifications.surface && !PAPER_SURFACE_OPTIONS.includes(specifications.surface as typeof PAPER_SURFACE_OPTIONS[number]) && <option value={specifications.surface}>{specifications.surface} (قيمة حالية)</option>}{PAPER_SURFACE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
     </div>
 
     <div className="admin-two-columns">

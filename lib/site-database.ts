@@ -8,6 +8,12 @@ import {
 } from "../app/printer-specifications";
 import { normalizePaperSpecifications } from "../app/paper-specifications";
 import {
+  PAPER_SPECIFICATIONS_UPDATE_TARGETS,
+  buildPaperSpecificationsUpdatePreview,
+  type PaperSpecificationsUpdatePreview,
+  type PaperSpecificationsUpdateRow,
+} from "./paper-specifications-update";
+import {
   defaultHeroSettings,
   defaultHeroSlides,
   defaultSiteSettings,
@@ -275,6 +281,67 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     databaseError("تعذر حفظ مواصفات المنتج المنظمة", failedSpecificationUpdate.error);
     throw new Error("تعذر العثور على المنتج أثناء حفظ مواصفاته المنظمة");
   }
+}
+
+async function loadPaperSpecificationsUpdateRows(): Promise<PaperSpecificationsUpdateRow[]> {
+  const client = getSupabaseAdmin();
+  const result = await client
+    .from("products")
+    .select("id,name,specifications")
+    .eq("category", "papers")
+    .in("name", PAPER_SPECIFICATIONS_UPDATE_TARGETS.map((target) => target.name));
+  databaseError("تعذر قراءة منتجات الأوراق الحالية", result.error);
+  return ((result.data ?? []) as Array<{ id: number; name: string; specifications: unknown | null }>).map((row) => ({
+    id: Number(row.id),
+    name: String(row.name),
+    specifications: row.specifications,
+  }));
+}
+
+export async function getPaperSpecificationsUpdatePreview(): Promise<PaperSpecificationsUpdatePreview> {
+  return buildPaperSpecificationsUpdatePreview(await loadPaperSpecificationsUpdateRows());
+}
+
+export async function applyPaperSpecificationsUpdate() {
+  const rows = await loadPaperSpecificationsUpdateRows();
+  const preview = buildPaperSpecificationsUpdatePreview(rows);
+  if (!preview.ready) {
+    throw new Error(`تم العثور على ${preview.matchedCount} من أصل ${preview.expectedCount} منتجات مطلوبة؛ تم إلغاء التنفيذ`);
+  }
+
+  const rowsByName = new Map(rows.map((row) => [row.name, row]));
+  const pendingNames = new Set(preview.products.filter((product) => !product.alreadyCurrent).map((product) => product.name));
+  const client = getSupabaseAdmin();
+  const updateResults = await Promise.all(PAPER_SPECIFICATIONS_UPDATE_TARGETS
+    .filter((target) => pendingNames.has(target.name))
+    .map(async (target) => {
+      const row = rowsByName.get(target.name);
+      if (!row) throw new Error(`تعذر العثور على المنتج: ${target.name}`);
+      const result = await client
+        .from("products")
+        .update({ specifications: target.specifications })
+        .eq("id", row.id)
+        .eq("name", target.name)
+        .eq("category", "papers")
+        .select("id")
+        .maybeSingle();
+      databaseError(`تعذر تحديث مواصفات المنتج ${target.name}`, result.error);
+      if (!result.data) throw new Error(`لم يتم تحديث المنتج المطابق: ${target.name}`);
+      return row.id;
+    }));
+
+  const verification = await getPaperSpecificationsUpdatePreview();
+  if (!verification.ready || verification.pendingCount !== 0) {
+    throw new Error("تعذر التحقق من اكتمال تحديث مواصفات الأوراق");
+  }
+
+  return {
+    success: true,
+    matchedCount: verification.matchedCount,
+    updatedCount: updateResults.length,
+    names: verification.names,
+    preview: verification,
+  };
 }
 
 export async function ensureHeroDefaults() {
