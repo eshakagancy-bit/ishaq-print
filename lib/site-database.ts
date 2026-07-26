@@ -10,6 +10,7 @@ import { normalizePaperSpecifications } from "../app/paper-specifications";
 import {
   PAPER_SPECIFICATIONS_UPDATE_TARGETS,
   buildPaperSpecificationsUpdatePreview,
+  mergePaperSpecificationsUpdate,
   type PaperSpecificationsUpdatePreview,
   type PaperSpecificationsUpdateRow,
 } from "./paper-specifications-update";
@@ -317,9 +318,10 @@ export async function applyPaperSpecificationsUpdate() {
     .map(async (target) => {
       const row = rowsByName.get(target.name);
       if (!row) throw new Error(`تعذر العثور على المنتج: ${target.name}`);
+      const desiredSpecifications = mergePaperSpecificationsUpdate(row.specifications, target.patch);
       const result = await client
         .from("products")
-        .update({ specifications: target.specifications })
+        .update({ specifications: desiredSpecifications })
         .eq("id", row.id)
         .eq("name", target.name)
         .eq("category", "papers")

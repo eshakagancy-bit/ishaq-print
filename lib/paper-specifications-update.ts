@@ -2,7 +2,7 @@ import type { PaperSpecifications } from "../app/paper-specifications";
 
 export type PaperSpecificationsUpdateTarget = {
   name: string;
-  specifications: PaperSpecifications;
+  patch: Partial<PaperSpecifications>;
 };
 
 export type PaperSpecificationsUpdateRow = {
@@ -27,123 +27,83 @@ export type PaperSpecificationsUpdatePreview = {
   products: PaperSpecificationsUpdatePreviewProduct[];
 };
 
-const emptyFields = {
-  nameAr: null,
-  nameEn: null,
-  brand: null,
-  series: null,
-  dimensions: null,
-  printSides: null,
-  selfAdhesive: null,
-  thermalTransfer: null,
-  inkCompatibility: null,
-  quickDry: null,
-  uses: [],
-  availability: null,
-};
-
 export const PAPER_SPECIFICATIONS_UPDATE_TARGETS: readonly PaperSpecificationsUpdateTarget[] = [
   {
     name: "ATLAS Double Sides Glossy Inkjet Photo Paper 300gsm A4 – 50 Sheets",
-    specifications: {
-      ...emptyFields,
-      paperType: null,
-      surface: "Double Side Glossy",
+    patch: {
+      nameAr: "ورق صور ATLAS لامع وجهين A4 وزن 300 جم – 50 ورقة",
+      paperType: "Double Side Glossy",
       size: "A4",
-      dimensions: "210x297 mm",
       weightGsm: 300,
       sheetCount: 50,
       printSides: "double",
-      printerCompatibility: ["Inkjet"],
     },
   },
   {
     name: "ATLAS RC Glossy Photo Paper A4 260gsm – 20 Sheets",
-    specifications: {
-      ...emptyFields,
+    patch: {
+      nameAr: "ورق صور ATLAS RC Glossy A4 وزن 260 جم – 20 ورقة",
       paperType: "RC Photo Paper",
       surface: "RC Glossy",
       size: "A4",
       weightGsm: 260,
       sheetCount: 20,
-      printerCompatibility: ["Inkjet"],
     },
   },
   {
     name: "ATLAS Self Adhesive Glossy Inkjet Photo Paper A4 150gsm – 50 Sheets",
-    specifications: {
-      ...emptyFields,
+    patch: {
+      nameAr: "ورق استيكر ATLAS لامع ذاتي اللصق A4 وزن 150 جم – 50 ورقة",
       paperType: "Self Adhesive Glossy",
-      surface: "Glossy",
       size: "A4",
       weightGsm: 150,
       sheetCount: 50,
-      printerCompatibility: ["Inkjet"],
       selfAdhesive: true,
     },
   },
   {
     name: "QM ROCK5 Double Side Matte Paper 120gsm",
-    specifications: {
-      ...emptyFields,
-      paperType: null,
-      surface: "Double Side Matte",
-      size: null,
+    patch: {
+      nameAr: "ورق QM ROCK5 مطفي وجهين وزن 120 جم",
+      paperType: "Double Side Matte",
       weightGsm: 120,
-      sheetCount: null,
       printSides: "double",
-      printerCompatibility: ["Inkjet"],
     },
   },
   {
     name: "QM Inkjet High Glossy Photo Paper 180gsm",
-    specifications: {
-      ...emptyFields,
+    patch: {
+      nameAr: "ورق صور QM شديد اللمعان وزن 180 جم",
       paperType: "High Glossy Photo Paper",
-      surface: "High Glossy",
-      size: null,
       weightGsm: 180,
-      sheetCount: null,
-      printerCompatibility: ["Inkjet"],
     },
   },
   {
     name: "QM ROCK5 Inkjet Matte Paper 108gsm",
-    specifications: {
-      ...emptyFields,
+    patch: {
+      nameAr: "ورق QM ROCK5 مطفي للطباعة النافثة للحبر وزن 108 جم",
       paperType: "Inkjet Matte",
-      surface: "Matte",
-      size: null,
       weightGsm: 108,
-      sheetCount: null,
-      printerCompatibility: ["Inkjet"],
     },
   },
   {
     name: "SQM Sublimation Transfer Paper A4 125gsm – 100 Sheets",
-    specifications: {
-      ...emptyFields,
+    patch: {
+      nameAr: "ورق سبلميشن SQM A4 سريع الجفاف وزن 125 جم – 100 ورقة",
       paperType: "Sublimation Transfer Paper",
-      surface: null,
       size: "A4",
       weightGsm: 125,
       sheetCount: 100,
-      printerCompatibility: [],
       thermalTransfer: true,
-      inkCompatibility: "Sublimation Ink",
       quickDry: true,
     },
   },
   {
     name: "QM Premium RC Glossy Photo Paper 260gsm",
-    specifications: {
-      ...emptyFields,
-      paperType: "RC Photo Paper",
-      surface: "RC Glossy",
-      size: null,
+    patch: {
+      nameAr: "ورق صور QM Premium RC Glossy وزن 260 جم",
+      paperType: "Premium RC Glossy Photo Paper",
       weightGsm: 260,
-      sheetCount: null,
-      printerCompatibility: ["Inkjet"],
     },
   },
 ] as const;
@@ -168,6 +128,45 @@ const fieldLabels: Record<keyof PaperSpecifications, string> = {
   uses: "الاستخدامات",
   availability: "التوفر",
 };
+
+const emptySpecifications: PaperSpecifications = {
+  nameAr: null,
+  nameEn: null,
+  brand: null,
+  series: null,
+  paperType: null,
+  surface: null,
+  size: null,
+  dimensions: null,
+  weightGsm: null,
+  sheetCount: null,
+  printSides: null,
+  printerCompatibility: [],
+  selfAdhesive: null,
+  thermalTransfer: null,
+  inkCompatibility: null,
+  quickDry: null,
+  uses: [],
+  availability: null,
+};
+
+export function mergePaperSpecificationsUpdate(
+  current: unknown,
+  patch: Partial<PaperSpecifications>,
+): PaperSpecifications {
+  const currentObject = current && typeof current === "object" && !Array.isArray(current)
+    ? current as Partial<PaperSpecifications>
+    : {};
+  return {
+    ...emptySpecifications,
+    ...currentObject,
+    ...patch,
+    printerCompatibility: Array.isArray(currentObject.printerCompatibility)
+      ? currentObject.printerCompatibility
+      : [],
+    uses: Array.isArray(currentObject.uses) ? currentObject.uses : [],
+  };
+}
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -201,10 +200,12 @@ export function buildPaperSpecificationsUpdatePreview(
   const products = PAPER_SPECIFICATIONS_UPDATE_TARGETS.map((target) => {
     const matchingRows = rowsByName.get(target.name) ?? [];
     const found = matchingRows.length === 1;
+    const desired = found
+      ? mergePaperSpecificationsUpdate(matchingRows[0].specifications, target.patch)
+      : null;
     const alreadyCurrent = found
-      && comparableSpecifications(matchingRows[0].specifications) === comparableSpecifications(target.specifications);
-    const changes = Object.entries(target.specifications)
-      .filter(([, value]) => value !== null && (!Array.isArray(value) || value.length > 0))
+      && comparableSpecifications(matchingRows[0].specifications) === comparableSpecifications(desired);
+    const changes = Object.entries(target.patch)
       .map(([key, value]) => `${fieldLabels[key as keyof PaperSpecifications]}: ${displayValue(value)}`);
     return { name: target.name, found, alreadyCurrent, changes };
   });

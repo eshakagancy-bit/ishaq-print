@@ -174,7 +174,7 @@ export function getPaperCardSpecificationTags(product: PaperDisplayInput) {
       .slice(0, 4);
   }
   const size = [specifications.size, specifications.dimensions].filter(Boolean).join(" · ");
-  const kind = [specifications.paperType, specifications.surface].filter(Boolean).join(" · ");
+  const kind = [...new Set([specifications.paperType, specifications.surface].filter(Boolean))].join(" · ");
   return [
     size,
     specifications.weightGsm !== null ? `${specifications.weightGsm} gsm` : "",

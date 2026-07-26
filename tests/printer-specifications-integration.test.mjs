@@ -115,7 +115,7 @@ test("customer card stays concise and quick view renders only prepared specifica
   assert.match(card, /product\.image/);
   assert.match(card, /product\.badge/);
   assert.match(card, /product\.family/);
-  assert.match(card, /product\.name/);
+  assert.match(card, /getProductDisplayName\(product\)/);
   assert.match(card, /product\.description/);
   assert.match(card, /cardTags/);
   assert.match(card, /product\.price/);

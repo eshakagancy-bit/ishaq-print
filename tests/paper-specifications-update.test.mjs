@@ -8,12 +8,15 @@ import {
 import {
   PAPER_SPECIFICATIONS_UPDATE_TARGETS,
   buildPaperSpecificationsUpdatePreview,
+  mergePaperSpecificationsUpdate,
 } from "../lib/paper-specifications-update.ts";
 
 const rowsFromTargets = (specifications = null) => PAPER_SPECIFICATIONS_UPDATE_TARGETS.map((target, index) => ({
   id: index + 1,
   name: target.name,
-  specifications: specifications === "current" ? target.specifications : specifications,
+  specifications: specifications === "current"
+    ? mergePaperSpecificationsUpdate(null, target.patch)
+    : specifications,
 }));
 
 test("paper admin update targets exactly eight existing names and previews before execution", () => {
@@ -39,24 +42,33 @@ test("paper admin update is idempotent and preserves unknown values", () => {
   assert.equal(preview.pendingCount, 0);
   assert.equal(preview.products.every((product) => product.alreadyCurrent), true);
 
-  const byWeight = Object.fromEntries(PAPER_SPECIFICATIONS_UPDATE_TARGETS.map((target) => [
-    target.specifications.weightGsm,
-    target.specifications,
-  ]));
-  for (const weight of [120, 180, 108]) {
-    assert.equal(byWeight[weight].size, null);
-    assert.equal(byWeight[weight].sheetCount, null);
+  const uncertainTarget = PAPER_SPECIFICATIONS_UPDATE_TARGETS.find((target) =>
+    target.name === "QM ROCK5 Double Side Matte Paper 120gsm");
+  const preserved = mergePaperSpecificationsUpdate(
+    { size: "A3", sheetCount: 77, printerCompatibility: ["Inkjet"], uses: ["صور"] },
+    uncertainTarget.patch,
+  );
+  assert.equal(preserved.size, "A3");
+  assert.equal(preserved.sheetCount, 77);
+  assert.deepEqual(preserved.printerCompatibility, ["Inkjet"]);
+  assert.deepEqual(preserved.uses, ["صور"]);
+
+  for (const target of PAPER_SPECIFICATIONS_UPDATE_TARGETS.slice(3)) {
+    if (target.name.startsWith("SQM ")) continue;
+    assert.equal(Object.hasOwn(target.patch, "size"), false);
+    assert.equal(Object.hasOwn(target.patch, "sheetCount"), false);
   }
   const premiumRc = PAPER_SPECIFICATIONS_UPDATE_TARGETS.find((target) =>
     target.name === "QM Premium RC Glossy Photo Paper 260gsm");
-  assert.equal(premiumRc.specifications.size, null);
-  assert.equal(premiumRc.specifications.sheetCount, null);
+  assert.equal(Object.hasOwn(premiumRc.patch, "size"), false);
+  assert.equal(Object.hasOwn(premiumRc.patch, "sheetCount"), false);
 });
 
 test("all eight target specifications render non-empty cards and details", () => {
   for (const target of PAPER_SPECIFICATIONS_UPDATE_TARGETS) {
-    assert.ok(getPaperCardSpecificationTags({ paperSpecifications: target.specifications }).length > 0);
-    assert.ok(buildPaperSpecificationRows({ paperSpecifications: target.specifications }).length > 0);
+    const specifications = mergePaperSpecificationsUpdate(null, target.patch);
+    assert.ok(getPaperCardSpecificationTags({ paperSpecifications: specifications }).length > 0);
+    assert.ok(buildPaperSpecificationRows({ paperSpecifications: specifications }).length > 0);
   }
 });
 
@@ -69,14 +81,14 @@ test("temporary admin route stays authenticated and database writes specificatio
   assert.match(route, /requireAdminApi\(\)/);
   assert.match(route, /export async function GET/);
   assert.match(route, /export async function POST/);
-  assert.match(database, /\.update\(\{ specifications: target\.specifications \}\)/);
+  assert.match(database, /\.update\(\{ specifications: desiredSpecifications \}\)/);
   assert.match(database, /\.eq\("name", target\.name\)/);
   assert.match(database, /\.eq\("category", "papers"\)/);
   assert.match(database, /pendingCount !== 0/);
   assert.match(admin, /تحديث مواصفات الأوراق الحالية/);
   assert.match(admin, /عرض المعاينة/);
 
-  const updateCall = database.match(/\.update\(\{ specifications: target\.specifications \}\)[\s\S]+?\.maybeSingle\(\)/)?.[0] ?? "";
+  const updateCall = database.match(/\.update\(\{ specifications: desiredSpecifications \}\)[\s\S]+?\.maybeSingle\(\)/)?.[0] ?? "";
   for (const protectedField of ["name:", "image:", "price:", "sortOrder:", "category:"]) {
     assert.equal(updateCall.includes(protectedField), false);
   }
