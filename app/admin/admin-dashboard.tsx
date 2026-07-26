@@ -59,7 +59,12 @@ import {
   type PaperPrintSides,
   type PaperSpecifications,
 } from "../paper-specifications";
-import { defaultHeroSettings, defaultSiteSettings, type HeroSettings, type HeroSlide, type SiteSettings, type StoredProduct } from "../site-defaults";
+import { defaultHeroSettings, defaultSiteSettings, type HeroSettings, type HeroSlide, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
+import {
+  createEmptyPrinterPageContent,
+  type PrinterPageContent,
+} from "../printer-page-content";
+import { addProductToCollection, removeProductById, replaceProductById } from "../product-collection";
 
 const categories = [
   ["printers", "طابعات EPSON"], ["laptops", "اللابتوبات"], ["engraving-presses", "آلات النحت والمكابس"],
@@ -71,7 +76,7 @@ const categories = [
 const emptyProduct: StoredProduct = {
   id: 0, name: "", family: "", image: "", category: "printers", type: "", size: "",
   printerCategory: undefined, badge: "", price: "", description: "", features: [],
-  specifications: undefined, paperSpecifications: undefined,
+  specifications: undefined, printerPageContent: createEmptyPrinterPageContent(), paperSpecifications: undefined,
 };
 
 const emptyHeroSlide: HeroSlide = {
@@ -201,6 +206,14 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     markDirty("site");
   };
 
+  const updatePurchaseBenefits = (patch: Partial<ProductPurchaseBenefits>) => {
+    setSettings((current) => ({
+      ...current,
+      productPurchaseBenefits: { ...current.productPurchaseBenefits, ...patch },
+    }));
+    markDirty("site");
+  };
+
   const updatePhoneSetting = (key: "salesPhone" | "customerServicePhone" | "generalWhatsapp", value: string) => {
     updateSetting(key, sanitizePhoneNumber(value));
   };
@@ -235,6 +248,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       category,
       printerCategory: category === "printers" ? current.printerCategory : undefined,
       specifications: category === "printers" ? current.specifications : undefined,
+      printerPageContent: category === "printers" ? current.printerPageContent ?? createEmptyPrinterPageContent() : undefined,
       paperSpecifications: category === "papers" ? current.paperSpecifications : undefined,
     }));
     setPrinterCategoryError("");
@@ -377,7 +391,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       const response = await fetch("/api/site", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ settings, products }),
+        body: JSON.stringify({ settings }),
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || "تعذر الحفظ");
@@ -395,7 +409,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     }
   };
 
-  const saveProductDraft = (event: FormEvent) => {
+  const saveProductDraft = async (event: FormEvent) => {
     event.preventDefault();
     if (productForm.category === "printers" && !isPrinterCategory(productForm.printerCategory)) {
       const message = "يرجى اختيار فئة الطابعة قبل إضافة المنتج.";
@@ -408,15 +422,40 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       return;
     }
     const next = { ...productForm, id: editingId ?? Date.now(), features: featuresText.split(",").map((item) => item.trim()).filter(Boolean) };
-    setProducts((current) => editingId ? current.map((item) => item.id === editingId ? next : item) : [next, ...current]);
+    setSaving(true);
+    setStatus(editingId ? "جاري حفظ المنتج..." : "جاري إضافة المنتج...");
+    try {
+      const response = await fetch("/api/site", {
+        method: editingId ? "PATCH" : "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ product: next }),
+      });
+      const data = await response.json() as { error?: string; product?: StoredProduct };
+      if (!response.ok || !data.product) {
+        throw new Error(data.error || (editingId ? "تعذر حفظ المنتج" : "تعذر إضافة المنتج"));
+      }
+      const nextProducts = editingId
+        ? replaceProductById(products, data.product)
+        : addProductToCollection(products, data.product);
+      setProducts(nextProducts);
+      const savedUrls = activeMediaUrls(settings, nextProducts, heroSlides);
+      markUploadsSaved(savedUrls);
+      const deleteFailures = await flushPendingMediaDeletes(savedUrls);
+      setStatus(deleteFailures
+        ? "تم حفظ المنتج، لكن تعذر تنظيف بعض الصور القديمة"
+        : editingId ? "تم حفظ المنتج بنجاح ✓" : "تمت إضافة المنتج بنجاح ✓");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : editingId ? "تعذر حفظ المنتج" : "تعذر إضافة المنتج");
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
     setProductForm(emptyProduct);
     setFeaturesText("");
     setPriceMode("quote");
     setPrinterCategoryError("");
     setEditingId(null);
     clearDirty("product-form");
-    markDirty("site");
-    setStatus("تم تجهيز تعديل المنتجات، اضغط حفظ جميع التعديلات");
   };
 
   const previewPaperSpecificationsUpdate = async () => {
@@ -566,12 +605,31 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const deleteProduct = (product: StoredProduct) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا المنتج؟ لن يتم تنفيذ الحذف النهائي حتى تضغط على حفظ جميع التعديلات.")) return;
-    queueMediaRemoval(product.image);
-    setProducts((current) => current.filter((item) => item.id !== product.id));
-    markDirty("site");
-    setStatus("تم حذف المنتج من القائمة، اضغط حفظ جميع التعديلات");
+  const deleteProduct = async (product: StoredProduct) => {
+    if (!window.confirm("هل أنت متأكد من حذف هذا المنتج؟")) return;
+    setSaving(true);
+    setStatus("جاري حذف المنتج...");
+    try {
+      const response = await fetch("/api/site", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: product.id }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "تعذر حذف المنتج");
+      const nextProducts = removeProductById(products, product.id);
+      setProducts(nextProducts);
+      queueMediaRemoval(product.image);
+      const activeUrls = activeMediaUrls(settings, nextProducts, heroSlides);
+      const deleteFailures = await flushPendingMediaDeletes(activeUrls);
+      setStatus(deleteFailures
+        ? "تم حذف المنتج، لكن تعذر تنظيف صورته"
+        : "تم حذف المنتج بنجاح ✓");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "تعذر حذف المنتج");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return <main dir="rtl" className="real-admin-page">
@@ -604,6 +662,19 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       <div className="real-admin-card"><h2>بانر التواصل</h2>
         <label>النص الصغير<input value={settings.contactKicker} onChange={(e) => updateSetting("contactKicker", e.target.value)} /></label>
         <label>العنوان<input value={settings.contactTitle} onChange={(e) => updateSetting("contactTitle", e.target.value)} /></label>
+      </div>
+      <div className="real-admin-card purchase-benefits-editor">
+        <h2>لماذا تشتري من مجموعة إسحاق العالمية؟</h2>
+        <label>العنوان<input value={settings.productPurchaseBenefits.title} onChange={(event) => updatePurchaseBenefits({ title: event.target.value })} /></label>
+        <label>وصف عام<textarea rows={5} value={settings.productPurchaseBenefits.description} onChange={(event) => updatePurchaseBenefits({ description: event.target.value })} /></label>
+        <div className="admin-dynamic-list">
+          <div className="admin-dynamic-list-head"><b>العناصر</b><button type="button" onClick={() => updatePurchaseBenefits({ items: [...settings.productPurchaseBenefits.items, { title: "", description: "" }] })}>إضافة عنصر</button></div>
+          {settings.productPurchaseBenefits.items.map((item, index) => <div className="admin-dynamic-item" key={index}>
+            <label>عنوان العنصر<input value={item.title} onChange={(event) => updatePurchaseBenefits({ items: settings.productPurchaseBenefits.items.map((entry, itemIndex) => itemIndex === index ? { ...entry, title: event.target.value } : entry) })} /></label>
+            <label>الشرح<textarea rows={4} value={item.description} onChange={(event) => updatePurchaseBenefits({ items: settings.productPurchaseBenefits.items.map((entry, itemIndex) => itemIndex === index ? { ...entry, description: event.target.value } : entry) })} /></label>
+            <button className="admin-remove-item" type="button" onClick={() => updatePurchaseBenefits({ items: settings.productPurchaseBenefits.items.filter((_, itemIndex) => itemIndex !== index) })}>حذف العنصر</button>
+          </div>)}
+        </div>
       </div>
     </section>}
 
@@ -698,6 +769,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         {productForm.category !== "papers" && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
         <datalist id="printer-family-options">{PRINTER_FAMILY_OPTIONS.map((family) => <option key={family} value={family} />)}</datalist></>}
         {productForm.category === "printers" && <PrinterSpecificationsEditor product={productForm} onChange={updateProductForm} />}
+        {productForm.category === "printers" && <PrinterPageContentEditor product={productForm} onChange={updateProductForm} />}
         {productForm.category === "papers" && <PaperSpecificationsEditor product={productForm} onChange={updateProductForm} />}
         <div className="admin-two-columns"><label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label><label>نمط السعر<select value={priceMode} onChange={(event) => {
           const mode = event.target.value as PriceMode;
@@ -709,12 +781,90 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         <label>الوصف القصير<textarea value={productForm.description} aria-invalid={productForm.description.length > 160} onChange={(e) => updateProductForm({ description: e.target.value })} /><span className={productForm.description.length > 160 ? "description-counter over-limit" : "description-counter"}>{productForm.description.length} / 160 حرفاً</span>{productForm.description.length > 160 && <span className="admin-field-error" role="alert">الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.</span>}</label>
         <label>المميزات القديمة، افصل بفاصلة <small>للتوافق مع المنتجات الحالية فقط</small><input value={featuresText} onChange={(e) => updateProductFeatures(e.target.value)} /></label>
         <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />
-        <div className="product-editor-actions"><button type="submit">{editingId ? "تجهيز التعديل" : "إضافة للقائمة"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
+        <div className="product-editor-actions"><button type="submit" disabled={saving}>{saving ? "جاري الحفظ..." : editingId ? "حفظ التعديل" : "إضافة المنتج"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
       <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
       </section>
     </>}
   </main>;
+}
+
+function PrinterPageContentEditor({ product, onChange }: { product: StoredProduct; onChange: (patch: Partial<StoredProduct>) => void }) {
+  const content = product.printerPageContent ?? createEmptyPrinterPageContent();
+  const updateContent = (patch: Partial<PrinterPageContent>) => onChange({
+    printerPageContent: { ...content, ...patch },
+  });
+
+  const updateItem = (
+    field: "productFeatures" | "productUses",
+    index: number,
+    patch: Partial<{ title: string; description: string }>,
+  ) => updateContent({
+    [field]: content[field].map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item),
+  });
+
+  const removeItem = (field: "productFeatures" | "productUses", index: number) => updateContent({
+    [field]: content[field].filter((_, itemIndex) => itemIndex !== index),
+  });
+
+  return <fieldset className="admin-content-editor">
+    <legend>محتوى صفحة تفاصيل أكثر</legend>
+    <label>الوصف التفصيلي<textarea rows={7} value={content.detailedDescription} onChange={(event) => updateContent({ detailedDescription: event.target.value })} /></label>
+    <AdminContentList
+      title="مميزات المنتج"
+      items={content.productFeatures}
+      titleLabel="عنوان الميزة"
+      descriptionLabel="الشرح"
+      onAdd={() => updateContent({ productFeatures: [...content.productFeatures, { title: "", description: "" }] })}
+      onUpdate={(index, patch) => updateItem("productFeatures", index, patch)}
+      onRemove={(index) => removeItem("productFeatures", index)}
+    />
+    <AdminContentList
+      title="استخدامات المنتج"
+      items={content.productUses}
+      titleLabel="عنوان الاستخدام"
+      descriptionLabel="الشرح"
+      onAdd={() => updateContent({ productUses: [...content.productUses, { title: "", description: "" }] })}
+      onUpdate={(index, patch) => updateItem("productUses", index, patch)}
+      onRemove={(index) => removeItem("productUses", index)}
+    />
+    <label>لماذا تختار هذا المنتج؟<textarea rows={7} value={content.whyChooseThisProduct} onChange={(event) => updateContent({ whyChooseThisProduct: event.target.value })} /></label>
+    <div className="admin-dynamic-list">
+      <div className="admin-dynamic-list-head"><b>الأسئلة الشائعة</b><button type="button" onClick={() => updateContent({ faq: [...content.faq, { question: "", answer: "" }] })}>إضافة سؤال</button></div>
+      {content.faq.map((item, index) => <div className="admin-dynamic-item" key={index}>
+        <label>السؤال<input value={item.question} onChange={(event) => updateContent({ faq: content.faq.map((faq, faqIndex) => faqIndex === index ? { ...faq, question: event.target.value } : faq) })} /></label>
+        <label>الإجابة<textarea rows={4} value={item.answer} onChange={(event) => updateContent({ faq: content.faq.map((faq, faqIndex) => faqIndex === index ? { ...faq, answer: event.target.value } : faq) })} /></label>
+        <button className="admin-remove-item" type="button" onClick={() => updateContent({ faq: content.faq.filter((_, faqIndex) => faqIndex !== index) })}>حذف السؤال</button>
+      </div>)}
+    </div>
+  </fieldset>;
+}
+
+function AdminContentList({
+  title,
+  items,
+  titleLabel,
+  descriptionLabel,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  title: string;
+  items: Array<{ title: string; description: string }>;
+  titleLabel: string;
+  descriptionLabel: string;
+  onAdd: () => void;
+  onUpdate: (index: number, patch: Partial<{ title: string; description: string }>) => void;
+  onRemove: (index: number) => void;
+}) {
+  return <div className="admin-dynamic-list">
+    <div className="admin-dynamic-list-head"><b>{title}</b><button type="button" onClick={onAdd}>إضافة عنصر</button></div>
+    {items.map((item, index) => <div className="admin-dynamic-item" key={index}>
+      <label>{titleLabel}<input value={item.title} onChange={(event) => onUpdate(index, { title: event.target.value })} /></label>
+      <label>{descriptionLabel}<textarea rows={4} value={item.description} onChange={(event) => onUpdate(index, { description: event.target.value })} /></label>
+      <button className="admin-remove-item" type="button" onClick={() => onRemove(index)}>حذف العنصر</button>
+    </div>)}
+  </div>;
 }
 
 function PaperSpecificationsEditor({ product, onChange }: { product: StoredProduct; onChange: (patch: Partial<StoredProduct>) => void }) {

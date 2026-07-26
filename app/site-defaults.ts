@@ -1,6 +1,7 @@
 import { resolvePrinterCategory, type PrinterCategory } from "./printer-categories";
 import type { PrinterSpecifications } from "./printer-specifications";
 import type { PaperSpecifications } from "./paper-specifications";
+import type { PrinterPageContent } from "./printer-page-content";
 
 export type SiteSettings = {
   logoImage: string;
@@ -21,6 +22,37 @@ export type SiteSettings = {
   workWeekdays: string;
   workStartTime: string;
   workEndTime: string;
+  productPurchaseBenefits: ProductPurchaseBenefits;
+};
+
+export type ProductPurchaseBenefitItem = {
+  title: string;
+  description: string;
+};
+
+export type ProductPurchaseBenefits = {
+  title: string;
+  description: string;
+  items: ProductPurchaseBenefitItem[];
+};
+
+export const defaultProductPurchaseBenefits: ProductPurchaseBenefits = {
+  title: "لماذا تشتري من مجموعة إسحاق العالمية؟",
+  description: "اختيار الطابعة المناسبة لا يعتمد على المواصفات فقط، بل على طبيعة استخدامك وحجم العمل الذي تحتاج إليه. في مجموعة إسحاق العالمية نساعدك على اختيار الحل المناسب لاحتياجاتك، مع توفير المنتجات والمواد الاستهلاكية والخدمات المرتبطة بها حسب المتاح.",
+  items: [
+    {
+      title: "مساعدة في اختيار الطابعة المناسبة",
+      description: "إذا كنت محتارًا بين أكثر من موديل، يمكنك التواصل مع فريقنا لمساعدتك في مقارنة الخيارات واختيار الطابعة الأنسب لطبيعة عملك واحتياجاتك.",
+    },
+    {
+      title: "توفير الأحبار والمواد الاستهلاكية",
+      description: "نسعى إلى توفير الأحبار والمواد الاستهلاكية المتوافقة مع الطابعات المعروضة لدينا حسب التوفر، لتسهيل حصولك على احتياجات الطابعة من مكان واحد.",
+    },
+    {
+      title: "دعم ومتابعة بعد الاختيار",
+      description: "يمكنك التواصل مع فريقنا للاستفسار عن المنتج واستخدامه والخدمات المتاحة المتعلقة به، للحصول على تجربة شراء أكثر وضوحًا وسهولة.",
+    },
+  ],
 };
 
 export const defaultSiteSettings: SiteSettings = {
@@ -42,6 +74,7 @@ export const defaultSiteSettings: SiteSettings = {
   workWeekdays: "sat,sun,mon,tue,wed,thu",
   workStartTime: "09:30",
   workEndTime: "22:00",
+  productPurchaseBenefits: defaultProductPurchaseBenefits,
 };
 
 export function normalizeLegacyArabicText(value: string) {
@@ -73,6 +106,7 @@ export type StoredProduct = {
   description: string;
   features: string[];
   specifications?: PrinterSpecifications;
+  printerPageContent?: PrinterPageContent;
   paperSpecifications?: PaperSpecifications;
   specificationsSourceUrl?: string;
   specificationsVerifiedAt?: string;

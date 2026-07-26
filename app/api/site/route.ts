@@ -1,4 +1,4 @@
-import { getSiteData, replaceSiteData } from "../../../lib/site-database";
+import { createProduct, getSiteData, removeProduct, saveSiteSettings, updateProduct } from "../../../lib/site-database";
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "../../../lib/media-url";
 import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../admin-auth";
 import { normalizeBusinessTime, normalizeBusinessWeekdays, sanitizePhoneNumber } from "../../business-hours";
@@ -9,12 +9,15 @@ import {
   normalizeSpecificationsVerifiedAt,
 } from "../../printer-specifications";
 import { normalizePaperSpecifications } from "../../paper-specifications";
+import { normalizePrinterPageContent } from "../../printer-page-content";
 import {
   defaultSiteSettings,
+  defaultProductPurchaseBenefits,
   normalizeLegacyArabicText,
   normalizeProductBrandName,
   type SiteSettings,
   type StoredProduct,
+  type ProductPurchaseBenefits,
 } from "../../site-defaults";
 
 export const runtime = "nodejs";
@@ -37,6 +40,29 @@ function normalizeSettings(value: unknown): SiteSettings {
     workWeekdays: normalizeBusinessWeekdays(settings.workWeekdays, defaultSiteSettings.workWeekdays),
     workStartTime: normalizeBusinessTime(settings.workStartTime, defaultSiteSettings.workStartTime),
     workEndTime: normalizeBusinessTime(settings.workEndTime, defaultSiteSettings.workEndTime),
+    productPurchaseBenefits: normalizeProductPurchaseBenefits(input.productPurchaseBenefits),
+  };
+}
+
+function normalizeProductPurchaseBenefits(value: unknown): ProductPurchaseBenefits {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const items = Array.isArray(input.items)
+    ? input.items.slice(0, 30).map((item) => {
+      const entry = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      return {
+        title: String(entry.title ?? "").trim().slice(0, 200),
+        description: String(entry.description ?? "").trim().slice(0, 4000),
+      };
+    }).filter((item) => item.title || item.description)
+    : defaultProductPurchaseBenefits.items;
+  return {
+    title: typeof input.title === "string"
+      ? input.title.trim().slice(0, 300)
+      : defaultProductPurchaseBenefits.title,
+    description: typeof input.description === "string"
+      ? input.description.trim().slice(0, 10000)
+      : defaultProductPurchaseBenefits.description,
+    items,
   };
 }
 
@@ -67,12 +93,17 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
       ? input.features.map(String).map((item) => item.trim().slice(0, 120)).filter(Boolean).slice(0, 8)
       : [],
     specifications: category === "printers" ? normalizePrinterSpecifications(input.specifications) : undefined,
+    printerPageContent: category === "printers" && input.printerPageContent
+      ? normalizePrinterPageContent(input.printerPageContent)
+      : undefined,
     paperSpecifications: category === "papers"
       ? normalizePaperSpecifications(input.paperSpecifications ?? input.specifications)
       : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(input.specificationsSourceUrl),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(input.specificationsVerifiedAt),
-    sortOrder: index,
+    sortOrder: Number.isSafeInteger(Number(input.sortOrder)) && Number(input.sortOrder) >= 0
+      ? Number(input.sortOrder)
+      : index,
   };
 }
 
@@ -92,15 +123,55 @@ export async function PUT(request: Request) {
   if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
-    const payload = await request.json() as { settings?: unknown; products?: unknown };
+    const payload = await request.json() as { settings?: unknown };
     const settings = normalizeSettings(payload.settings);
-    const normalizedProducts = Array.isArray(payload.products)
-      ? payload.products.map(normalizeProduct).filter((product): product is StoredProduct => Boolean(product)).slice(0, 500)
-      : [];
-    const products = [...new Map(normalizedProducts.map((product) => [product.id, product])).values()];
-    await replaceSiteData(settings, products);
-    return Response.json({ ok: true, settings, products });
+    const savedSettings = await saveSiteSettings(settings);
+    return Response.json({ ok: true, settings: savedSettings });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "تعذر حفظ التعديلات" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+
+  try {
+    const payload = await request.json() as { product?: unknown };
+    const product = normalizeProduct(payload.product, 0);
+    if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
+    const savedProduct = await createProduct(product);
+    return Response.json({ ok: true, product: savedProduct }, { status: 201 });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "تعذر إضافة المنتج" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+
+  try {
+    const payload = await request.json() as { product?: unknown };
+    const product = normalizeProduct(payload.product, 0);
+    if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
+    const savedProduct = await updateProduct(product);
+    return Response.json({ ok: true, product: savedProduct });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "تعذر حفظ المنتج" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+
+  try {
+    const payload = await request.json() as { id?: unknown };
+    const id = Number(payload.id);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      return Response.json({ error: "معرّف المنتج غير صالح" }, { status: 400 });
+    }
+    const deletedProduct = await removeProduct(id);
+    return Response.json({ ok: true, product: deletedProduct });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "تعذر حذف المنتج" }, { status: 500 });
   }
 }

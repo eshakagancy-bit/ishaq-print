@@ -1,0 +1,115 @@
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getSiteData } from "../../../lib/site-database";
+import { getPrinterCategoryLabel } from "../../printer-categories";
+import { buildQuickViewSpecificationRows } from "../../printer-specifications";
+import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
+import { getPrinterSlug } from "../product-slug";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const PRINTER_SPECIALIST_PHONE = "967778989866";
+
+type PageProps = {
+  params: Promise<{ slug: string }>;
+};
+
+async function getPrinters() {
+  const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
+  return {
+    printers: data.products.filter((product) => product.category === "printers"),
+    settings: data.settings,
+  };
+}
+
+async function getPrinter(slug: string) {
+  const { printers, settings } = await getPrinters();
+  return {
+    product: printers.find((printer) => getPrinterSlug(printer) === slug),
+    printers,
+    settings,
+  };
+}
+
+function getWhatsappLink(product: StoredProduct, request: "quote" | "specialist") {
+  const message = request === "quote"
+    ? `مرحبًا مجموعة إسحاق العالمية، أريد طلب عرض سعر للطابعة: ${product.name}.`
+    : `مرحبًا مجموعة إسحاق العالمية، أريد التواصل مع المختص بخصوص الطابعة: ${product.name}.`;
+  return `https://wa.me/${PRINTER_SPECIALIST_PHONE}?text=${encodeURIComponent(message)}`;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const { product } = await getPrinter(slug);
+  if (!product) return {};
+  return {
+    title: `${product.name} | مجموعة إسحاق العالمية`,
+    description: product.description || `تفاصيل ومواصفات ${product.name}`,
+  };
+}
+
+export default async function PrinterDetailsPage({ params }: PageProps) {
+  const { slug } = await params;
+  const { product, printers, settings } = await getPrinter(slug);
+  if (!product) notFound();
+
+  const specificationRows = buildQuickViewSpecificationRows(product);
+  const technicalRows = specificationRows.filter((row) => row.key !== "usage");
+  const pageContent = product.printerPageContent;
+  const keyInformation = technicalRows.slice(0, 6);
+  const similarProducts = printers
+    .filter((printer) => printer.id !== product.id && printer.printerCategory === product.printerCategory)
+    .slice(0, 4);
+  const purchaseBenefits = settings.productPurchaseBenefits;
+  const visiblePurchaseBenefitItems = purchaseBenefits.items.filter((item) => item.title || item.description);
+  const showPurchaseBenefits = Boolean(purchaseBenefits.title || purchaseBenefits.description || visiblePurchaseBenefitItems.length);
+
+  return (
+    <main className="printer-details-page">
+      <header className="printer-details-header">
+        <div className="container">
+          <Link href="/#products" className="printer-back-link">العودة إلى الطابعات</Link>
+          <Link href="/" aria-label="الصفحة الرئيسية">
+            <Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} priority />
+          </Link>
+        </div>
+      </header>
+
+      <section className="printer-hero">
+        <div className="container printer-hero-grid">
+          <div className="printer-gallery">
+            <Image src={product.image || "/brand/eshak-logo.png"} alt={product.name} width={760} height={620} sizes="(max-width: 800px) 92vw, 48vw" priority />
+          </div>
+          <div className="printer-summary">
+            {product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}
+            {product.family?.trim() && <span className="product-family">{product.family}</span>}
+            <h1>{product.name}</h1>
+            <div className="printer-meta">
+              <span><small>حالة التوفر</small><b>تُؤكّد عند الطلب</b></span>
+              {getPrinterCategoryLabel(product.printerCategory) && <span><small>الفئة</small><b>{getPrinterCategoryLabel(product.printerCategory)}</b></span>}
+            </div>
+            {keyInformation.length > 0 && <dl className="printer-key-info">{keyInformation.map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}
+            <div className="printer-actions">
+              <a className="primary-btn" href={getWhatsappLink(product, "quote")} target="_blank" rel="noreferrer">طلب عرض سعر</a>
+              <a className="secondary-btn" href={getWhatsappLink(product, "specialist")} target="_blank" rel="noreferrer">التواصل مع المختص</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="container printer-sections">
+        {pageContent?.detailedDescription && <section><h2>الوصف</h2><div className="printer-long-copy">{pageContent.detailedDescription.split(/\r?\n\r?\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></section>}
+        {pageContent?.productFeatures.length ? <section><h2>مميزات المنتج</h2><div className="printer-content-cards">{pageContent.productFeatures.map((feature, index) => <article key={`${feature.title}-${index}`}>{feature.title && <h3>{feature.title}</h3>}{feature.description && <p>{feature.description}</p>}</article>)}</div></section> : null}
+        {technicalRows.length > 0 && <section><h2>المواصفات الفنية للمنتج</h2><div className="printer-spec-table-wrap"><table className="printer-spec-table"><tbody>{technicalRows.map((row) => <tr key={row.key}><th scope="row">{row.label}</th><td>{row.value}</td></tr>)}</tbody></table></div></section>}
+        {pageContent?.productUses.length ? <section><h2>استخدامات المنتج</h2><div className="printer-content-cards">{pageContent.productUses.map((use, index) => <article key={`${use.title}-${index}`}>{use.title && <h3>{use.title}</h3>}{use.description && <p>{use.description}</p>}</article>)}</div></section> : null}
+        {pageContent?.whyChooseThisProduct && <section><h2>لماذا تختار هذا المنتج؟</h2><div className="printer-long-copy">{pageContent.whyChooseThisProduct.split(/\r?\n\r?\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></section>}
+        {showPurchaseBenefits && <section className="purchase-benefits-section">{purchaseBenefits.title && <h2>{purchaseBenefits.title}</h2>}{purchaseBenefits.description && <p className="purchase-benefits-description">{purchaseBenefits.description}</p>}{visiblePurchaseBenefitItems.length > 0 && <div className="printer-content-cards">{visiblePurchaseBenefitItems.map((item, index) => <article key={`${item.title}-${index}`}>{item.title && <h3>{item.title}</h3>}{item.description && <p>{item.description}</p>}</article>)}</div>}</section>}
+        {pageContent?.faq.some((item) => item.question) ? <section><h2>الأسئلة الشائعة</h2><div className="printer-faq">{pageContent.faq.filter((item) => item.question).map((item, index) => <details key={`${item.question}-${index}`}><summary>{item.question}</summary>{item.answer && <p>{item.answer}</p>}</details>)}</div></section> : null}
+        {similarProducts.length > 0 && <section><h2>منتجات مشابهة</h2><div className="similar-printers">{similarProducts.map((printer) => <Link href={`/printers/${getPrinterSlug(printer)}`} key={printer.id}><Image src={printer.image || "/brand/eshak-logo.png"} alt={printer.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{printer.name}</b><span>{getPrinterCategoryLabel(printer.printerCategory)}</span></Link>)}</div></section>}
+      </div>
+    </main>
+  );
+}

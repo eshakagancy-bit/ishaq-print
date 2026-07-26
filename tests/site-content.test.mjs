@@ -32,7 +32,7 @@ test("includes favorites, empty-category and admin safety copy", async () => {
     "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا",
   ]) assert.match(home, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
-  assert.match(admin, /هل أنت متأكد من حذف هذا المنتج؟ لن يتم تنفيذ الحذف النهائي حتى تضغط على حفظ جميع التعديلات\./);
+  assert.match(admin, /هل أنت متأكد من حذف هذا المنتج؟/);
   assert.match(admin, /توجد تعديلات لم يتم حفظها\. هل تريد مغادرة الصفحة؟/);
   assert.match(admin, /تم حفظ التعديلات ونشرها بنجاح ✓/);
 });

@@ -21,10 +21,14 @@ create table if not exists public.products (
   price text,
   description text not null default '',
   features jsonb not null default '[]'::jsonb,
+  printer_page_content jsonb,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint products_features_is_array check (jsonb_typeof(features) = 'array')
+  constraint products_features_is_array check (jsonb_typeof(features) = 'array'),
+  constraint products_printer_page_content_is_object check (
+    printer_page_content is null or jsonb_typeof(printer_page_content) = 'object'
+  )
 );
 
 create table if not exists public.hero_slides (
@@ -96,11 +100,11 @@ begin
     set payload = excluded.payload,
         updated_at = excluded.updated_at;
 
-  delete from public.products;
+  delete from public.products where id is not null;
 
   insert into public.products (
     id, name, family, image, category, type, size, badge, price,
-    description, features, sort_order, created_at, updated_at
+    description, features, printer_page_content, sort_order, created_at, updated_at
   )
   select
     item.id,
@@ -114,6 +118,7 @@ begin
     nullif(item.price, ''),
     coalesce(item.description, ''),
     coalesce(item.features, '[]'::jsonb),
+    item.printer_page_content,
     coalesce(item.sort_order, 0),
     now(),
     now()
@@ -129,6 +134,7 @@ begin
     price text,
     description text,
     features jsonb,
+    printer_page_content jsonb,
     sort_order integer
   );
 end;

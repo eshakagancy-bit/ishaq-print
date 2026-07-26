@@ -8,6 +8,10 @@ import {
 } from "../app/printer-specifications";
 import { normalizePaperSpecifications } from "../app/paper-specifications";
 import {
+  hasPrinterPageContent,
+  normalizePrinterPageContent,
+} from "../app/printer-page-content";
+import {
   PAPER_SPECIFICATIONS_UPDATE_TARGETS,
   buildPaperSpecificationsUpdatePreview,
   mergePaperSpecificationsUpdate,
@@ -40,6 +44,7 @@ type ProductRow = {
   description: string;
   features: unknown;
   specifications: unknown | null;
+  printer_page_content: unknown | null;
   specifications_source_url: string | null;
   specifications_verified_at: string | null;
   sort_order: number;
@@ -123,6 +128,9 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     specifications: product.category === "papers"
       ? product.paperSpecifications ?? null
       : product.specifications ?? null,
+    printer_page_content: product.category === "printers" && product.printerPageContent
+      ? product.printerPageContent
+      : null,
     specifications_source_url: product.specificationsSourceUrl || null,
     specifications_verified_at: product.specificationsVerifiedAt || null,
     sort_order: product.sortOrder ?? index,
@@ -132,6 +140,7 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
 function productFromRow(row: ProductRow): StoredProduct {
   const storedPrinterCategory = isPrinterCategory(row.category) ? row.category : undefined;
   const category = storedPrinterCategory ? "printers" : row.category;
+  const storedPrinterPageContent = normalizePrinterPageContent(row.printer_page_content);
   return {
     id: Number(row.id),
     name: normalizeProductBrandName(row.name),
@@ -148,6 +157,9 @@ function productFromRow(row: ProductRow): StoredProduct {
     description: row.description,
     features: normalizeFeatures(row.features),
     specifications: category === "printers" ? normalizePrinterSpecifications(row.specifications) : undefined,
+    printerPageContent: category === "printers" && hasPrinterPageContent(storedPrinterPageContent)
+      ? storedPrinterPageContent
+      : undefined,
     paperSpecifications: category === "papers" ? normalizePaperSpecifications(row.specifications) : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(row.specifications_source_url),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(row.specifications_verified_at),
@@ -264,6 +276,7 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
   const productsWithStructuredSpecifications = products.filter((product) =>
     product.specifications !== undefined || product.paperSpecifications !== undefined
       || product.specificationsSourceUrl || product.specificationsVerifiedAt
+      || (product.printerPageContent && hasPrinterPageContent(product.printerPageContent))
   );
   const specificationResults = await Promise.all(productsWithStructuredSpecifications.map((product) => client
     .from("products")
@@ -273,6 +286,9 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
         : product.specifications ?? null,
       specifications_source_url: product.specificationsSourceUrl || null,
       specifications_verified_at: product.specificationsVerifiedAt || null,
+      printer_page_content: product.category === "printers"
+        ? product.printerPageContent ?? null
+        : null,
     })
     .eq("id", product.id)
     .select("id")
@@ -282,6 +298,60 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     databaseError("تعذر حفظ مواصفات المنتج المنظمة", failedSpecificationUpdate.error);
     throw new Error("تعذر العثور على المنتج أثناء حفظ مواصفاته المنظمة");
   }
+}
+
+export async function saveSiteSettings(settings: SiteSettings) {
+  const client = getSupabaseAdmin();
+  const result = await client
+    .from("site_settings")
+    .upsert({ id: 1, payload: normalizeSiteSettingsMedia(settings) }, { onConflict: "id" })
+    .select("payload")
+    .single();
+  databaseError("تعذر حفظ إعدادات الموقع", result.error);
+  return normalizeSiteSettingsMedia({
+    ...defaultSiteSettings,
+    ...((result.data?.payload ?? {}) as Partial<SiteSettings>),
+  });
+}
+
+export async function updateProduct(product: StoredProduct) {
+  const client = getSupabaseAdmin();
+  const result = await client
+    .from("products")
+    .update({
+      ...productToRow(product, product.sortOrder ?? 0),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", product.id)
+    .select("*")
+    .maybeSingle();
+  databaseError("تعذر حفظ المنتج", result.error);
+  if (!result.data) throw new Error("تعذر العثور على المنتج أثناء الحفظ");
+  return productFromRow(result.data as ProductRow);
+}
+
+export async function createProduct(product: StoredProduct) {
+  const client = getSupabaseAdmin();
+  const result = await client
+    .from("products")
+    .insert(productToRow(product, product.sortOrder ?? 0))
+    .select("*")
+    .single();
+  databaseError("تعذر إضافة المنتج", result.error);
+  return productFromRow(result.data as ProductRow);
+}
+
+export async function removeProduct(id: number) {
+  const client = getSupabaseAdmin();
+  const result = await client
+    .from("products")
+    .delete()
+    .eq("id", id)
+    .select("*")
+    .maybeSingle();
+  databaseError("تعذر حذف المنتج", result.error);
+  if (!result.data) throw new Error("تعذر العثور على المنتج أثناء الحذف");
+  return productFromRow(result.data as ProductRow);
 }
 
 async function loadPaperSpecificationsUpdateRows(): Promise<PaperSpecificationsUpdateRow[]> {
