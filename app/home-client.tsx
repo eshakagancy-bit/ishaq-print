@@ -215,6 +215,7 @@ export default function HomeClient({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PrinterCategoryFilter>(ALL_PRINTERS_FILTER.value);
   const [activeCategory, setActiveCategory] = useState<CategoryId>("printers");
+  const [allCategoriesActive, setAllCategoriesActive] = useState(false);
   const [selected, setSelected] = useState<Product | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [favoritesReady, setFavoritesReady] = useState(false);
@@ -367,10 +368,18 @@ export default function HomeClient({
   const currentCategory = categories.find((category) => category.id === activeCategory) ?? categories[0];
 
   const openCategory = (category: CategoryId) => {
+    setAllCategoriesActive(false);
     setActiveCategory(category);
     setFilter(ALL_PRINTERS_FILTER.value);
     setQuery("");
     window.setTimeout(() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" }), 0);
+  };
+
+  const openAllCategories = () => {
+    setAllCategoriesActive(true);
+    setFilter(ALL_PRINTERS_FILTER.value);
+    setQuery("");
+    window.setTimeout(() => document.getElementById("categories")?.scrollIntoView({ behavior: "smooth" }), 0);
   };
 
   const heroButtonHref = (url: string) => url === "whatsapp" ? generalWaLink(settings.generalWhatsapp) : url.replace(/\?category=.*/, "");
@@ -515,6 +524,32 @@ export default function HomeClient({
           </div>
         </div>
       </header>
+
+      <nav className="category-strip" aria-label="أقسام المنتجات">
+        <div className="container category-strip-scroll">
+          <div className="category-strip-list">
+            <button
+              type="button"
+              className={allCategoriesActive ? "active" : ""}
+              onClick={openAllCategories}
+              aria-current={allCategoriesActive ? "page" : undefined}
+            >
+              جميع المنتجات
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                className={!allCategoriesActive && activeCategory === category.id ? "active" : ""}
+                onClick={() => openCategory(category.id)}
+                aria-current={!allCategoriesActive && activeCategory === category.id ? "page" : undefined}
+              >
+                {category.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
 
       <section
         className="hero hero-slider"
