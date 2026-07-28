@@ -7,6 +7,7 @@ import {
   normalizeSpecificationsVerifiedAt,
 } from "../app/printer-specifications";
 import { normalizePaperSpecifications } from "../app/paper-specifications";
+import { normalizeInkSpecifications } from "../app/ink-specifications";
 import {
   hasPrinterPageContent,
   normalizePrinterPageContent,
@@ -22,6 +23,7 @@ import {
   defaultHeroSettings,
   defaultHeroSlides,
   defaultSiteSettings,
+  categoryImageDefinitions,
   normalizeLegacyArabicText,
   normalizeProductBrandName,
   starterProducts,
@@ -106,6 +108,10 @@ function normalizeSiteSettingsMedia(settings: SiteSettings): SiteSettings {
     ...normalizedText,
     logoImage: normalizeStoredMediaUrl(normalizedText.logoImage),
     featureImage: normalizeStoredMediaUrl(normalizedText.featureImage),
+    categoryImages: Object.fromEntries(categoryImageDefinitions.map(({ key }) => [
+      key,
+      normalizeStoredMediaUrl(normalizedText.categoryImages?.[key] ?? ""),
+    ])) as SiteSettings["categoryImages"],
   };
 }
 
@@ -127,7 +133,7 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     features: product.features,
     specifications: product.category === "papers"
       ? product.paperSpecifications ?? null
-      : product.specifications ?? null,
+      : product.category === "inks" ? product.inkSpecifications ?? null : product.specifications ?? null,
     printer_page_content: product.category === "printers" && product.printerPageContent
       ? product.printerPageContent
       : null,
@@ -161,6 +167,7 @@ function productFromRow(row: ProductRow): StoredProduct {
       ? storedPrinterPageContent
       : undefined,
     paperSpecifications: category === "papers" ? normalizePaperSpecifications(row.specifications) : undefined,
+    inkSpecifications: category === "inks" ? normalizeInkSpecifications(row.specifications) : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(row.specifications_source_url),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(row.specifications_verified_at),
     sortOrder: row.sort_order,
@@ -274,7 +281,7 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
   databaseError("تعذر حفظ بيانات الموقع", result.error);
 
   const productsWithStructuredSpecifications = products.filter((product) =>
-    product.specifications !== undefined || product.paperSpecifications !== undefined
+    product.specifications !== undefined || product.paperSpecifications !== undefined || product.inkSpecifications !== undefined
       || product.specificationsSourceUrl || product.specificationsVerifiedAt
       || (product.printerPageContent && hasPrinterPageContent(product.printerPageContent))
   );
@@ -283,7 +290,7 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     .update({
       specifications: product.category === "papers"
         ? product.paperSpecifications ?? null
-        : product.specifications ?? null,
+        : product.category === "inks" ? product.inkSpecifications ?? null : product.specifications ?? null,
       specifications_source_url: product.specificationsSourceUrl || null,
       specifications_verified_at: product.specificationsVerifiedAt || null,
       printer_page_content: product.category === "printers"

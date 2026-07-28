@@ -21,9 +21,11 @@ import {
   getPaperCardSpecificationTags,
   type PaperSpecifications,
 } from "./paper-specifications";
+import { buildInkSpecificationRows, getInkCardSpecificationTags, type InkSpecifications } from "./ink-specifications";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
+  defaultCategoryImages,
   defaultSiteSettings,
   type HeroSettings,
   type HeroSlide,
@@ -33,6 +35,7 @@ import {
   starterProducts as defaultStarterProducts,
 } from "./site-defaults";
 import { getPrinterSlug } from "./printers/product-slug";
+import { getInkSlug } from "./inks/product-slug";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
 const DEFAULT_IMAGE_SRC = "/brand/eshak-logo.png";
@@ -54,6 +57,7 @@ type Product = {
   features: string[];
   specifications?: PrinterSpecifications;
   paperSpecifications?: PaperSpecifications;
+  inkSpecifications?: InkSpecifications;
   specificationsSourceUrl?: string;
   specificationsVerifiedAt?: string;
 };
@@ -64,6 +68,23 @@ type HomeClientProps = {
   initialHeroSlides: HeroSlide[];
   initialHeroSettings: HeroSettings;
 };
+
+type MobileNavSection = "home" | "categories" | "search" | "contact";
+
+const mobileNavTargets: Record<MobileNavSection, string> = {
+  home: "home",
+  categories: "categories",
+  search: "general-search",
+  contact: "contact",
+};
+
+function MobileNavIcon({ section }: { section: MobileNavSection }) {
+  if (section === "home") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 10.5 12 3l8.5 7.5v9a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5zM9 21v-7h6v7" /></svg>;
+  if (section === "categories") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
+  if (section === "search") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5" /></svg>;
+  if (section === "contact") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15.5a4 4 0 0 1-4 4H8l-5 2 1.6-4A7.8 7.8 0 0 1 3 12.8v-1.3a7 7 0 0 1 7-7h4a7 7 0 0 1 7 7z" /><path d="M8 11.8h.01M12 11.8h.01M16 11.8h.01" /></svg>;
+  return null;
+}
 
 const categories = [
   { id: "printers", name: "طابعات EPSON", icon: "🖨️", description: "طابعات إبسون الأصلية للمكاتب والشركات" },
@@ -80,6 +101,11 @@ const categories = [
 ] as const;
 
 type CategoryId = typeof categories[number]["id"];
+type DesktopCategoryMenu = "printers" | "machines" | "technology" | "more";
+
+const machineCategoryIds: CategoryId[] = ["engraving-presses", "advertising-machines", "money-machines"];
+const technologyCategoryIds: CategoryId[] = ["electronics", "cameras", "3d-printers", "networks"];
+const directlyShownCategoryIds: CategoryId[] = ["printers", "inks", "papers", "laptops"];
 
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
@@ -115,6 +141,8 @@ function normalizeInitialProduct(product: StoredProduct): Product {
   return {
     ...product,
     name: normalizeProductBrandName(product.name),
+    family: category === "inks" ? "" : product.family,
+    badge: category === "inks" ? undefined : product.badge,
     image: imageSrcOrFallback(product.image),
     category,
     printerCategory: category === "printers"
@@ -124,7 +152,9 @@ function normalizeInitialProduct(product: StoredProduct): Product {
 }
 
 function getProductCardSpecificationTags(product: Product) {
-  return product.category === "papers"
+  return product.category === "inks"
+    ? getInkCardSpecificationTags(product)
+    : product.category === "papers"
     ? getPaperCardSpecificationTags(product)
     : getPrinterCardSpecificationTags(product);
 }
@@ -194,6 +224,10 @@ export default function HomeClient({
       ...nextSettings,
       logoImage: imageSrcOrFallback(nextSettings.logoImage),
       featureImage: safeImageSrc(nextSettings.featureImage) ?? "",
+      categoryImages: Object.fromEntries(Object.entries({
+        ...defaultCategoryImages,
+        ...nextSettings.categoryImages,
+      }).map(([key, value]) => [key, safeImageSrc(value) ?? ""])) as SiteSettings["categoryImages"],
     };
   });
   const [heroSlides] = useState<HeroSlide[]>(() => {
@@ -221,6 +255,9 @@ export default function HomeClient({
   const [favoritesReady, setFavoritesReady] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [desktopCategoryMenu, setDesktopCategoryMenu] = useState<DesktopCategoryMenu | null>(null);
+  const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
+  const [scrollRequest, setScrollRequest] = useState<{ targetId: string; sequence: number } | null>(null);
   const [customerPhoneCopied, setCustomerPhoneCopied] = useState(false);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [outgoingHeroSlide, setOutgoingHeroSlide] = useState<number | null>(null);
@@ -229,10 +266,12 @@ export default function HomeClient({
   const quickViewTriggerRef = useRef<HTMLElement | null>(null);
   const quickViewDialogRef = useRef<HTMLDivElement | null>(null);
   const quickViewCloseRef = useRef<HTMLButtonElement | null>(null);
+  const categoryStripRef = useRef<HTMLElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
   const heroTransitionTimerRef = useRef<number | null>(null);
   const nextHeroPreloadRef = useRef<HTMLImageElement | null>(null);
+  const scrollRequestSequenceRef = useRef(0);
 
   const customerPhone = normalizeYemenPhone(settings.customerServicePhone);
   const customerPhoneDisplay = customerPhone.replace(/^967/, "");
@@ -346,6 +385,65 @@ export default function HomeClient({
   }, []);
 
   useEffect(() => {
+    const sectionIds: MobileNavSection[] = ["home", "categories", "search", "contact"];
+    let frame = 0;
+    const updateActiveSection = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        if (window.scrollY < 40) {
+          setMobileNavSection("home");
+          return;
+        }
+        const headerHeight = document.querySelector<HTMLElement>(".header")?.getBoundingClientRect().height ?? 0;
+        const marker = headerHeight + 24;
+        const sections = sectionIds
+          .map((id) => ({ id, element: document.getElementById(mobileNavTargets[id]) }))
+          .filter((entry): entry is { id: MobileNavSection; element: HTMLElement } => Boolean(entry.element));
+        const reached = sections.filter(({ element }) => element.getBoundingClientRect().top <= marker);
+        const active = reached[reached.length - 1] ?? sections[0];
+        if (active) setMobileNavSection(active.id);
+      });
+    };
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!scrollRequest) return undefined;
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(scrollRequest.targetId);
+        if (!target) return;
+        const headerOffset = document.querySelector<HTMLElement>(".header")?.getBoundingClientRect().height ?? 0;
+        const targetTop = scrollRequest.targetId === "home"
+          ? 0
+          : window.scrollY + target.getBoundingClientRect().top - headerOffset - 8;
+        window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [scrollRequest]);
+
+  useEffect(() => {
+    const closeCategoryMenu = (event: PointerEvent) => {
+      if (!categoryStripRef.current?.contains(event.target as Node)) setDesktopCategoryMenu(null);
+    };
+    document.addEventListener("pointerdown", closeCategoryMenu);
+    return () => document.removeEventListener("pointerdown", closeCategoryMenu);
+  }, []);
+
+  useEffect(() => {
     if (!favoritesOpen || selected) return undefined;
     const closeDialog = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -356,38 +454,93 @@ export default function HomeClient({
   }, [favoritesOpen, selected]);
 
   const visibleProducts = useMemo(() => products.filter((product) => {
-    const matchesCategory = product.category === activeCategory;
+    const matchesCategory = allCategoriesActive || product.category === activeCategory;
     const searchText = `${product.name} ${product.family} ${product.description}`.toLowerCase();
     const matchesQuery = searchText.includes(query.toLowerCase());
-    const matchesFilter = activeCategory !== "printers" ||
+    const matchesFilter = allCategoriesActive || activeCategory !== "printers" ||
       filter === ALL_PRINTERS_FILTER.value ||
       product.printerCategory === filter;
     return matchesCategory && matchesQuery && matchesFilter;
-  }), [products, query, filter, activeCategory]);
+  }), [products, query, filter, activeCategory, allCategoriesActive]);
 
   const currentCategory = categories.find((category) => category.id === activeCategory) ?? categories[0];
+  const currentPrinterFilter = PRINTER_CATEGORIES.find((category) => category.value === filter);
+  const machineCategories = categories.filter((category) => machineCategoryIds.includes(category.id));
+  const technologyCategories = categories.filter((category) => technologyCategoryIds.includes(category.id));
+  const moreCategories = categories.filter((category) =>
+    !directlyShownCategoryIds.includes(category.id)
+    && !machineCategoryIds.includes(category.id)
+    && !technologyCategoryIds.includes(category.id)
+  );
+  const categoryVisuals = useMemo(() => new Map(categories.map((category) => {
+    const customImage = settings.categoryImages[category.id];
+    const productImage = products.find((product) => product.category === category.id)?.image;
+    return [category.id, {
+      src: customImage || productImage || DEFAULT_IMAGE_SRC,
+      placeholder: !customImage && !productImage,
+    }];
+  })), [products, settings.categoryImages]);
+  const allProductsVisual = settings.categoryImages["all-products"] || "/hero/technology-solutions.png";
+
+  const requestSectionScroll = (targetId: string) => {
+    scrollRequestSequenceRef.current += 1;
+    setScrollRequest({ targetId, sequence: scrollRequestSequenceRef.current });
+  };
 
   const openCategory = (category: CategoryId) => {
+    setDesktopCategoryMenu(null);
     setAllCategoriesActive(false);
     setActiveCategory(category);
     setFilter(ALL_PRINTERS_FILTER.value);
     setQuery("");
-    window.setTimeout(() => document.getElementById("products")?.scrollIntoView({ behavior: "smooth" }), 0);
+    requestSectionScroll("products");
   };
 
   const openAllCategories = () => {
+    setDesktopCategoryMenu(null);
     setAllCategoriesActive(true);
     setFilter(ALL_PRINTERS_FILTER.value);
     setQuery("");
-    window.setTimeout(() => document.getElementById("categories")?.scrollIntoView({ behavior: "smooth" }), 0);
+    requestSectionScroll("products");
+  };
+
+  const openPrinterFilter = (printerFilter: PrinterCategory) => {
+    setDesktopCategoryMenu(null);
+    setAllCategoriesActive(false);
+    setActiveCategory("printers");
+    setFilter(printerFilter);
+    setQuery("");
+    requestSectionScroll("products");
+  };
+
+  const openMobileSection = (section: MobileNavSection) => {
+    setMobileNavSection(section);
+    requestSectionScroll(mobileNavTargets[section]);
+  };
+
+  const updatePrinterSearch = (value: string) => {
+    setAllCategoriesActive(false);
+    setActiveCategory("printers");
+    setFilter(ALL_PRINTERS_FILTER.value);
+    setQuery(value);
+    if (value) requestSectionScroll("products");
+  };
+
+  const updateGeneralSearch = (value: string) => {
+    setAllCategoriesActive(true);
+    setFilter(ALL_PRINTERS_FILTER.value);
+    setQuery(value);
+    if (value) requestSectionScroll("products");
   };
 
   const heroButtonHref = (url: string) => url === "whatsapp" ? generalWaLink(settings.generalWhatsapp) : url.replace(/\?category=.*/, "");
 
-  const handleHeroButtonClick = (url: string) => {
+  const handleHeroButtonClick = (url: string, buttonText = "") => {
     const category = url.match(/category=([a-z0-9-]+)/)?.[1];
     if (category && categories.some((item) => item.id === category)) {
       openCategory(category as CategoryId);
+    } else if (url.startsWith("#products") && buttonText.includes("الطابعات")) {
+      openCategory("printers");
     }
   };
 
@@ -418,7 +571,9 @@ export default function HomeClient({
   }, []);
   const closeQuickView = useCallback(() => setSelected(null), []);
   const selectedSpecificationRows = selected
-    ? selected.category === "papers"
+    ? selected.category === "inks"
+      ? buildInkSpecificationRows(selected)
+      : selected.category === "papers"
       ? buildPaperSpecificationRows(selected)
       : buildQuickViewSpecificationRows(selected)
     : [];
@@ -496,7 +651,7 @@ export default function HomeClient({
   }, [closeQuickView, selected]);
 
   return (
-    <main dir="rtl">
+    <main dir="rtl" className="home-page">
       <div className="topbar">
         <div className="container topbar-inner">
           <span>📍 {settings.address}</span>
@@ -507,7 +662,7 @@ export default function HomeClient({
       <header className="header">
         <div className="container nav-wrap">
           <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>
-          <nav className={menuOpen ? "nav-links open" : "nav-links"} aria-label="التنقل الرئيسي">
+          <nav id="mobile-site-menu" className={menuOpen ? "nav-links open" : "nav-links"} aria-label="التنقل الرئيسي">
             <a href="#home" onClick={() => setMenuOpen(false)}>الرئيسية</a>
             <a href="#categories" onClick={() => setMenuOpen(false)}>الأقسام</a>
             <a href="#maintenance" onClick={() => setMenuOpen(false)}>الصيانة</a>
@@ -520,34 +675,76 @@ export default function HomeClient({
             <button type="button" className="favorite-counter" onClick={() => setFavoritesOpen(true)} aria-label={`فتح المفضلة، ${favorites.length} منتجات`}><span>♡</span><b>{favorites.length}</b></button>
             <a className="admin-link" href="/admin">لوحة التحكم</a>
             <a className="nav-contact" href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">اطلب استشارة</a>
-            <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="فتح القائمة"><span></span><span></span><span></span></button>
+            <button className="menu-btn" type="button" onClick={() => setMenuOpen((current) => !current)} aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-controls="mobile-site-menu" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
           </div>
         </div>
       </header>
 
-      <nav className="category-strip" aria-label="أقسام المنتجات">
-        <div className="container category-strip-scroll">
-          <div className="category-strip-list">
+      <nav ref={categoryStripRef} className="category-strip" aria-label="أقسام المنتجات">
+        <div className="container category-strip-list">
+          <button type="button" className={allCategoriesActive ? "active" : ""} onClick={openAllCategories} aria-current={allCategoriesActive ? "page" : undefined}>جميع المنتجات</button>
+          <div
+            className={desktopCategoryMenu === "printers" ? "category-strip-item open" : "category-strip-item"}
+            onMouseEnter={() => setDesktopCategoryMenu("printers")}
+            onMouseLeave={() => setDesktopCategoryMenu(null)}
+            onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDesktopCategoryMenu(null); }}
+          >
             <button
               type="button"
-              className={allCategoriesActive ? "active" : ""}
-              onClick={openAllCategories}
-              aria-current={allCategoriesActive ? "page" : undefined}
-            >
-              جميع المنتجات
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
+              className={!allCategoriesActive && activeCategory === "printers" ? "category-strip-trigger active" : "category-strip-trigger"}
+              onClick={() => {
+                if (allCategoriesActive || activeCategory !== "printers") openCategory("printers");
+                setDesktopCategoryMenu((current) => current === "printers" ? null : "printers");
+              }}
+              aria-haspopup="menu"
+              aria-expanded={desktopCategoryMenu === "printers"}
+            >طابعات EPSON<span className="category-menu-chevron" aria-hidden="true">⌄</span></button>
+            <div className="category-dropdown-desktop printer-mega-menu" role="menu" aria-label="تصنيفات طابعات EPSON">
+              <strong>اختر فئة الطابعة</strong>
+              <div>{PRINTER_CATEGORIES.map((printerCategory) => <button
+                key={printerCategory.value}
                 type="button"
-                className={!allCategoriesActive && activeCategory === category.id ? "active" : ""}
-                onClick={() => openCategory(category.id)}
-                aria-current={!allCategoriesActive && activeCategory === category.id ? "page" : undefined}
-              >
-                {category.name}
-              </button>
-            ))}
+                className={activeCategory === "printers" && filter === printerCategory.value ? "active" : ""}
+                onClick={() => openPrinterFilter(printerCategory.value)}
+                role="menuitem"
+              >{printerCategory.label.split(" (")[0]}</button>)}</div>
+            </div>
           </div>
+          {(["inks", "papers", "laptops"] as CategoryId[]).map((categoryId) => {
+            const category = categories.find((item) => item.id === categoryId);
+            return category && <button key={category.id} type="button" className={!allCategoriesActive && activeCategory === category.id ? "active" : ""} onClick={() => openCategory(category.id)}>{category.name}</button>;
+          })}
+          {([
+            { id: "machines", label: "الماكينات", items: machineCategories },
+            { id: "technology", label: "التقنية", items: technologyCategories },
+            { id: "more", label: "المزيد", items: moreCategories },
+          ] as const).map((group) => {
+            const groupActive = !allCategoriesActive && group.items.some((category) => category.id === activeCategory);
+            return <div
+              key={group.id}
+              className={desktopCategoryMenu === group.id ? "category-strip-item open" : "category-strip-item"}
+              onMouseEnter={() => setDesktopCategoryMenu(group.id)}
+              onMouseLeave={() => setDesktopCategoryMenu(null)}
+              onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDesktopCategoryMenu(null); }}
+            >
+              <button
+                type="button"
+                className={groupActive ? "category-strip-trigger active" : "category-strip-trigger"}
+                onClick={() => setDesktopCategoryMenu((current) => current === group.id ? null : group.id)}
+                aria-haspopup="menu"
+                aria-expanded={desktopCategoryMenu === group.id}
+              >{group.label}<span className="category-menu-chevron" aria-hidden="true">⌄</span></button>
+              <div className="category-dropdown-desktop" role="menu" aria-label={`أقسام ${group.label}`}>
+                {group.items.length ? group.items.map((category) => <button
+                  key={category.id}
+                  type="button"
+                  className={!allCategoriesActive && activeCategory === category.id ? "active" : ""}
+                  onClick={() => openCategory(category.id)}
+                  role="menuitem"
+                >{category.name}</button>) : <span className="category-dropdown-empty">جميع الأقسام ظاهرة في الشريط</span>}
+              </div>
+            </div>;
+          })}
         </div>
       </nav>
 
@@ -589,7 +786,10 @@ export default function HomeClient({
                 href={heroButtonHref(activeHero.primaryButtonUrl)}
                 target={activeHero.primaryButtonUrl.startsWith("http") ? "_blank" : undefined}
                 rel={activeHero.primaryButtonUrl.startsWith("http") ? "noreferrer" : undefined}
-                onClick={() => handleHeroButtonClick(activeHero.primaryButtonUrl)}
+                onClick={(event) => {
+                  if (activeHero.primaryButtonUrl !== "whatsapp" && !activeHero.primaryButtonUrl.startsWith("http")) event.preventDefault();
+                  handleHeroButtonClick(activeHero.primaryButtonUrl, activeHero.primaryButtonText);
+                }}
               >
                 {activeHero.primaryButtonText} <span>←</span>
               </a>
@@ -598,7 +798,10 @@ export default function HomeClient({
                 href={heroButtonHref(activeHero.secondaryButtonUrl)}
                 target={activeHero.secondaryButtonUrl === "whatsapp" || activeHero.secondaryButtonUrl.startsWith("http") ? "_blank" : undefined}
                 rel={activeHero.secondaryButtonUrl === "whatsapp" || activeHero.secondaryButtonUrl.startsWith("http") ? "noreferrer" : undefined}
-                onClick={() => handleHeroButtonClick(activeHero.secondaryButtonUrl)}
+                onClick={(event) => {
+                  if (activeHero.secondaryButtonUrl !== "whatsapp" && !activeHero.secondaryButtonUrl.startsWith("http")) event.preventDefault();
+                  handleHeroButtonClick(activeHero.secondaryButtonUrl, activeHero.secondaryButtonText);
+                }}
               >
                 {activeHero.secondaryButtonText}
               </a>
@@ -637,30 +840,44 @@ export default function HomeClient({
       </section>
 
       <section className="search-panel-wrap"><div className="container search-panel">
-        <div className="search-field"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`ابحث داخل قسم ${currentCategory.name}...`} aria-label="البحث عن منتج" /></div>
+        <div className="search-field"><span>⌕</span><input value={query} onChange={(event) => updatePrinterSearch(event.target.value)} placeholder="ابحث داخل قسم طابعات EPSON..." aria-label="البحث داخل قسم طابعات EPSON" /></div>
         <div className="quick-points"><span>✓ أسعار منافسة</span><span>✓ منتجات موثوقة</span><span>✓ دعم فني متخصص</span></div>
       </div></section>
 
       <section className="categories-section" id="categories"><div className="container">
         <div className="center-heading categories-heading"><span className="section-kicker">أقسامنا التجارية</span><h2>اختر القسم الذي تبحث عنه</h2><p>تصفح أقسامنا المتنوعة واختر المنتجات التي تناسب احتياجاتك.</p></div>
+        <label className="categories-search" id="general-search">
+          <span aria-hidden="true">⌕</span>
+          <input value={query} onChange={(event) => updateGeneralSearch(event.target.value)} placeholder="ابحث عن منتج..." aria-label="البحث العام في جميع المنتجات" />
+        </label>
         <div className="category-grid">
+          <article className={allCategoriesActive ? "category-card active" : "category-card"}>
+            <button type="button" className="category-main" onClick={openAllCategories} aria-label="عرض جميع المنتجات">
+              <span className="category-image">
+                <Image src={allProductsVisual} alt="" fill sizes="(max-width: 760px) 31vw, (max-width: 1200px) 20vw, 190px" />
+              </span>
+              <b>جميع المنتجات</b>
+            </button>
+          </article>
           {categories.map((category) => {
-            const count = products.filter((product) => product.category === category.id).length;
-            return <article key={category.id} className={activeCategory === category.id ? "category-card active" : "category-card"}>
-              <button className="category-main" onClick={() => openCategory(category.id)}>
-                <span className="category-icon" aria-hidden="true">{category.icon}</span>
-                <span className="category-copy"><b>{category.name}</b><small>{category.description}</small></span>
-                <span className="category-meta">{count ? `${count} منتجات` : "قريبًا"}<i>←</i></span>
+            const visual = categoryVisuals.get(category.id) ?? { src: DEFAULT_IMAGE_SRC, placeholder: true };
+            return <article key={category.id} className={!allCategoriesActive && activeCategory === category.id ? "category-card active" : "category-card"}>
+              <button type="button" className="category-main" onClick={() => openCategory(category.id)} aria-label={`فتح قسم ${category.name}`}>
+                <span className={visual.placeholder ? "category-image placeholder" : "category-image"}>
+                  <Image src={visual.src} alt="" fill sizes="(max-width: 760px) 31vw, (max-width: 1200px) 20vw, 190px" />
+                  {visual.placeholder && <small>صورة مؤقتة</small>}
+                </span>
+                <b>{category.name}</b>
               </button>
-              <a className="category-specialist" href={specialistWaLink(category.id)} target="_blank" rel="noreferrer" aria-label={`تواصل مع مختص قسم ${category.name}`}><span>●</span> واتساب المختص: <b dir="ltr">{categoryContacts[category.id].replace("967", "")}</b></a>
             </article>;
           })}
         </div>
       </div></section>
 
       <section className="products-section" id="products"><div className="container">
-        <div className="section-heading"><div><span className="section-kicker">{activeCategory === "printers" ? "طابعات إبسون فقط" : "منتجات القسم"}</span><h2>{currentCategory.name}</h2><p>{currentCategory.description}.</p></div><a className="specialist-heading-link" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer"><span>●</span> واتساب المختص: <b dir="ltr">{categoryContacts[activeCategory].replace("967", "")}</b></a></div>
-        {activeCategory === "printers" && <div className="filters" role="group" aria-label="تصنيف طابعات إبسون">{[ALL_PRINTERS_FILTER, ...PRINTER_CATEGORIES].map((item) => <button key={item.value} className={filter === item.value ? "active" : ""} onClick={() => setFilter(item.value)}>{item.label}</button>)}</div>}
+        <nav className="product-breadcrumb" aria-label="مسار القسم"><a href="#home">الرئيسية</a><span aria-hidden="true">←</span><b>{allCategoriesActive ? "جميع المنتجات" : currentCategory.name}</b>{!allCategoriesActive && activeCategory === "printers" && currentPrinterFilter && <><span aria-hidden="true">←</span><b>{currentPrinterFilter.label}</b></>}</nav>
+        <div className="section-heading"><div><span className="section-kicker">{allCategoriesActive ? "كتالوج المنتجات" : activeCategory === "printers" ? "طابعات إبسون فقط" : "منتجات القسم"}</span><h2>{allCategoriesActive ? "جميع المنتجات" : currentCategory.name}</h2><p>{allCategoriesActive ? "تصفح جميع المنتجات المتاحة في أقسام الموقع." : `${currentCategory.description}.`}</p></div><a className="specialist-heading-link" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer"><span>●</span> واتساب المختص: <b dir="ltr">{categoryContacts[activeCategory].replace("967", "")}</b></a></div>
+        {!allCategoriesActive && activeCategory === "printers" && <div className="filters" role="group" aria-label="تصنيف طابعات إبسون">{[ALL_PRINTERS_FILTER, ...PRINTER_CATEGORIES].map((item) => <button key={item.value} className={filter === item.value ? "active" : ""} onClick={() => setFilter(item.value)}>{item.label}</button>)}</div>}
         {visibleProducts.length ? <div className="product-grid">{visibleProducts.map((product) => {
           const cardTags = getProductCardSpecificationTags(product);
           return <article className="product-card" key={product.id}>
@@ -670,7 +887,7 @@ export default function HomeClient({
         })}</div> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا"}</p><div className="empty-actions">{query ? <button type="button" onClick={() => { setQuery(""); setFilter(ALL_PRINTERS_FILTER.value); }}>عرض جميع المنتجات</button> : <a className="empty-specialist" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer">تواصل مع مختص القسم</a>}</div></div>}
       </div></section>
 
-      <section className="feature-band"><div className="container feature-band-inner">
+      <section className="feature-band" id="about"><div className="container feature-band-inner">
         <div className="feature-image"><div className="cyan-disc"></div>{featureImageSrc && <Image src={featureImageSrc} alt="صورة البانر الدعائي" width={640} height={640} sizes="(max-width: 760px) 92vw, (max-width: 1200px) 46vw, 540px" loading="lazy" />}</div>
         <div className="feature-copy"><span className="eyebrow dark">{settings.featureEyebrow}</span><h2>{settings.featureTitle}</h2><p>{settings.featureDescription}</p><ul><li><b>اختيار دقيق</b><span>ترشيح الموديل حسب احتياجك الفعلي.</span></li><li><b>توريد وتجهيز</b><span>تجهيز الطابعة وربطها ببيئة العمل.</span></li><li><b>دعم مستمر</b><span>مساندة فنية ومستلزمات تشغيل أصلية.</span></li></ul><a className="primary-btn" href={specialistWaLink("printers")} target="_blank" rel="noreferrer">تواصل مع مختص الطابعات <span>←</span></a></div>
       </div></section>
@@ -711,12 +928,26 @@ export default function HomeClient({
       </div><div className="container copyright"><span>© 2026 وكالة إسحاق العالمية. جميع الحقوق محفوظة.</span><span>EPSON وWorkForce علامتان تجاريتان مملوكتان لأصحابهما.</span></div></footer>
 
       <a className="whatsapp-float" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer" aria-label={`تواصل مع مختص قسم ${currentCategory.name}`}>مختص القسم <span>◉</span></a>
+      <nav className="mobile-bottom-nav" aria-label="التنقل السريع">
+        {([
+          ["home", "الرئيسية"],
+          ["categories", "الفئات"],
+          ["search", "البحث"],
+          ["contact", "تواصل معنا"],
+        ] as const).map(([section, label]) => <button
+          key={section}
+          type="button"
+          className={mobileNavSection === section ? "active" : ""}
+          aria-current={mobileNavSection === section ? "page" : undefined}
+          onClick={() => openMobileSection(section)}
+        ><MobileNavIcon section={section} /><span>{label}</span></button>)}
+      </nav>
       {favoritesOpen && <div className="modal-backdrop favorites-backdrop" onMouseDown={() => setFavoritesOpen(false)}><aside className="favorites-panel" role="dialog" aria-modal="true" aria-labelledby="favorites-title" onMouseDown={(event) => event.stopPropagation()}>
         <div className="favorites-header"><div><span>قائمتك المحفوظة</span><h2 id="favorites-title">المفضلة ({favorites.length})</h2></div><button type="button" onClick={() => setFavoritesOpen(false)} aria-label="إغلاق المفضلة">×</button></div>
         {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={110} height={90} sizes="76px" /><div><b>{getProductDisplayName(product)}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={(event) => { setFavoritesOpen(false); openQuickView(product, event.currentTarget); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
         {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح المفضلة</button>}
       </aside></div>}
-      {selected && <div className="modal-backdrop" onMouseDown={closeQuickView}><div ref={quickViewDialogRef} className="product-modal-shell" role="dialog" aria-modal="true" aria-labelledby={`product-dialog-title-${selected.id}`} onMouseDown={(event) => event.stopPropagation()}><button ref={quickViewCloseRef} type="button" className="modal-close" onClick={closeQuickView} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image"><Image src={imageSrcOrFallback(selected.image)} alt={getProductDisplayName(selected)} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" /></div><div className="modal-content">{selected.badge?.trim() && <span className="modal-product-badge">{selected.badge}</span>}{selected.family && <span className="product-family">{selected.family}</span>}<h2 id={`product-dialog-title-${selected.id}`}>{getProductDisplayName(selected)}</h2>{selected.description && <p>{selected.description}</p>}<div className="modal-price"><small>السعر</small><strong>{selected.price?.trim() || "اطلب عرض سعر"}</strong></div>{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}{selected.category === "printers" && <a className="secondary-btn modal-more-details" href={`/printers/${getPrinterSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div></div>}
+      {selected && <div className="modal-backdrop" onMouseDown={closeQuickView}><div ref={quickViewDialogRef} className="product-modal-shell" role="dialog" aria-modal="true" aria-labelledby={`product-dialog-title-${selected.id}`} onMouseDown={(event) => event.stopPropagation()}><button ref={quickViewCloseRef} type="button" className="modal-close" onClick={closeQuickView} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image"><Image src={imageSrcOrFallback(selected.image)} alt={getProductDisplayName(selected)} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" /></div><div className="modal-content">{selected.badge?.trim() && <span className="modal-product-badge">{selected.badge}</span>}{selected.family && <span className="product-family">{selected.family}</span>}<h2 id={`product-dialog-title-${selected.id}`}>{getProductDisplayName(selected)}</h2>{selected.description && <p>{selected.description}</p>}<div className="modal-price"><small>السعر</small><strong>{selected.price?.trim() || "اطلب عرض سعر"}</strong></div>{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}{selected.category === "printers" && <a className="secondary-btn modal-more-details" href={`/printers/${getPrinterSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}{selected.category === "inks" && <a className="secondary-btn modal-more-details" href={`/inks/${getInkSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div></div>}
     </main>
   );
 }

@@ -9,15 +9,19 @@ import {
   normalizeSpecificationsVerifiedAt,
 } from "../../printer-specifications";
 import { normalizePaperSpecifications } from "../../paper-specifications";
+import { normalizeInkSpecifications } from "../../ink-specifications";
 import { normalizePrinterPageContent } from "../../printer-page-content";
 import {
   defaultSiteSettings,
+  categoryImageDefinitions,
+  defaultCategoryImages,
   defaultProductPurchaseBenefits,
   normalizeLegacyArabicText,
   normalizeProductBrandName,
   type SiteSettings,
   type StoredProduct,
   type ProductPurchaseBenefits,
+  type CategoryImages,
 } from "../../site-defaults";
 
 export const runtime = "nodejs";
@@ -40,8 +44,19 @@ function normalizeSettings(value: unknown): SiteSettings {
     workWeekdays: normalizeBusinessWeekdays(settings.workWeekdays, defaultSiteSettings.workWeekdays),
     workStartTime: normalizeBusinessTime(settings.workStartTime, defaultSiteSettings.workStartTime),
     workEndTime: normalizeBusinessTime(settings.workEndTime, defaultSiteSettings.workEndTime),
+    categoryImages: normalizeCategoryImages(input.categoryImages, bucket),
     productPurchaseBenefits: normalizeProductPurchaseBenefits(input.productPurchaseBenefits),
   };
+}
+
+function normalizeCategoryImages(value: unknown, bucket: string): CategoryImages {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return Object.fromEntries(categoryImageDefinitions.map(({ key }) => [
+    key,
+    typeof input[key] === "string"
+      ? normalizeMediaUrl(input[key].trim().slice(0, 2000), bucket)
+      : defaultCategoryImages[key],
+  ])) as CategoryImages;
 }
 
 function normalizeProductPurchaseBenefits(value: unknown): ProductPurchaseBenefits {
@@ -98,6 +113,9 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
       : undefined,
     paperSpecifications: category === "papers"
       ? normalizePaperSpecifications(input.paperSpecifications ?? input.specifications)
+      : undefined,
+    inkSpecifications: category === "inks"
+      ? normalizeInkSpecifications(input.inkSpecifications ?? input.specifications)
       : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(input.specificationsSourceUrl),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(input.specificationsVerifiedAt),

@@ -59,7 +59,14 @@ import {
   type PaperPrintSides,
   type PaperSpecifications,
 } from "../paper-specifications";
-import { defaultHeroSettings, defaultSiteSettings, type HeroSettings, type HeroSlide, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
+import {
+  INK_CAPACITY_OPTIONS,
+  INK_COLOR_OPTIONS,
+  INK_TYPE_OPTIONS as PRODUCT_INK_TYPE_OPTIONS,
+  createEmptyInkSpecifications,
+  type InkSpecifications,
+} from "../ink-specifications";
+import { categoryImageDefinitions, defaultCategoryImages, defaultHeroSettings, defaultSiteSettings, type CategoryImageKey, type HeroSettings, type HeroSlide, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
 import {
   createEmptyPrinterPageContent,
   type PrinterPageContent,
@@ -77,6 +84,7 @@ const emptyProduct: StoredProduct = {
   id: 0, name: "", family: "", image: "", category: "printers", type: "", size: "",
   printerCategory: undefined, badge: "", price: "", description: "", features: [],
   specifications: undefined, printerPageContent: createEmptyPrinterPageContent(), paperSpecifications: undefined,
+  inkSpecifications: undefined,
 };
 
 const emptyHeroSlide: HeroSlide = {
@@ -129,7 +137,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(defaultHeroSettings);
   const [heroForm, setHeroForm] = useState<HeroSlide>(emptyHeroSlide);
   const [editingHeroId, setEditingHeroId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"page" | "ads" | "hero" | "products">("page");
+  const [activeTab, setActiveTab] = useState<"page" | "ads" | "category-images" | "hero" | "products">("page");
   const [status, setStatus] = useState("جاري تحميل بيانات الموقع...");
   const [saving, setSaving] = useState(false);
   const [heroSaving, setHeroSaving] = useState(false);
@@ -151,6 +159,10 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         ...nextSettings,
         logoImage: normalizeMediaUrl(nextSettings.logoImage),
         featureImage: normalizeMediaUrl(nextSettings.featureImage),
+        categoryImages: Object.fromEntries(Object.entries({
+          ...defaultCategoryImages,
+          ...nextSettings.categoryImages,
+        }).map(([key, value]) => [key, normalizeMediaUrl(value)])) as SiteSettings["categoryImages"],
       });
       setProducts(Array.isArray(data.products)
         ? data.products.map((product) => ({
@@ -214,6 +226,14 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     markDirty("site");
   };
 
+  const updateCategoryImage = (key: CategoryImageKey, value: string) => {
+    setSettings((current) => ({
+      ...current,
+      categoryImages: { ...current.categoryImages, [key]: value },
+    }));
+    markDirty("site");
+  };
+
   const updatePhoneSetting = (key: "salesPhone" | "customerServicePhone" | "generalWhatsapp", value: string) => {
     updateSetting(key, sanitizePhoneNumber(value));
   };
@@ -250,6 +270,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       specifications: category === "printers" ? current.specifications : undefined,
       printerPageContent: category === "printers" ? current.printerPageContent ?? createEmptyPrinterPageContent() : undefined,
       paperSpecifications: category === "papers" ? current.paperSpecifications : undefined,
+      inkSpecifications: category === "inks" ? current.inkSpecifications : undefined,
     }));
     setPrinterCategoryError("");
     markDirty("product-form");
@@ -303,6 +324,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const activeMediaUrls = (nextSettings = settings, nextProducts = products, nextHeroSlides = heroSlides) => new Set([
     normalizeMediaUrl(nextSettings.logoImage),
     normalizeMediaUrl(nextSettings.featureImage),
+    ...Object.values(nextSettings.categoryImages).map((url) => normalizeMediaUrl(url)),
     ...nextProducts.map((product) => normalizeMediaUrl(product.image)),
     ...nextHeroSlides.map((slide) => normalizeMediaUrl(slide.imageUrl)),
   ].filter(Boolean));
@@ -637,6 +659,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     <div className="real-admin-toolbar"><nav aria-label="أقسام لوحة التحكم">
       <button className={activeTab === "page" ? "active" : ""} onClick={() => setActiveTab("page")}>بيانات الصفحة</button>
       <button className={activeTab === "ads" ? "active" : ""} onClick={() => setActiveTab("ads")}>الإعلانات والصور</button>
+      <button className={activeTab === "category-images" ? "active" : ""} onClick={() => setActiveTab("category-images")}>صور الفئات</button>
       <button className={activeTab === "hero" ? "active" : ""} onClick={() => setActiveTab("hero")}>إدارة البانر المتحرك</button>
       <button className={activeTab === "products" ? "active" : ""} onClick={() => setActiveTab("products")}>المنتجات</button>
     </nav><button className="save-all-button" onClick={saveAll} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ جميع التعديلات"}</button></div>
@@ -686,6 +709,27 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         <label>العنوان<input value={settings.featureTitle} onChange={(e) => updateSetting("featureTitle", e.target.value)} /></label>
         <label>الوصف<textarea value={settings.featureDescription} onChange={(e) => updateSetting("featureDescription", e.target.value)} /></label>
         <ImageField value={settings.featureImage} onUpload={(event) => uploadImage(event, settings.featureImage, (url) => updateSetting("featureImage", url), "banners")} onRemove={() => removeImage(settings.featureImage, () => updateSetting("featureImage", ""))} />
+      </div>
+    </section>}
+
+    {activeTab === "category-images" && <section className="real-admin-card category-images-manager">
+      <div className="category-images-heading">
+        <div><h2>صور الفئات</h2><p>يمكن تخصيص صورة كل بطاقة فئة. عند ترك الصورة فارغة سيستخدم الموقع الصورة الاحتياطية الحالية.</p></div>
+      </div>
+      <div className="category-images-admin-grid">
+        {categoryImageDefinitions.map(({ key, label }) => {
+          const value = settings.categoryImages[key];
+          return <article className="category-image-editor" key={key}>
+            <h3>{label}</h3>
+            <ImageField
+              value={value}
+              onUpload={(event) => uploadImage(event, value, (url) => updateCategoryImage(key, url), "general")}
+              onRemove={() => removeImage(value, () => updateCategoryImage(key, ""))}
+              label="صورة بطاقة الفئة"
+              actionText={value ? "تغيير الصورة" : "رفع صورة"}
+            />
+          </article>;
+        })}
       </div>
     </section>}
 
@@ -766,12 +810,13 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
           {PRINTER_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
         </select>{printerCategoryError && <span className="admin-field-error" id="printer-category-error" role="alert">{printerCategoryError}</span>}</label>}
         {productForm.category !== "papers" && <label>اسم المنتج<input required value={productForm.name} onChange={(e) => updateProductForm({ name: e.target.value })} /></label>}
-        {productForm.category !== "papers" && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
+        {productForm.category !== "papers" && productForm.category !== "inks" && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
         <datalist id="printer-family-options">{PRINTER_FAMILY_OPTIONS.map((family) => <option key={family} value={family} />)}</datalist></>}
         {productForm.category === "printers" && <PrinterSpecificationsEditor product={productForm} onChange={updateProductForm} />}
         {productForm.category === "printers" && <PrinterPageContentEditor product={productForm} onChange={updateProductForm} />}
         {productForm.category === "papers" && <PaperSpecificationsEditor product={productForm} onChange={updateProductForm} />}
-        <div className="admin-two-columns"><label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label><label>نمط السعر<select value={priceMode} onChange={(event) => {
+        {productForm.category === "inks" && <InkSpecificationsEditor product={productForm} printers={products.filter((product) => product.category === "printers")} onChange={updateProductForm} />}
+        <div className="admin-two-columns">{productForm.category !== "inks" && <label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label>}<label>نمط السعر<select value={priceMode} onChange={(event) => {
           const mode = event.target.value as PriceMode;
           setPriceMode(mode);
           if (mode === "quote") updateProductForm({ price: "" });
@@ -779,7 +824,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         }}>{PRICE_MODE_OPTIONS.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label></div>
         {priceMode === "fixed" && <label>السعر المحدد<input value={productForm.price ?? ""} onChange={(e) => updateProductForm({ price: e.target.value })} placeholder="أدخل السعر كما سيظهر للزبون" /></label>}
         <label>الوصف القصير<textarea value={productForm.description} aria-invalid={productForm.description.length > 160} onChange={(e) => updateProductForm({ description: e.target.value })} /><span className={productForm.description.length > 160 ? "description-counter over-limit" : "description-counter"}>{productForm.description.length} / 160 حرفاً</span>{productForm.description.length > 160 && <span className="admin-field-error" role="alert">الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.</span>}</label>
-        <label>المميزات القديمة، افصل بفاصلة <small>للتوافق مع المنتجات الحالية فقط</small><input value={featuresText} onChange={(e) => updateProductFeatures(e.target.value)} /></label>
+        {productForm.category !== "inks" && <label>المميزات القديمة، افصل بفاصلة <small>للتوافق مع المنتجات الحالية فقط</small><input value={featuresText} onChange={(e) => updateProductFeatures(e.target.value)} /></label>}
         <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />
         <div className="product-editor-actions"><button type="submit" disabled={saving}>{saving ? "جاري الحفظ..." : editingId ? "حفظ التعديل" : "إضافة المنتج"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
@@ -865,6 +910,52 @@ function AdminContentList({
       <button className="admin-remove-item" type="button" onClick={() => onRemove(index)}>حذف العنصر</button>
     </div>)}
   </div>;
+}
+
+function InkSpecificationsEditor({
+  product,
+  printers,
+  onChange,
+}: {
+  product: StoredProduct;
+  printers: StoredProduct[];
+  onChange: (patch: Partial<StoredProduct>) => void;
+}) {
+  const specifications = product.inkSpecifications ?? createEmptyInkSpecifications();
+  const [customCapacity, setCustomCapacity] = useState("");
+  const [customPrinter, setCustomPrinter] = useState("");
+  const update = (patch: Partial<InkSpecifications>) => onChange({ inkSpecifications: { ...specifications, ...patch } });
+  const toggle = (field: "capacities" | "compatiblePrinters", value: string) => {
+    const values = specifications[field];
+    update({ [field]: values.includes(value) ? values.filter((item) => item !== value) : [...values, value] });
+  };
+  const addCustom = (field: "capacities" | "compatiblePrinters", value: string, clear: () => void) => {
+    const clean = value.trim();
+    if (!clean || specifications[field].includes(clean)) return;
+    update({ [field]: [...specifications[field], clean] });
+    clear();
+  };
+  const updateListItem = (field: "features" | "uses", index: number, value: string) => update({
+    [field]: specifications[field].map((item, itemIndex) => itemIndex === index ? value : item),
+  });
+
+  return <fieldset className="printer-specifications-editor">
+    <legend>مواصفات الأحبار المنظمة</legend>
+    <div className="admin-two-columns">
+      <label>العلامة التجارية<input value={specifications.brand ?? ""} onChange={(event) => update({ brand: event.target.value || null })} /></label>
+      <label>نوع الحبر<select value={specifications.inkType ?? ""} onChange={(event) => update({ inkType: event.target.value || null })}><option value="">غير محدد</option>{PRODUCT_INK_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+      <label>اللون<select value={specifications.color ?? ""} onChange={(event) => update({ color: event.target.value || null })}><option value="">غير محدد</option>{INK_COLOR_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+    </div>
+    <div className="admin-option-group"><span>السعات المتوفرة</span><div className="admin-options-grid">{INK_CAPACITY_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.capacities.includes(option)} onChange={() => toggle("capacities", option)} /> {option}</label>)}</div></div>
+    <div className="admin-two-columns"><label>سعة أخرى<input value={customCapacity} onChange={(event) => setCustomCapacity(event.target.value)} placeholder="مثال: 250 مل" /></label><button type="button" onClick={() => addCustom("capacities", customCapacity, () => setCustomCapacity(""))}>إضافة السعة</button></div>
+    {specifications.capacities.length > 0 && <div className="product-tags">{specifications.capacities.map((value) => <button type="button" key={value} onClick={() => toggle("capacities", value)}>{value} ×</button>)}</div>}
+    <div className="admin-option-group"><span>التوافق مع الطابعات</span><div className="admin-options-grid">{printers.map((printer) => <label className="admin-check" key={printer.id}><input type="checkbox" checked={specifications.compatiblePrinters.includes(printer.name)} onChange={() => toggle("compatiblePrinters", printer.name)} /> {printer.name}</label>)}</div></div>
+    <div className="admin-two-columns"><label>موديل آخر<input value={customPrinter} onChange={(event) => setCustomPrinter(event.target.value)} /></label><button type="button" onClick={() => addCustom("compatiblePrinters", customPrinter, () => setCustomPrinter(""))}>إضافة الموديل</button></div>
+    {(["features", "uses"] as const).map((field) => <div className="admin-dynamic-list" key={field}>
+      <div className="admin-dynamic-list-head"><b>{field === "features" ? "المميزات الرئيسية" : "الاستخدامات المناسبة"}</b><button type="button" onClick={() => update({ [field]: [...specifications[field], ""] })}>إضافة عنصر</button></div>
+      {specifications[field].map((item, index) => <div className="admin-dynamic-item" key={index}><label>{field === "features" ? "الميزة" : "الاستخدام"}<input value={item} onChange={(event) => updateListItem(field, index, event.target.value)} /></label><button className="admin-remove-item" type="button" onClick={() => update({ [field]: specifications[field].filter((_, itemIndex) => itemIndex !== index) })}>حذف</button></div>)}
+    </div>)}
+  </fieldset>;
 }
 
 function PaperSpecificationsEditor({ product, onChange }: { product: StoredProduct; onChange: (patch: Partial<StoredProduct>) => void }) {

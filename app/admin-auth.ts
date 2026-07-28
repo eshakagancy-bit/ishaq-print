@@ -3,6 +3,11 @@ import { cookies } from "next/headers";
 export const ADMIN_COOKIE = "eshak_admin_session";
 export const ADMIN_UNAUTHORIZED_MESSAGE = "غير مصرح لك بتنفيذ هذه العملية";
 
+function localAuthDisabled() {
+  return process.env.NODE_ENV !== "production"
+    && process.env.ADMIN_AUTH_DISABLED?.trim().toLowerCase() === "true";
+}
+
 function configuredPassword() {
   return process.env.ADMIN_PASSWORD?.trim() ?? "";
 }
@@ -41,6 +46,7 @@ export async function passwordIsValid(candidate: string) {
 }
 
 export async function isAdminSession() {
+  if (localAuthDisabled()) return true;
   const password = configuredPassword();
   if (!password) return false;
   const cookieStore = await cookies();

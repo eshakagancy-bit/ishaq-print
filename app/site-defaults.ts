@@ -1,6 +1,7 @@
 import { resolvePrinterCategory, type PrinterCategory } from "./printer-categories";
 import type { PrinterSpecifications } from "./printer-specifications";
 import type { PaperSpecifications } from "./paper-specifications";
+import type { InkSpecifications } from "./ink-specifications";
 import type { PrinterPageContent } from "./printer-page-content";
 
 export type SiteSettings = {
@@ -22,8 +23,31 @@ export type SiteSettings = {
   workWeekdays: string;
   workStartTime: string;
   workEndTime: string;
+  categoryImages: CategoryImages;
   productPurchaseBenefits: ProductPurchaseBenefits;
 };
+
+export const categoryImageDefinitions = [
+  { key: "printers", label: "طابعات EPSON" },
+  { key: "laptops", label: "اللابتوبات" },
+  { key: "engraving-presses", label: "آلات النحت والمكابس" },
+  { key: "inks", label: "الأحبار" },
+  { key: "papers", label: "الأوراق" },
+  { key: "advertising-machines", label: "آلات الدعاية والإعلان" },
+  { key: "electronics", label: "الملحقات الإلكترونية" },
+  { key: "cameras", label: "الكاميرات" },
+  { key: "3d-printers", label: "طابعات ثلاثية الأبعاد" },
+  { key: "money-machines", label: "آلات عد وفحص النقود" },
+  { key: "networks", label: "الشبكات وأجهزة الواي فاي" },
+  { key: "all-products", label: "جميع المنتجات" },
+] as const;
+
+export type CategoryImageKey = typeof categoryImageDefinitions[number]["key"];
+export type CategoryImages = Record<CategoryImageKey, string>;
+
+export const defaultCategoryImages: CategoryImages = Object.fromEntries(
+  categoryImageDefinitions.map(({ key }) => [key, ""]),
+) as CategoryImages;
 
 export type ProductPurchaseBenefitItem = {
   title: string;
@@ -74,6 +98,7 @@ export const defaultSiteSettings: SiteSettings = {
   workWeekdays: "sat,sun,mon,tue,wed,thu",
   workStartTime: "09:30",
   workEndTime: "22:00",
+  categoryImages: defaultCategoryImages,
   productPurchaseBenefits: defaultProductPurchaseBenefits,
 };
 
@@ -108,6 +133,7 @@ export type StoredProduct = {
   specifications?: PrinterSpecifications;
   printerPageContent?: PrinterPageContent;
   paperSpecifications?: PaperSpecifications;
+  inkSpecifications?: InkSpecifications;
   specificationsSourceUrl?: string;
   specificationsVerifiedAt?: string;
   sortOrder?: number;
