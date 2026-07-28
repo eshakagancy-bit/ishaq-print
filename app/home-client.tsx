@@ -865,7 +865,7 @@ export default function HomeClient({
           ))}
         </div>
         <div className="container hero-slider-content">
-          <div className="hero-copy">
+          <div className="hero-copy" key={`hero-copy-${activeHero.id}`} aria-live="polite">
             <span className="eyebrow">{activeHero.subtitle}</span>
             <h1>{activeHero.title}</h1>
             <p>{activeHero.description}</p>
@@ -897,7 +897,7 @@ export default function HomeClient({
             </div>
             <div className="hero-trust"><div><strong>ضمان</strong><span>منتجات موثوقة</span></div><div><strong>دعم</strong><span>قبل وبعد البيع</span></div><div><strong>توريد</strong><span>حلول متكاملة</span></div></div>
           </div>
-          <div className="hero-visual">
+          <div className="hero-visual" key={`hero-visual-${activeHero.id}`}>
             <div className="brand-pill">{activeHero.badgeText}</div><div className="printer-halo"></div>
             <div className="hero-printer-frame">
               <Image
@@ -966,7 +966,7 @@ export default function HomeClient({
         {orderedVisibleProducts.length ? <><div className="product-group-controls" aria-label="التنقل بين مجموعات المنتجات">
           <button type="button" onClick={() => scrollProductGroups("previous")} aria-label="مجموعة المنتجات السابقة">→</button>
           <button type="button" onClick={() => scrollProductGroups("next")} aria-label="مجموعة المنتجات التالية">←</button>
-        </div><div className="product-grid" ref={productGridRef}>{productGroups.map((group, groupIndex) => <div className="product-group" key={`product-group-${groupIndex}`}>{group.map((product) => {
+        </div><div className="product-grid" ref={productGridRef}>{productGroups.map((group, groupIndex) => <div className="product-group" key={`${allCategoriesActive ? "all" : activeCategory}-${filter}-${query}-${groupIndex}-${group[0]?.id ?? "empty"}`}>{group.map((product) => {
           const cardTags = getProductCardSpecificationTags(product);
           return <article className="product-card" data-category={product.category} key={product.id}>
             <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button>{product.category === "printers" ? <button type="button" className="product-image-trigger" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`عرض التفاصيل السريعة لـ ${getProductDisplayName(product)}`}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /></button> : <Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" />}<button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)}>{product.category === "printers" ? "تفاصيل سريعة" : "عرض سريع"}</button></div>

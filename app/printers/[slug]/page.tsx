@@ -7,6 +7,7 @@ import { getPrinterCategoryLabel } from "../../printer-categories";
 import { buildQuickViewSpecificationRows } from "../../printer-specifications";
 import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
 import { getPrinterSlug } from "../product-slug";
+import ProductGallery from "../../product-gallery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,36 +80,47 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
       </header>
 
       <section className="printer-hero">
-        <div className="container printer-hero-grid">
-          <div className="printer-gallery">
-            <Image src={product.image || "/brand/eshak-logo.png"} alt={product.name} width={760} height={620} sizes="(max-width: 800px) 92vw, 48vw" priority />
-          </div>
+        <div className="container">
+          <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>←</span><Link href="/#products">الطابعات</Link><span>←</span><b>{product.name}</b></nav>
+        <div className="printer-hero-grid">
+          <ProductGallery images={[product.image || "/brand/eshak-logo.png"]} alt={product.name} />
           <div className="printer-summary">
             {product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}
             {product.family?.trim() && <span className="product-family">{product.family}</span>}
             <h1>{product.name}</h1>
+            {product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}
             <div className="printer-meta">
               <span><small>حالة التوفر</small><b>تُؤكّد عند الطلب</b></span>
               {getPrinterCategoryLabel(product.printerCategory) && <span><small>الفئة</small><b>{getPrinterCategoryLabel(product.printerCategory)}</b></span>}
             </div>
             {keyInformation.length > 0 && <dl className="printer-key-info">{keyInformation.map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}
             <div className="printer-actions">
-              <a className="primary-btn" href={getWhatsappLink(product, "quote")} target="_blank" rel="noreferrer">طلب عرض سعر</a>
-              <a className="secondary-btn" href={getWhatsappLink(product, "specialist")} target="_blank" rel="noreferrer">التواصل مع المختص</a>
+              <a className="primary-btn" href={getWhatsappLink(product, "quote")} target="_blank" rel="noreferrer">اطلب من المختص</a>
+              <a className="secondary-btn" href={getWhatsappLink(product, "specialist")} target="_blank" rel="noreferrer">WhatsApp</a>
+              <Link className="printer-page-back" href="/#products">العودة إلى المنتجات</Link>
             </div>
           </div>
+        </div>
         </div>
       </section>
 
       <div className="container printer-sections">
-        {pageContent?.detailedDescription && <section><h2>الوصف</h2><div className="printer-long-copy">{pageContent.detailedDescription.split(/\r?\n\r?\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></section>}
-        {pageContent?.productFeatures.length ? <section><h2>مميزات المنتج</h2><div className="printer-content-cards">{pageContent.productFeatures.map((feature, index) => <article key={`${feature.title}-${index}`}>{feature.title && <h3>{feature.title}</h3>}{feature.description && <p>{feature.description}</p>}</article>)}</div></section> : null}
-        {technicalRows.length > 0 && <section><h2>المواصفات الفنية للمنتج</h2><div className="printer-spec-table-wrap"><table className="printer-spec-table"><tbody>{technicalRows.map((row) => <tr key={row.key}><th scope="row">{row.label}</th><td>{row.value}</td></tr>)}</tbody></table></div></section>}
-        {pageContent?.productUses.length ? <section><h2>استخدامات المنتج</h2><div className="printer-content-cards">{pageContent.productUses.map((use, index) => <article key={`${use.title}-${index}`}>{use.title && <h3>{use.title}</h3>}{use.description && <p>{use.description}</p>}</article>)}</div></section> : null}
-        {pageContent?.whyChooseThisProduct && <section><h2>لماذا تختار هذا المنتج؟</h2><div className="printer-long-copy">{pageContent.whyChooseThisProduct.split(/\r?\n\r?\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></section>}
+        <nav className="product-section-nav" aria-label="أقسام تفاصيل المنتج">
+          {pageContent?.detailedDescription && <a href="#description">الوصف</a>}
+          {technicalRows.length > 0 && <a href="#specifications">المواصفات</a>}
+          {pageContent?.productFeatures.length ? <a href="#features">المميزات</a> : null}
+          {pageContent?.productUses.length ? <a href="#uses">الاستخدامات</a> : null}
+          {pageContent?.whyChooseThisProduct && <a href="#why-product">لماذا تختاره</a>}
+          {pageContent?.faq.some((item) => item.question) ? <a href="#faq">الأسئلة الشائعة</a> : null}
+        </nav>
+        {pageContent?.detailedDescription && <section id="description"><h2>الوصف</h2><div className="printer-long-copy">{pageContent.detailedDescription.split(/\r?\n\r?\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></section>}
+        {pageContent?.productFeatures.length ? <section id="features"><h2>مميزات المنتج</h2><div className="printer-content-cards">{pageContent.productFeatures.map((feature, index) => <article key={`${feature.title}-${index}`}>{feature.title && <h3>{feature.title}</h3>}{feature.description && <p>{feature.description}</p>}</article>)}</div></section> : null}
+        {technicalRows.length > 0 && <section id="specifications"><h2>المواصفات الفنية للمنتج</h2><div className="printer-spec-table-wrap"><table className="printer-spec-table"><tbody>{technicalRows.map((row) => <tr key={row.key}><th scope="row">{row.label}</th><td>{row.value}</td></tr>)}</tbody></table></div></section>}
+        {pageContent?.productUses.length ? <section id="uses"><h2>استخدامات المنتج</h2><div className="printer-content-cards">{pageContent.productUses.map((use, index) => <article key={`${use.title}-${index}`}>{use.title && <h3>{use.title}</h3>}{use.description && <p>{use.description}</p>}</article>)}</div></section> : null}
+        {pageContent?.whyChooseThisProduct && <section id="why-product"><h2>لماذا تختار هذا المنتج؟</h2><div className="printer-long-copy">{pageContent.whyChooseThisProduct.split(/\r?\n\r?\n/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div></section>}
         {showPurchaseBenefits && <section className="purchase-benefits-section">{purchaseBenefits.title && <h2>{purchaseBenefits.title}</h2>}{purchaseBenefits.description && <p className="purchase-benefits-description">{purchaseBenefits.description}</p>}{visiblePurchaseBenefitItems.length > 0 && <div className="printer-content-cards">{visiblePurchaseBenefitItems.map((item, index) => <article key={`${item.title}-${index}`}>{item.title && <h3>{item.title}</h3>}{item.description && <p>{item.description}</p>}</article>)}</div>}</section>}
-        {pageContent?.faq.some((item) => item.question) ? <section><h2>الأسئلة الشائعة</h2><div className="printer-faq">{pageContent.faq.filter((item) => item.question).map((item, index) => <details key={`${item.question}-${index}`}><summary>{item.question}</summary>{item.answer && <p>{item.answer}</p>}</details>)}</div></section> : null}
-        {similarProducts.length > 0 && <section><h2>منتجات مشابهة</h2><div className="similar-printers">{similarProducts.map((printer) => <Link href={`/printers/${getPrinterSlug(printer)}`} key={printer.id}><Image src={printer.image || "/brand/eshak-logo.png"} alt={printer.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{printer.name}</b><span>{getPrinterCategoryLabel(printer.printerCategory)}</span></Link>)}</div></section>}
+        {pageContent?.faq.some((item) => item.question) ? <section id="faq"><h2>الأسئلة الشائعة</h2><div className="printer-faq">{pageContent.faq.filter((item) => item.question).map((item, index) => <details key={`${item.question}-${index}`}><summary>{item.question}</summary>{item.answer && <p>{item.answer}</p>}</details>)}</div></section> : null}
+        {similarProducts.length > 0 && <section id="similar-products"><h2>منتجات مشابهة</h2><div className="similar-printers">{similarProducts.map((printer) => <Link href={`/printers/${getPrinterSlug(printer)}`} key={printer.id}><Image src={printer.image || "/brand/eshak-logo.png"} alt={printer.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{printer.name}</b><span>{getPrinterCategoryLabel(printer.printerCategory)}</span></Link>)}</div></section>}
       </div>
     </main>
   );

@@ -6,6 +6,7 @@ import { getSiteData } from "../../../lib/site-database";
 import { buildInkSpecificationRows } from "../../ink-specifications";
 import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
 import { getInkSlug } from "../product-slug";
+import ProductGallery from "../../product-gallery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,15 +37,18 @@ export default async function InkDetailsPage({ params }: PageProps) {
 
   return <main className="printer-details-page">
     <header className="printer-details-header"><div className="container"><Link href="/#products" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} priority /></Link></div></header>
-    <section className="printer-hero"><div className="container printer-hero-grid">
-      <div className="printer-gallery"><Image src={product.image || "/brand/eshak-logo.png"} alt={product.name} width={760} height={620} sizes="(max-width: 800px) 92vw, 48vw" priority /></div>
-      <div className="printer-summary"><h1>{product.name}</h1>{rows.length > 0 && <dl className="printer-key-info">{rows.map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">{product.price?.trim() || "اطلب عرض سعر"}</a></div></div>
-    </div></section>
+    <section className="printer-hero"><div className="container">
+      <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>←</span><Link href="/#products">الأحبار</Link><span>←</span><b>{product.name}</b></nav>
+      <div className="printer-hero-grid">
+      <ProductGallery images={[product.image || "/brand/eshak-logo.png"]} alt={product.name} />
+      <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اطلب من المختص</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">WhatsApp</a><Link className="printer-page-back" href="/#products">العودة إلى المنتجات</Link></div></div>
+    </div></div></section>
     <div className="container printer-sections">
-      {rows.length > 0 && <section><h2>المواصفات</h2><div className="printer-spec-table-wrap"><table className="printer-spec-table"><tbody>{rows.map((row) => <tr key={row.key}><th scope="row">{row.label}</th><td>{row.value}</td></tr>)}</tbody></table></div></section>}
-      {product.description && <section><h2>الوصف</h2><div className="printer-long-copy"><p>{product.description}</p></div></section>}
-      {specifications?.features.length ? <section><h2>المميزات الرئيسية</h2><div className="printer-content-cards">{specifications.features.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
-      {specifications?.uses.length ? <section><h2>الاستخدامات المناسبة</h2><div className="printer-content-cards">{specifications.uses.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
+      <nav className="product-section-nav" aria-label="أقسام تفاصيل المنتج">{product.description && <a href="#description">الوصف</a>}{rows.length > 0 && <a href="#specifications">المواصفات</a>}{specifications?.features.length ? <a href="#features">المميزات</a> : null}{specifications?.uses.length ? <a href="#uses">الاستخدامات</a> : null}</nav>
+      {rows.length > 0 && <section id="specifications"><h2>المواصفات</h2><div className="printer-spec-table-wrap"><table className="printer-spec-table"><tbody>{rows.map((row) => <tr key={row.key}><th scope="row">{row.label}</th><td>{row.value}</td></tr>)}</tbody></table></div></section>}
+      {product.description && <section id="description"><h2>الوصف</h2><div className="printer-long-copy"><p>{product.description}</p></div></section>}
+      {specifications?.features.length ? <section id="features"><h2>المميزات الرئيسية</h2><div className="printer-content-cards">{specifications.features.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
+      {specifications?.uses.length ? <section id="uses"><h2>الاستخدامات المناسبة</h2><div className="printer-content-cards">{specifications.uses.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
     </div>
   </main>;
 }
