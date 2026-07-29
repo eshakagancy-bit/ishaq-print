@@ -285,6 +285,7 @@ export default function HomeClient({
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [outgoingHeroSlide, setOutgoingHeroSlide] = useState<number | null>(null);
   const [heroPaused, setHeroPaused] = useState(false);
+  const [productGroupSize, setProductGroupSize] = useState(8);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const quickViewTriggerRef = useRef<HTMLElement | null>(null);
   const quickViewDialogRef = useRef<HTMLDivElement | null>(null);
@@ -452,6 +453,14 @@ export default function HomeClient({
   }, [pageView]);
 
   useEffect(() => {
+    const mobileProductGrid = window.matchMedia("(max-width: 1000px)");
+    const updateProductGroupSize = () => setProductGroupSize(mobileProductGrid.matches ? 6 : 8);
+    updateProductGroupSize();
+    mobileProductGrid.addEventListener("change", updateProductGroupSize);
+    return () => mobileProductGrid.removeEventListener("change", updateProductGroupSize);
+  }, []);
+
+  useEffect(() => {
     if (!scrollRequest) return undefined;
     let firstFrame = 0;
     let secondFrame = 0;
@@ -508,11 +517,11 @@ export default function HomeClient({
   );
   const productGroups = useMemo(() => {
     const groups: Product[][] = [];
-    for (let index = 0; index < orderedVisibleProducts.length; index += 6) {
-      groups.push(orderedVisibleProducts.slice(index, index + 6));
+    for (let index = 0; index < orderedVisibleProducts.length; index += productGroupSize) {
+      groups.push(orderedVisibleProducts.slice(index, index + productGroupSize));
     }
     return groups;
-  }, [orderedVisibleProducts]);
+  }, [orderedVisibleProducts, productGroupSize]);
 
   const currentCategory = categories.find((category) => category.id === activeCategory) ?? categories[0];
   const machineCategories = categories.filter((category) => machineCategoryIds.includes(category.id));
