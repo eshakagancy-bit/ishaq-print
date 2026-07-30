@@ -1,6 +1,7 @@
 import type { SpecificationDisplayRow } from "./printer-specifications";
 
 export type InkSpecifications = {
+  images: string[];
   brand: string | null;
   inkType: string | null;
   color: string | null;
@@ -15,7 +16,7 @@ export const INK_COLOR_OPTIONS = ["أسود", "سماوي", "أرجواني", "�
 export const INK_CAPACITY_OPTIONS = ["70 مل", "100 مل", "500 مل", "1000 مل"] as const;
 
 export function createEmptyInkSpecifications(): InkSpecifications {
-  return { brand: null, inkType: null, color: null, capacities: [], compatiblePrinters: [], features: [], uses: [] };
+  return { images: [], brand: null, inkType: null, color: null, capacities: [], compatiblePrinters: [], features: [], uses: [] };
 }
 
 function textOrNull(value: unknown, maxLength = 160) {
@@ -31,8 +32,9 @@ function stringList(value: unknown, maxItems = 30) {
 export function normalizeInkSpecifications(value: unknown): InkSpecifications | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const input = value as Record<string, unknown>;
-  if (!["brand", "inkType", "color", "capacities", "compatiblePrinters", "features", "uses"].some((key) => Object.hasOwn(input, key))) return undefined;
+  if (!["images", "brand", "inkType", "color", "capacities", "compatiblePrinters", "features", "uses"].some((key) => Object.hasOwn(input, key))) return undefined;
   return {
+    images: stringList(input.images, 50),
     brand: textOrNull(input.brand, 120),
     inkType: textOrNull(input.inkType, 80),
     color: textOrNull(input.color, 80),

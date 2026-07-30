@@ -81,7 +81,7 @@ const categories = [
 ] as const;
 
 const emptyProduct: StoredProduct = {
-  id: 0, name: "", family: "", image: "", category: "printers", type: "", size: "",
+  id: 0, name: "", family: "", image: "", images: undefined, category: "printers", type: "", size: "",
   printerCategory: undefined, badge: "", price: "", description: "", features: [],
   specifications: undefined, printerPageContent: createEmptyPrinterPageContent(), paperSpecifications: undefined,
   inkSpecifications: undefined,
@@ -168,6 +168,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         ? data.products.map((product) => ({
           ...product,
           image: normalizeMediaUrl(product.image),
+          images: product.category === "inks" ? (product.images?.length ? product.images : [product.image]).map((image) => normalizeMediaUrl(image)).filter(Boolean) : undefined,
           printerCategory: product.category === "printers"
             ? resolvePrinterCategory(product.printerCategory, product.name)
             : undefined,
@@ -271,6 +272,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       printerPageContent: category === "printers" ? current.printerPageContent ?? createEmptyPrinterPageContent() : undefined,
       paperSpecifications: category === "papers" ? current.paperSpecifications : undefined,
       inkSpecifications: category === "inks" ? current.inkSpecifications : undefined,
+      images: category === "inks" ? current.images : undefined,
     }));
     setPrinterCategoryError("");
     markDirty("product-form");
@@ -326,6 +328,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     normalizeMediaUrl(nextSettings.featureImage),
     ...Object.values(nextSettings.categoryImages).map((url) => normalizeMediaUrl(url)),
     ...nextProducts.map((product) => normalizeMediaUrl(product.image)),
+    ...nextProducts.flatMap((product) => product.category === "inks" ? (product.images ?? []).map((image) => normalizeMediaUrl(image)) : []),
     ...nextHeroSlides.map((slide) => normalizeMediaUrl(slide.imageUrl)),
   ].filter(Boolean));
 
@@ -348,22 +351,13 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     return failures;
   };
 
-  const uploadImage = async (
-    event: ChangeEvent<HTMLInputElement>,
-    currentUrl: string,
-    onUploaded: (url: string) => void,
+  const uploadFile = async (
+    selectedFile: File,
     folder: "logos" | "banners" | "products" | "general" = "general",
   ) => {
-    const input = event.currentTarget;
-    const selectedFile = input.files?.[0];
-    if (!selectedFile) return;
     if (!isSupportedImageMimeType(selectedFile.type)) {
-      setStatus("نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WebP أو GIF");
-      input.value = "";
-      return;
+      throw new Error("نوع الصورة غير مدعوم. استخدم JPG أو PNG أو WebP أو GIF");
     }
-
-    setUploadingImage(true);
     setStatus(selectedFile.type === "image/gif" ? "جاري تجهيز الصورة..." : "جاري ضغط وتجهيز الصورة...");
     let file = selectedFile;
     try {
@@ -373,27 +367,65 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     }
 
     if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-      setStatus("حجم الصورة يجب ألا يتجاوز 4MB بعد المعالجة");
-      setUploadingImage(false);
-      input.value = "";
-      return;
+      throw new Error("حجم الصورة يجب ألا يتجاوز 4MB بعد المعالجة");
     }
     setStatus("جاري رفع الصورة...");
     const body = new FormData();
     body.append("file", file);
     body.append("folder", folder);
+    const response = await fetch("/api/upload", { method: "POST", body });
+    const data = await response.json() as { error?: string; url?: string };
+    if (!response.ok) throw new Error(data.error || "تعذر رفع الصورة");
+    if (!data.url) throw new Error("لم يُرجع الخادم رابط الصورة");
+    const uploadedUrl = normalizeMediaUrl(data.url);
+    pendingUploadedMedia.current.add(uploadedUrl);
+    return uploadedUrl;
+  };
+
+  const uploadImage = async (
+    event: ChangeEvent<HTMLInputElement>,
+    currentUrl: string,
+    onUploaded: (url: string) => void,
+    folder: "logos" | "banners" | "products" | "general" = "general",
+  ) => {
+    const input = event.currentTarget;
+    const selectedFile = input.files?.[0];
+    if (!selectedFile) return;
+    setUploadingImage(true);
     try {
-      const response = await fetch("/api/upload", { method: "POST", body });
-      const data = await response.json() as { error?: string; url?: string };
-      if (!response.ok) throw new Error(data.error || "تعذر رفع الصورة");
-      if (!data.url) throw new Error("لم يُرجع الخادم رابط الصورة");
-      const uploadedUrl = normalizeMediaUrl(data.url);
-      pendingUploadedMedia.current.add(uploadedUrl);
+      const uploadedUrl = await uploadFile(selectedFile, folder);
       if (currentUrl && normalizeMediaUrl(currentUrl) !== uploadedUrl) queueMediaRemoval(currentUrl);
       onUploaded(uploadedUrl);
       setStatus("تم رفع الصورة، اضغط حفظ جميع التعديلات");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "تعذر رفع الصورة");
+    }
+    setUploadingImage(false);
+    input.value = "";
+  };
+
+  const uploadInkImages = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const files = [...(input.files ?? [])];
+    if (!files.length) return;
+    setUploadingImage(true);
+    try {
+      for (const file of files) {
+        const uploadedUrl = await uploadFile(file, "products");
+        setProductForm((current) => {
+          const images = [...new Set([...(current.images?.length ? current.images : current.image ? [current.image] : []), uploadedUrl])];
+          return {
+            ...current,
+            image: images[0] ?? "",
+            images,
+            inkSpecifications: { ...(current.inkSpecifications ?? createEmptyInkSpecifications()), images },
+          };
+        });
+      }
+      markDirty("product-form");
+      setStatus("تم رفع صور الحبر، اضغط حفظ المنتج");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "تعذر رفع صور الحبر");
     }
     setUploadingImage(false);
     input.value = "";
@@ -443,7 +475,19 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       setStatus("الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.");
       return;
     }
-    const next = { ...productForm, id: editingId ?? Date.now(), features: featuresText.split(",").map((item) => item.trim()).filter(Boolean) };
+    const inkImages = productForm.category === "inks"
+      ? productForm.images?.length ? productForm.images : productForm.image ? [productForm.image] : []
+      : undefined;
+    const next = {
+      ...productForm,
+      id: editingId ?? Date.now(),
+      image: inkImages?.[0] ?? productForm.image,
+      images: inkImages,
+      inkSpecifications: productForm.category === "inks" && productForm.inkSpecifications
+        ? { ...productForm.inkSpecifications, images: inkImages ?? [] }
+        : productForm.inkSpecifications,
+      features: featuresText.split(",").map((item) => item.trim()).filter(Boolean),
+    };
     setSaving(true);
     setStatus(editingId ? "جاري حفظ المنتج..." : "جاري إضافة المنتج...");
     try {
@@ -641,7 +685,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       if (!response.ok) throw new Error(data.error || "تعذر حذف المنتج");
       const nextProducts = removeProductById(products, product.id);
       setProducts(nextProducts);
-      queueMediaRemoval(product.image);
+      (product.category === "inks" && product.images?.length ? product.images : [product.image]).forEach(queueMediaRemoval);
       const activeUrls = activeMediaUrls(settings, nextProducts, heroSlides);
       const deleteFailures = await flushPendingMediaDeletes(activeUrls);
       setStatus(deleteFailures
@@ -825,7 +869,21 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         {priceMode === "fixed" && <label>السعر المحدد<input value={productForm.price ?? ""} onChange={(e) => updateProductForm({ price: e.target.value })} placeholder="أدخل السعر كما سيظهر للزبون" /></label>}
         <label>الوصف القصير<textarea value={productForm.description} aria-invalid={productForm.description.length > 160} onChange={(e) => updateProductForm({ description: e.target.value })} /><span className={productForm.description.length > 160 ? "description-counter over-limit" : "description-counter"}>{productForm.description.length} / 160 حرفاً</span>{productForm.description.length > 160 && <span className="admin-field-error" role="alert">الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.</span>}</label>
         {productForm.category !== "inks" && <label>المميزات القديمة، افصل بفاصلة <small>للتوافق مع المنتجات الحالية فقط</small><input value={featuresText} onChange={(e) => updateProductFeatures(e.target.value)} /></label>}
-        <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />
+        {productForm.category === "inks"
+          ? <InkImagesEditor
+              images={productForm.images?.length ? productForm.images : productForm.image ? [productForm.image] : []}
+              uploading={uploadingImage}
+              onUpload={uploadInkImages}
+              onChange={(images, removedImage) => {
+                if (removedImage) queueMediaRemoval(removedImage);
+                updateProductForm({
+                  image: images[0] ?? "",
+                  images,
+                  inkSpecifications: { ...(productForm.inkSpecifications ?? createEmptyInkSpecifications()), images },
+                });
+              }}
+            />
+          : <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />}
         <div className="product-editor-actions"><button type="submit" disabled={saving}>{saving ? "جاري الحفظ..." : editingId ? "حفظ التعديل" : "إضافة المنتج"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
       <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
@@ -1156,6 +1214,44 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
 
 function TriStateField({ label, value, onChange }: { label: string; value: TriState; onChange: (value: TriState) => void }) {
   return <label>{label}<select value={triStateToFormValue(value)} onChange={(event) => onChange(formValueToTriState(event.target.value))}>{TRI_STATE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
+}
+
+function InkImagesEditor({
+  images,
+  uploading,
+  onUpload,
+  onChange,
+}: {
+  images: string[];
+  uploading: boolean;
+  onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  onChange: (images: string[], removedImage?: string) => void;
+}) {
+  const move = (index: number, step: -1 | 1) => {
+    const target = index + step;
+    if (target < 0 || target >= images.length) return;
+    const next = [...images];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  };
+  return <fieldset className="ink-images-editor">
+    <legend>صور منتج الحبر</legend>
+    <label className="real-image-field">إضافة صور
+      <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" onChange={onUpload} disabled={uploading} />
+      <span>{uploading ? "جاري رفع الصور..." : "اختيار صورة أو عدة صور"}</span>
+    </label>
+    {images.length > 0 && <div className="ink-admin-images">{images.map((image, index) => <article key={image}>
+      <img src={normalizeMediaUrl(image)} alt={`صورة الحبر ${index + 1}`} />
+      <b>{index === 0 ? "الصورة الرئيسية" : `الصورة ${index + 1}`}</b>
+      <div>
+        <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label="تحريك الصورة للأمام">→</button>
+        <button type="button" onClick={() => move(index, 1)} disabled={index === images.length - 1} aria-label="تحريك الصورة للخلف">←</button>
+        <button type="button" className="admin-remove-item" onClick={() => {
+          if (window.confirm("هل تريد إزالة هذه الصورة؟")) onChange(images.filter((_, imageIndex) => imageIndex !== index), image);
+        }}>حذف</button>
+      </div>
+    </article>)}</div>}
+  </fieldset>;
 }
 
 function ImageField({ value, onUpload, onRemove, label = "الصورة", actionText = "اختيار صورة من الجهاز" }: { value: string; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; label?: string; actionText?: string }) {

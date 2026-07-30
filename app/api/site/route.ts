@@ -87,14 +87,26 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
   const name = String(input.name ?? "").trim().slice(0, 180);
   const category = String(input.category ?? "").trim().slice(0, 80);
   if (!name || !category) return null;
+  const inkSpecifications = category === "inks"
+    ? normalizeInkSpecifications(input.inkSpecifications ?? input.specifications)
+    : undefined;
+  const legacyImage = normalizeMediaUrl(
+    String(input.image ?? "/brand/eshak-logo.png").trim().slice(0, 1000),
+    process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
+  );
+  const images = category === "inks"
+    ? [...new Set((Array.isArray(input.images) ? input.images : inkSpecifications?.images ?? [])
+      .map(String)
+      .map((image) => normalizeMediaUrl(image.trim().slice(0, 1000)))
+      .filter(Boolean))]
+    : undefined;
+  if (category === "inks" && images && !images.length && legacyImage) images.push(legacyImage);
   return {
     id: Number.isSafeInteger(Number(input.id)) && Number(input.id) > 0 ? Number(input.id) : Date.now() + index,
     name: normalizeProductBrandName(name),
     family: String(input.family ?? "").trim().slice(0, 120),
-    image: normalizeMediaUrl(
-      String(input.image ?? "/brand/eshak-logo.png").trim().slice(0, 1000),
-      process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
-    ),
+    image: images?.[0] ?? legacyImage,
+    images,
     category,
     printerCategory: category === "printers"
       ? resolvePrinterCategory(input.printerCategory, name)
@@ -114,9 +126,7 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     paperSpecifications: category === "papers"
       ? normalizePaperSpecifications(input.paperSpecifications ?? input.specifications)
       : undefined,
-    inkSpecifications: category === "inks"
-      ? normalizeInkSpecifications(input.inkSpecifications ?? input.specifications)
-      : undefined,
+    inkSpecifications: inkSpecifications ? { ...inkSpecifications, images: images ?? [] } : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(input.specificationsSourceUrl),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(input.specificationsVerifiedAt),
     sortOrder: Number.isSafeInteger(Number(input.sortOrder)) && Number(input.sortOrder) >= 0

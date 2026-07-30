@@ -122,6 +122,7 @@ export type StoredProduct = {
   name: string;
   family: string;
   image: string;
+  images?: string[];
   category: string;
   printerCategory?: PrinterCategory;
   type: string;

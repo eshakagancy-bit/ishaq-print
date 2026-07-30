@@ -40,7 +40,7 @@ export default async function InkDetailsPage({ params }: PageProps) {
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>←</span><Link href="/#products">الأحبار</Link><span>←</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">
-      <ProductGallery images={[product.image || "/brand/eshak-logo.png"]} alt={product.name} />
+      <ProductGallery images={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} alt={product.name} />
       <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اطلب من المختص</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">WhatsApp</a><Link className="printer-page-back" href="/#products">العودة إلى المنتجات</Link></div></div>
     </div></div></section>
     <div className="container printer-sections">

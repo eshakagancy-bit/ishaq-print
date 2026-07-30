@@ -123,7 +123,7 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     id: product.id,
     name: normalizeProductBrandName(product.name),
     family: product.family,
-    image: normalizeStoredMediaUrl(product.image),
+    image: normalizeStoredMediaUrl(product.category === "inks" ? product.images?.[0] || product.image : product.image),
     category: printerCategory ?? product.category,
     type: product.type,
     size: product.size,
@@ -133,7 +133,9 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     features: product.features,
     specifications: product.category === "papers"
       ? product.paperSpecifications ?? null
-      : product.category === "inks" ? product.inkSpecifications ?? null : product.specifications ?? null,
+      : product.category === "inks"
+        ? { ...(product.inkSpecifications ?? {}), images: product.images ?? product.inkSpecifications?.images ?? (product.image ? [product.image] : []) }
+        : product.specifications ?? null,
     printer_page_content: product.category === "printers" && product.printerPageContent
       ? product.printerPageContent
       : null,
@@ -147,11 +149,16 @@ function productFromRow(row: ProductRow): StoredProduct {
   const storedPrinterCategory = isPrinterCategory(row.category) ? row.category : undefined;
   const category = storedPrinterCategory ? "printers" : row.category;
   const storedPrinterPageContent = normalizePrinterPageContent(row.printer_page_content);
+  const inkSpecifications = category === "inks" ? normalizeInkSpecifications(row.specifications) : undefined;
+  const inkImages = category === "inks"
+    ? (inkSpecifications?.images.length ? inkSpecifications.images : row.image ? [normalizeStoredMediaUrl(row.image)] : [])
+    : undefined;
   return {
     id: Number(row.id),
     name: normalizeProductBrandName(row.name),
     family: row.family,
-    image: normalizeStoredMediaUrl(row.image),
+    image: inkImages?.[0] ?? normalizeStoredMediaUrl(row.image),
+    images: inkImages,
     category,
     printerCategory: category === "printers"
       ? resolvePrinterCategory(storedPrinterCategory, row.name)
@@ -167,7 +174,7 @@ function productFromRow(row: ProductRow): StoredProduct {
       ? storedPrinterPageContent
       : undefined,
     paperSpecifications: category === "papers" ? normalizePaperSpecifications(row.specifications) : undefined,
-    inkSpecifications: category === "inks" ? normalizeInkSpecifications(row.specifications) : undefined,
+    inkSpecifications: inkSpecifications ? { ...inkSpecifications, images: inkImages ?? [] } : undefined,
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(row.specifications_source_url),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(row.specifications_verified_at),
     sortOrder: row.sort_order,
@@ -290,7 +297,9 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     .update({
       specifications: product.category === "papers"
         ? product.paperSpecifications ?? null
-        : product.category === "inks" ? product.inkSpecifications ?? null : product.specifications ?? null,
+        : product.category === "inks"
+          ? { ...(product.inkSpecifications ?? {}), images: product.images ?? product.inkSpecifications?.images ?? (product.image ? [product.image] : []) }
+          : product.specifications ?? null,
       specifications_source_url: product.specificationsSourceUrl || null,
       specifications_verified_at: product.specificationsVerifiedAt || null,
       printer_page_content: product.category === "printers"
