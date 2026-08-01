@@ -5,6 +5,7 @@ export type PaperPrintSides = "single" | "double" | null;
 export type PaperAvailability = "inStock" | "outOfStock" | "onRequest" | null;
 
 export type PaperSpecifications = {
+  images?: string[];
   nameAr: string | null;
   nameEn: string | null;
   brand: string | null;
@@ -55,6 +56,7 @@ export const PAPER_AVAILABILITY_OPTIONS = [
 
 export function createEmptyPaperSpecifications(): PaperSpecifications {
   return {
+    images: [],
     nameAr: null,
     nameEn: null,
     brand: null,
@@ -112,7 +114,7 @@ export function normalizePaperSpecifications(value: unknown): PaperSpecification
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const input = value as Record<string, unknown>;
   const paperKeys: ReadonlyArray<keyof PaperSpecifications> = [
-    "nameAr", "nameEn", "brand", "series", "paperType", "surface", "size", "dimensions",
+    "images", "nameAr", "nameEn", "brand", "series", "paperType", "surface", "size", "dimensions",
     "weightGsm", "sheetCount", "printSides", "printerCompatibility", "selfAdhesive",
     "thermalTransfer", "inkCompatibility", "quickDry", "uses", "availability",
   ];
@@ -126,6 +128,7 @@ export function normalizePaperSpecifications(value: unknown): PaperSpecification
     : null;
 
   return {
+    images: stringList(input.images, 12),
     nameAr: textOrNull(input.nameAr),
     nameEn: textOrNull(input.nameEn),
     brand: textOrNull(input.brand, 120),

@@ -119,6 +119,7 @@ export function normalizeProductBrandName(value: string) {
 
 export type StoredProduct = {
   id: number;
+  slug?: string;
   name: string;
   family: string;
   image: string;
@@ -133,6 +134,7 @@ export type StoredProduct = {
   features: string[];
   specifications?: PrinterSpecifications;
   printerPageContent?: PrinterPageContent;
+  paperPageContent?: PrinterPageContent;
   paperSpecifications?: PaperSpecifications;
   inkSpecifications?: InkSpecifications;
   specificationsSourceUrl?: string;

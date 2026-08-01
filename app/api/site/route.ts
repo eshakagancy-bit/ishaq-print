@@ -94,15 +94,16 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     String(input.image ?? "/brand/eshak-logo.png").trim().slice(0, 1000),
     process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
   );
-  const images = category === "inks"
+  const images = category === "inks" || category === "papers"
     ? [...new Set((Array.isArray(input.images) ? input.images : inkSpecifications?.images ?? [])
       .map(String)
       .map((image) => normalizeMediaUrl(image.trim().slice(0, 1000)))
       .filter(Boolean))]
     : undefined;
-  if (category === "inks" && images && !images.length && legacyImage) images.push(legacyImage);
+  if ((category === "inks" || category === "papers") && images && !images.length && legacyImage) images.push(legacyImage);
   return {
     id: Number.isSafeInteger(Number(input.id)) && Number(input.id) > 0 ? Number(input.id) : Date.now() + index,
+    slug: String(input.slug ?? "").trim().slice(0, 200) || undefined,
     name: normalizeProductBrandName(name),
     family: String(input.family ?? "").trim().slice(0, 120),
     image: images?.[0] ?? legacyImage,
@@ -122,6 +123,9 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     specifications: category === "printers" ? normalizePrinterSpecifications(input.specifications) : undefined,
     printerPageContent: category === "printers" && input.printerPageContent
       ? normalizePrinterPageContent(input.printerPageContent)
+      : undefined,
+    paperPageContent: category === "papers" && input.paperPageContent
+      ? normalizePrinterPageContent(input.paperPageContent)
       : undefined,
     paperSpecifications: category === "papers"
       ? normalizePaperSpecifications(input.paperSpecifications ?? input.specifications)

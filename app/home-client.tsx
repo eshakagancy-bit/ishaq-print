@@ -36,6 +36,7 @@ import {
 } from "./site-defaults";
 import { getPrinterSlug } from "./printers/product-slug";
 import { getInkSlug } from "./inks/product-slug";
+import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
@@ -670,6 +671,10 @@ export default function HomeClient({
     current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
   );
   const openQuickView = useCallback((product: Product, trigger: HTMLElement | null = null) => {
+    if (product.category === "papers") {
+      window.location.href = `/papers/${getPaperSlug(product)}`;
+      return;
+    }
     quickViewTriggerRef.current = trigger
       ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     setSelected(product);
@@ -985,7 +990,7 @@ export default function HomeClient({
           <button type="button" onClick={() => scrollProductGroups("next")} aria-label="مجموعة المنتجات التالية">←</button>
         </div><div className="product-grid" ref={productGridRef}>{productGroups.map((group, groupIndex) => <div className="product-group" key={`${allCategoriesActive ? "all" : activeCategory}-${filter}-${query}-${groupIndex}-${group[0]?.id ?? "empty"}`}>{group.map((product) => {
           const cardTags = getProductCardSpecificationTags(product);
-          return <article className="product-card" data-category={product.category} key={product.id}>
+          return <article className="product-card" data-category={product.category} key={product.id} onClick={product.category === "papers" ? (event) => { if (!(event.target as HTMLElement).closest("button,a")) window.location.href = `/papers/${getPaperSlug(product)}`; } : undefined}>
             <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button>{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} /> : product.category === "printers" ? <button type="button" className="product-image-trigger" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`عرض التفاصيل السريعة لـ ${getProductDisplayName(product)}`}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /></button> : <Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" />}<button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)}>{product.category === "printers" ? "تفاصيل سريعة" : "عرض سريع"}</button></div>
             <div className="product-body">{product.family && <span className="product-family">{product.family}</span>}<h3>{getProductDisplayName(product)}</h3>{product.description && <p>{product.description}</p>}{cardTags.length > 0 && <div className="product-tags">{cardTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}<div className="product-footer"><div className="price"><small>السعر</small><strong>{product.price || "اطلب عرض سعر"}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
           </article>;

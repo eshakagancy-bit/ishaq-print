@@ -109,6 +109,7 @@ export const PAPER_SPECIFICATIONS_UPDATE_TARGETS: readonly PaperSpecificationsUp
 ] as const;
 
 const fieldLabels: Record<keyof PaperSpecifications, string> = {
+  images: "الصور",
   nameAr: "الاسم العربي",
   nameEn: "الاسم الإنجليزي",
   brand: "العلامة التجارية",

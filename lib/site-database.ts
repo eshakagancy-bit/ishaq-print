@@ -123,7 +123,7 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     id: product.id,
     name: normalizeProductBrandName(product.name),
     family: product.family,
-    image: normalizeStoredMediaUrl(product.category === "inks" ? product.images?.[0] || product.image : product.image),
+    image: normalizeStoredMediaUrl(product.category === "inks" || product.category === "papers" ? product.images?.[0] || product.image : product.image),
     category: printerCategory ?? product.category,
     type: product.type,
     size: product.size,
@@ -132,13 +132,13 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     description: product.description,
     features: product.features,
     specifications: product.category === "papers"
-      ? product.paperSpecifications ?? null
+      ? { ...(product.paperSpecifications ?? {}), images: product.images ?? product.paperSpecifications?.images ?? (product.image ? [product.image] : []) }
       : product.category === "inks"
         ? { ...(product.inkSpecifications ?? {}), images: product.images ?? product.inkSpecifications?.images ?? (product.image ? [product.image] : []) }
         : product.specifications ?? null,
-    printer_page_content: product.category === "printers" && product.printerPageContent
-      ? product.printerPageContent
-      : null,
+    printer_page_content: product.category === "printers"
+      ? product.printerPageContent ?? null
+      : product.category === "papers" ? product.paperPageContent ?? null : null,
     specifications_source_url: product.specificationsSourceUrl || null,
     specifications_verified_at: product.specificationsVerifiedAt || null,
     sort_order: product.sortOrder ?? index,
@@ -158,7 +158,9 @@ function productFromRow(row: ProductRow): StoredProduct {
     name: normalizeProductBrandName(row.name),
     family: row.family,
     image: inkImages?.[0] ?? normalizeStoredMediaUrl(row.image),
-    images: inkImages,
+    images: category === "papers"
+      ? (normalizePaperSpecifications(row.specifications)?.images?.length ? normalizePaperSpecifications(row.specifications)?.images : row.image ? [normalizeStoredMediaUrl(row.image)] : [])
+      : inkImages,
     category,
     printerCategory: category === "printers"
       ? resolvePrinterCategory(storedPrinterCategory, row.name)
@@ -171,6 +173,9 @@ function productFromRow(row: ProductRow): StoredProduct {
     features: normalizeFeatures(row.features),
     specifications: category === "printers" ? normalizePrinterSpecifications(row.specifications) : undefined,
     printerPageContent: category === "printers" && hasPrinterPageContent(storedPrinterPageContent)
+      ? storedPrinterPageContent
+      : undefined,
+    paperPageContent: category === "papers" && hasPrinterPageContent(storedPrinterPageContent)
       ? storedPrinterPageContent
       : undefined,
     paperSpecifications: category === "papers" ? normalizePaperSpecifications(row.specifications) : undefined,
@@ -291,12 +296,13 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     product.specifications !== undefined || product.paperSpecifications !== undefined || product.inkSpecifications !== undefined
       || product.specificationsSourceUrl || product.specificationsVerifiedAt
       || (product.printerPageContent && hasPrinterPageContent(product.printerPageContent))
+      || (product.paperPageContent && hasPrinterPageContent(product.paperPageContent))
   );
   const specificationResults = await Promise.all(productsWithStructuredSpecifications.map((product) => client
     .from("products")
     .update({
       specifications: product.category === "papers"
-        ? product.paperSpecifications ?? null
+        ? { ...(product.paperSpecifications ?? {}), images: product.images ?? product.paperSpecifications?.images ?? (product.image ? [product.image] : []) }
         : product.category === "inks"
           ? { ...(product.inkSpecifications ?? {}), images: product.images ?? product.inkSpecifications?.images ?? (product.image ? [product.image] : []) }
           : product.specifications ?? null,
@@ -304,7 +310,7 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
       specifications_verified_at: product.specificationsVerifiedAt || null,
       printer_page_content: product.category === "printers"
         ? product.printerPageContent ?? null
-        : null,
+        : product.category === "papers" ? product.paperPageContent ?? null : null,
     })
     .eq("id", product.id)
     .select("id")
