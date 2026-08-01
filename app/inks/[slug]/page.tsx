@@ -7,6 +7,7 @@ import { buildInkSpecificationRows } from "../../ink-specifications";
 import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
 import { getInkSlug } from "../product-slug";
 import ProductGallery from "../../product-gallery";
+import { isPublicCategoryEnabled } from "../../public-categories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ slug: string }> };
 
 async function getInk(slug: string) {
+  if (!isPublicCategoryEnabled("inks")) return undefined;
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   const inks = data.products.filter((product) => product.category === "inks");
   return inks.find((product) => getInkSlug(product) === slug);

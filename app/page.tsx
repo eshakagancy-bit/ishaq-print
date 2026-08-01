@@ -1,5 +1,6 @@
 import { getHeroData, getSiteData } from "../lib/site-database";
 import HomeClient from "./home-client";
+import { isPublicCategoryEnabled, isPublicCategoryUrl } from "./public-categories";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
@@ -21,12 +22,18 @@ export default async function Home() {
       settings: defaultHeroSettings,
     })),
   ]);
+  const publicHeroSlides = heroData.slides.filter((slide) =>
+    isPublicCategoryUrl(slide.primaryButtonUrl) && isPublicCategoryUrl(slide.secondaryButtonUrl)
+  );
+  const fallbackHeroSlides = defaultHeroSlides.filter((slide) =>
+    isPublicCategoryUrl(slide.primaryButtonUrl) && isPublicCategoryUrl(slide.secondaryButtonUrl)
+  );
 
   return (
     <HomeClient
       initialSettings={siteData.settings}
-      initialProducts={siteData.products}
-      initialHeroSlides={heroData.slides.length ? heroData.slides : defaultHeroSlides}
+      initialProducts={siteData.products.filter((product) => isPublicCategoryEnabled(product.category))}
+      initialHeroSlides={publicHeroSlides.length ? publicHeroSlides : fallbackHeroSlides}
       initialHeroSettings={heroData.settings}
     />
   );

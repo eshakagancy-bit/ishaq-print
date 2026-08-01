@@ -38,6 +38,7 @@ import { getPrinterSlug } from "./printers/product-slug";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
+import { isPublicCategoryEnabled } from "./public-categories";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
 const DEFAULT_IMAGE_SRC = "/brand/eshak-logo.png";
@@ -90,7 +91,7 @@ function MobileNavIcon({ section }: { section: MobileNavSection }) {
   return null;
 }
 
-const categories = [
+const allCategories = [
   { id: "printers", name: "طابعات EPSON", icon: "🖨️", description: "طابعات إبسون الأصلية للمكاتب والشركات" },
   { id: "laptops", name: "اللابتوبات", icon: "💻", description: "أجهزة محمولة للعمل والدراسة والاستخدام اليومي" },
   { id: "engraving-presses", name: "آلات النحت والمكابس", icon: "⚙️", description: "حلول النحت والكبس للمشاريع والورش" },
@@ -103,6 +104,8 @@ const categories = [
   { id: "money-machines", name: "آلات عد وفحص النقود", icon: "💵", description: "أجهزة دقيقة للعد والكشف وفحص العملات" },
   { id: "networks", name: "الشبكات وأجهزة الواي فاي", icon: "◉", description: "راوترات ونقاط وصول وحلول ربط الشبكات" },
 ] as const;
+
+const categories = allCategories.filter((category) => isPublicCategoryEnabled(category.id));
 
 type CategoryId = typeof categories[number]["id"];
 type DesktopCategoryMenu = "printers" | "machines" | "technology" | "more";
@@ -828,7 +831,7 @@ export default function HomeClient({
             { id: "machines", label: "الماكينات", items: machineCategories },
             { id: "technology", label: "التقنية", items: technologyCategories },
             { id: "more", label: "المزيد", items: moreCategories },
-          ] as const).map((group) => {
+          ] as const).filter((group) => group.items.length > 0).map((group) => {
             const groupActive = pageView === "home" && !allCategoriesActive && group.items.some((category) => category.id === activeCategory);
             return <div
               key={group.id}

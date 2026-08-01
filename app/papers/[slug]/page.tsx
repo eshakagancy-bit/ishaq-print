@@ -7,6 +7,7 @@ import { buildPaperSpecificationRows } from "../../paper-specifications";
 import ProductGallery from "../../product-gallery";
 import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
 import { getPaperSlug } from "../product-slug";
+import { isPublicCategoryEnabled } from "../../public-categories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ slug: string }> };
 
 async function getPaperData(slug: string) {
+  if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [] };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   const papers = data.products.filter((item) => item.category === "papers");
   return { product: papers.find((item) => getPaperSlug(item) === slug), papers };
