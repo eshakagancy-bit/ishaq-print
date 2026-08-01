@@ -21,6 +21,13 @@ import { getPrinterSlug } from "./printers/product-slug";
 
 const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 const categoryLabels: Record<PublicEnabledCategory, string> = { printers: "جميع الطابعات", inks: "جميع الأحبار", papers: "جميع الأوراق" };
+const printerFilterLabels: Record<PrinterCategoryFilter, string> = {
+  all: "الكل (جميع الطابعات)",
+  workforce: "WorkForce (طابعات الأعمال الشاقة)",
+  ecotank: "EcoTank (الطابعات المكتبية)",
+  "ecotank-6-color": "EcoTank 6 Color (طابعات التصوير الفوتوغرافي)",
+  lq: "LQ (طابعات المستندات والفواتير)",
+};
 
 function productSlug(product: StoredProduct) {
   if (product.category === "inks") return getInkSlug(product);
@@ -82,7 +89,7 @@ export default function CategoryProductsClient({ category, products }: { categor
         const count = item.value === ALL_PRINTERS_FILTER.value
           ? products.length
           : products.filter((product) => resolvePrinterCategory(product.printerCategory, product.name) === item.value).length;
-        return <button type="button" className={printerFilter === item.value ? "active" : ""} aria-pressed={printerFilter === item.value} onClick={() => setPrinterFilter(item.value)} key={item.value}><span>{item.label.split(" (")[0]}</span><small>{count}</small></button>;
+        return <button type="button" className={printerFilter === item.value ? "active" : ""} aria-pressed={printerFilter === item.value} onClick={() => setPrinterFilter(item.value)} key={item.value}><span>{printerFilterLabels[item.value]}</span><small>{count}</small></button>;
       })}</div>}
       <label className="category-products-search"><span>بحث</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`ابحث داخل ${categoryLabels[category]}...`} /></label>
       {visibleProducts.length ? <div className="category-products-list">{visibleProducts.map((product) => {

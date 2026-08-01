@@ -14,6 +14,14 @@ test("printer filters use the stored taxonomy only on the vertical printers page
   assert.match(client, /category === "printers" && <div className="printer-category-filters"/);
   assert.match(client, /resolvePrinterCategory\(product\.printerCategory, product\.name\) === printerFilter/);
   assert.match(client, /\[ALL_PRINTERS_FILTER, \.\.\.PRINTER_CATEGORIES\]\.map/);
+  for (const label of [
+    "الكل (جميع الطابعات)",
+    "WorkForce (طابعات الأعمال الشاقة)",
+    "EcoTank (الطابعات المكتبية)",
+    "EcoTank 6 Color (طابعات التصوير الفوتوغرافي)",
+    "LQ (طابعات المستندات والفواتير)",
+  ]) assert.match(client, new RegExp(label.replace(/[()]/g, "\\$&")));
+  assert.match(client, /printerFilterLabels\[item\.value\]/);
   assert.match(client, /لا توجد طابعات في هذا التصنيف حاليًا/);
   assert.match(categories, /value: "workforce"[\s\S]*value: "ecotank"[\s\S]*value: "ecotank-6-color"[\s\S]*value: "lq"/);
   assert.match(styles, /\.printer-category-filters \{[^}]*max-width:100%;[^}]*display:flex;[^}]*overflow-x:auto;/);
