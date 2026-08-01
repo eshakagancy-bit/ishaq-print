@@ -1,6 +1,7 @@
 "use client";
 
 import Image, { getImageProps } from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizeMediaUrl } from "../lib/media-url";
 import { isOpenInAden } from "./business-hours";
@@ -35,7 +36,7 @@ import { getPrinterSlug } from "./printers/product-slug";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
-import { isPublicCategoryEnabled } from "./public-categories";
+import { isPublicCategoryEnabled, PUBLIC_ENABLED_CATEGORIES } from "./public-categories";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
 const DEFAULT_IMAGE_SRC = "/brand/eshak-logo.png";
@@ -109,6 +110,9 @@ type CategoryId = typeof categories[number]["id"];
 const homeCategoryOrder = ["printers", "papers", "inks"] as const;
 type HomeCategoryId = typeof homeCategoryOrder[number];
 const homeCategoryLabels: Record<HomeCategoryId, string> = { printers: "الطابعات", papers: "الأوراق", inks: "الأحبار" };
+const headerCategoryLinks = homeCategoryOrder
+  .filter((category) => PUBLIC_ENABLED_CATEGORIES.includes(category))
+  .map((category) => ({ category, label: homeCategoryLabels[category], href: `/${category}` }));
 
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
@@ -263,6 +267,7 @@ export default function HomeClient({
   const [favoritesReady, setFavoritesReady] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
   const [scrollRequest, setScrollRequest] = useState<{ targetId: string; sequence: number } | null>(null);
   const [customerPhoneCopied, setCustomerPhoneCopied] = useState(false);
@@ -273,6 +278,8 @@ export default function HomeClient({
   const quickViewTriggerRef = useRef<HTMLElement | null>(null);
   const quickViewDialogRef = useRef<HTMLDivElement | null>(null);
   const quickViewCloseRef = useRef<HTMLButtonElement | null>(null);
+  const categoriesMenuRef = useRef<HTMLDivElement | null>(null);
+  const categoriesMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const categoryStripRef = useRef<HTMLElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
@@ -385,6 +392,24 @@ export default function HomeClient({
   useEffect(() => {
     if (favoritesReady) window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
   }, [favorites, favoritesReady]);
+
+  useEffect(() => {
+    if (!categoriesMenuOpen) return undefined;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!categoriesMenuRef.current?.contains(event.target as Node)) setCategoriesMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setCategoriesMenuOpen(false);
+      categoriesMenuButtonRef.current?.focus();
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [categoriesMenuOpen]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000);
@@ -673,7 +698,10 @@ export default function HomeClient({
           <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>
           <nav id="mobile-site-menu" className={menuOpen ? "nav-links open" : "nav-links"} aria-label="التنقل الرئيسي">
             <a href="#home" aria-current={pageView === "home" ? "page" : undefined} onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a>
-            <a href="#categories" aria-current={pageView === "categories" ? "page" : undefined} onClick={(event) => { event.preventDefault(); openCategoriesView(); }}>الأقسام</a>
+            <div ref={categoriesMenuRef} className="header-category-item">
+              <button ref={categoriesMenuButtonRef} type="button" className="header-category-trigger" aria-expanded={categoriesMenuOpen} aria-controls="header-category-menu" aria-haspopup="true" onClick={() => setCategoriesMenuOpen((current) => !current)}>الفئات <span aria-hidden="true">⌄</span></button>
+              {categoriesMenuOpen && <div id="header-category-menu" className="header-category-menu" aria-label="الفئات العامة">{headerCategoryLinks.map((item) => <Link key={item.category} href={item.href} onClick={() => { setCategoriesMenuOpen(false); setMenuOpen(false); }}>{item.label}</Link>)}</div>}
+            </div>
             <a href="#maintenance" onClick={(event) => { event.preventDefault(); openHomeSection("maintenance"); }}>الصيانة</a>
             <a href="#services" onClick={(event) => { event.preventDefault(); openHomeSection("services"); }}>خدماتنا</a>
             <a href="#products" onClick={(event) => { event.preventDefault(); openCategory("printers"); }}>طابعات EPSON</a>
@@ -684,7 +712,7 @@ export default function HomeClient({
             <button type="button" className="favorite-counter" onClick={() => setFavoritesOpen(true)} aria-label={`فتح المفضلة، ${favorites.length} منتجات`}><span>♡</span><b>{favorites.length}</b></button>
             <a className="admin-link" href="/admin">لوحة التحكم</a>
             <a className="nav-contact" href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">اطلب استشارة</a>
-            <button className="menu-btn" type="button" onClick={() => setMenuOpen((current) => !current)} aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-controls="mobile-site-menu" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
+            <button className="menu-btn" type="button" onClick={() => { setMenuOpen((current) => !current); setCategoriesMenuOpen(false); }} aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-controls="mobile-site-menu" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
           </div>
         </div>
       </header>
