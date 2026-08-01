@@ -36,7 +36,7 @@ import { getPrinterSlug } from "./printers/product-slug";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
-import { isPublicCategoryEnabled, PUBLIC_ENABLED_CATEGORIES } from "./public-categories";
+import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES } from "./public-categories";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
 const DEFAULT_IMAGE_SRC = "/brand/eshak-logo.png";
@@ -90,11 +90,11 @@ function MobileNavIcon({ section }: { section: MobileNavSection }) {
 }
 
 const allCategories = [
-  { id: "printers", name: "طابعات EPSON", icon: "🖨️", description: "طابعات إبسون الأصلية للمكاتب والشركات" },
+  { id: "printers", name: PUBLIC_CATEGORY_DETAILS.printers.label, icon: "🖨️", description: PUBLIC_CATEGORY_DETAILS.printers.description },
   { id: "laptops", name: "اللابتوبات", icon: "💻", description: "أجهزة محمولة للعمل والدراسة والاستخدام اليومي" },
   { id: "engraving-presses", name: "آلات النحت والمكابس", icon: "⚙️", description: "حلول النحت والكبس للمشاريع والورش" },
-  { id: "inks", name: "الأحبار", icon: "💧", description: "أحبار أصلية وبدائل موثوقة لمختلف الاستخدامات" },
-  { id: "papers", name: "الأوراق", icon: "📄", description: "أوراق الطباعة والتصوير والخامات المتخصصة" },
+  { id: "inks", name: PUBLIC_CATEGORY_DETAILS.inks.label, icon: "💧", description: PUBLIC_CATEGORY_DETAILS.inks.description },
+  { id: "papers", name: PUBLIC_CATEGORY_DETAILS.papers.label, icon: "📄", description: PUBLIC_CATEGORY_DETAILS.papers.description },
   { id: "advertising-machines", name: "آلات الدعاية والإعلان", icon: "✦", description: "معدات الطباعة والقص والإنتاج الإعلاني" },
   { id: "electronics", name: "الملحقات الإلكترونية", icon: "🔌", description: "ملحقات إلكترونية عملية للأجهزة والمكاتب" },
   { id: "cameras", name: "الكاميرات", icon: "📷", description: "كاميرات ومعدات تصوير للاستخدامات المختلفة" },
@@ -107,12 +107,7 @@ const categories = allCategories.filter((category) => isPublicCategoryEnabled(ca
 
 type CategoryId = typeof categories[number]["id"];
 
-const homeCategoryOrder = ["printers", "papers", "inks"] as const;
-type HomeCategoryId = typeof homeCategoryOrder[number];
-const homeCategoryLabels: Record<HomeCategoryId, string> = { printers: "الطابعات", papers: "الأوراق", inks: "الأحبار" };
-const headerCategoryLinks = homeCategoryOrder
-  .filter((category) => PUBLIC_ENABLED_CATEGORIES.includes(category))
-  .map((category) => ({ category, label: homeCategoryLabels[category], href: `/${category}` }));
+const homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES;
 
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
@@ -267,7 +262,6 @@ export default function HomeClient({
   const [favoritesReady, setFavoritesReady] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [categoriesMenuOpen, setCategoriesMenuOpen] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
   const [scrollRequest, setScrollRequest] = useState<{ targetId: string; sequence: number } | null>(null);
   const [customerPhoneCopied, setCustomerPhoneCopied] = useState(false);
@@ -278,8 +272,6 @@ export default function HomeClient({
   const quickViewTriggerRef = useRef<HTMLElement | null>(null);
   const quickViewDialogRef = useRef<HTMLDivElement | null>(null);
   const quickViewCloseRef = useRef<HTMLButtonElement | null>(null);
-  const categoriesMenuRef = useRef<HTMLDivElement | null>(null);
-  const categoriesMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const categoryStripRef = useRef<HTMLElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
@@ -394,24 +386,6 @@ export default function HomeClient({
   }, [favorites, favoritesReady]);
 
   useEffect(() => {
-    if (!categoriesMenuOpen) return undefined;
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!categoriesMenuRef.current?.contains(event.target as Node)) setCategoriesMenuOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setCategoriesMenuOpen(false);
-      categoriesMenuButtonRef.current?.focus();
-    };
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [categoriesMenuOpen]);
-
-  useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
@@ -523,13 +497,6 @@ export default function HomeClient({
     requestSectionScroll("home");
   };
 
-  const openCategoriesView = () => {
-    setPageView("home");
-    setMobileNavSection("categories");
-    setMenuOpen(false);
-    requestSectionScroll("products");
-  };
-
   const openHomeSection = (targetId: string) => {
     setPageView("home");
     setMenuOpen(false);
@@ -539,10 +506,6 @@ export default function HomeClient({
   const openMobileSection = (section: MobileNavSection) => {
     if (section === "home") {
       openHomeView();
-      return;
-    }
-    if (section === "categories") {
-      openCategoriesView();
       return;
     }
     setPageView("home");
@@ -698,10 +661,7 @@ export default function HomeClient({
           <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>
           <nav id="mobile-site-menu" className={menuOpen ? "nav-links open" : "nav-links"} aria-label="التنقل الرئيسي">
             <a href="#home" aria-current={pageView === "home" ? "page" : undefined} onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a>
-            <div ref={categoriesMenuRef} className="header-category-item">
-              <button ref={categoriesMenuButtonRef} type="button" className="header-category-trigger" aria-expanded={categoriesMenuOpen} aria-controls="header-category-menu" aria-haspopup="true" onClick={() => setCategoriesMenuOpen((current) => !current)}>الفئات <span aria-hidden="true">⌄</span></button>
-              {categoriesMenuOpen && <div id="header-category-menu" className="header-category-menu" aria-label="الفئات العامة">{headerCategoryLinks.map((item) => <Link key={item.category} href={item.href} onClick={() => { setCategoriesMenuOpen(false); setMenuOpen(false); }}>{item.label}</Link>)}</div>}
-            </div>
+            <Link href="/categories" onClick={() => setMenuOpen(false)}>الفئات</Link>
             <a href="#maintenance" onClick={(event) => { event.preventDefault(); openHomeSection("maintenance"); }}>الصيانة</a>
             <a href="#services" onClick={(event) => { event.preventDefault(); openHomeSection("services"); }}>خدماتنا</a>
             <a href="#products" onClick={(event) => { event.preventDefault(); openCategory("printers"); }}>طابعات EPSON</a>
@@ -712,7 +672,7 @@ export default function HomeClient({
             <button type="button" className="favorite-counter" onClick={() => setFavoritesOpen(true)} aria-label={`فتح المفضلة، ${favorites.length} منتجات`}><span>♡</span><b>{favorites.length}</b></button>
             <a className="admin-link" href="/admin">لوحة التحكم</a>
             <a className="nav-contact" href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">اطلب استشارة</a>
-            <button className="menu-btn" type="button" onClick={() => { setMenuOpen((current) => !current); setCategoriesMenuOpen(false); }} aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-controls="mobile-site-menu" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
+            <button className="menu-btn" type="button" onClick={() => setMenuOpen((current) => !current)} aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-controls="mobile-site-menu" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
           </div>
         </div>
       </header>
@@ -831,7 +791,7 @@ export default function HomeClient({
           const normalizedQuery = query.trim().toLowerCase();
           const categoryProducts = products.filter((product) => product.category === categoryId && `${product.name} ${product.family} ${product.description}`.toLowerCase().includes(normalizedQuery));
           const hintClass = categoryProducts.length > 3 ? " has-more" : categoryProducts.length > 2 ? " has-mobile-more" : "";
-          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{homeCategoryLabels[categoryId]}</h2></div><a href={`/${categoryId}`}>الكل</a></div>{categoryProducts.length ? <div className={`home-category-row${hintClass}`}>{categoryProducts.map(renderProductCard)}</div> : <p className="home-category-empty">{query ? "لا توجد نتائج مطابقة في هذا القسم." : "لا توجد منتجات في هذا القسم حاليًا."}</p>}</section>;
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>الكل</a></div>{categoryProducts.length ? <div className={`home-category-row${hintClass}`}>{categoryProducts.map(renderProductCard)}</div> : <p className="home-category-empty">{query ? "لا توجد نتائج مطابقة في هذا القسم." : "لا توجد منتجات في هذا القسم حاليًا."}</p>}</section>;
         })}</div>
       </div></section>
 
@@ -870,7 +830,7 @@ export default function HomeClient({
 
       <footer><div className="container footer-grid">
         <div className="footer-brand"><Image src={imageSrcOrFallback(settings.logoImage)} alt="وكالة إسحاق العالمية" width={210} height={90} sizes="190px" loading="lazy" /><p>حلول تقنية وتجارية وتجهيزات موثوقة للأفراد والشركات والمؤسسات في اليمن.</p></div>
-        <div><h3>روابط سريعة</h3><a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a><a href="#categories" onClick={(event) => { event.preventDefault(); openCategoriesView(); }}>جميع الأقسام</a><a href="#maintenance">الصيانة</a><a href="#products">طابعات EPSON</a><a href="#services">خدماتنا</a></div>
+        <div><h3>روابط سريعة</h3><a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a><Link href="/categories">الفئات</Link><a href="#maintenance">الصيانة</a><a href="#products">طابعات EPSON</a><a href="#services">خدماتنا</a></div>
         <div><h3>تواصل معنا</h3><a href={`tel:+${customerPhone}`} dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button className="footer-copy-phone" type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم النسخ ✓" : "نسخ الرقم"}</button><a href={`tel:${settings.salesPhone}`}>{settings.salesPhone}</a><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">{settings.generalWhatsapp.replace("967", "")}</a><p>{settings.address}</p></div>
         <div><h3>أوقات العمل</h3><p>{settings.workDays}</p><p>{settings.workHours}</p><span className={businessIsOpen ? "open-label" : "open-label closed"}>{businessIsOpen ? "● متاحون الآن" : "● مغلق الآن"}</span></div>
       </div><div className="container copyright"><span>© 2026 وكالة إسحاق العالمية. جميع الحقوق محفوظة.</span><span>EPSON وWorkForce علامتان تجاريتان مملوكتان لأصحابهما.</span></div></footer>
@@ -883,7 +843,7 @@ export default function HomeClient({
           ["categories", "الفئات"],
           ["search", "البحث"],
           ["contact", "تواصل معنا"],
-        ] as const).map(([section, label]) => <button
+        ] as const).map(([section, label]) => section === "categories" ? <Link key={section} href="/categories"><MobileNavIcon section={section} /><span>{label}</span></Link> : <button
           key={section}
           type="button"
           className={mobileNavSection === section ? "active" : ""}

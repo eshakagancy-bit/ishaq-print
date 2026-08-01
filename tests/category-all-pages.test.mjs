@@ -27,8 +27,8 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.match(client, /onClick=\{\(\) => openQuickView\(product\)\}>تفاصيل سريعة/);
   assert.match(client, /اطلب من المختص/);
   assert.match(client, /فتح صفحة التفاصيل/);
-  assert.match(home, /homeCategoryOrder = \["printers", "papers", "inks"\] as const/);
-  assert.match(home, /printers: "الطابعات", papers: "الأوراق", inks: "الأحبار"/);
+  assert.match(home, /homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES/);
+  assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);
   assert.match(home, /className={`home-category-row\$\{hintClass\}`}/);
   assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
   assert.match(styles, /\.home-category-sections \{[^}]*grid-template-columns:minmax\(0,1fr\)/);
@@ -47,7 +47,10 @@ test("the public home renders only three independent category rows without the l
   ]);
   assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
   assert.match(home, /product\.category === categoryId/);
-  assert.match(home, /<a href={`\/\$\{categoryId\}`}>الكل<\/a>/);
+  assert.match(
+    home,
+    /<a href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}>الكل<\/a>/,
+  );
   assert.doesNotMatch(home, /categories-view|أقسامنا التجارية|PRINTER_CATEGORIES|productGroups|openPrinterFilter/);
   assert.doesNotMatch(home, /سيتم إضافة منتجات|قريبًا/);
   assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
