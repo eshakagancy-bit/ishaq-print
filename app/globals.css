@@ -191,7 +191,7 @@ button { cursor:pointer; }
 .home-category-heading span { color:var(--cyan-dark); font-size:10px; font-weight:900; }
 .home-category-heading h2 { margin:5px 0 0; font-size:clamp(22px,3vw,31px); }
 .home-category-heading>a { border:1px solid var(--line); border-radius:20px; padding:8px 16px; background:#fff; color:var(--navy); font-size:11px; font-weight:900; }
-.home-category-row { width:100%; min-width:0; display:flex; gap:20px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-inline:contain; -webkit-overflow-scrolling:touch; touch-action:pan-x; }
+.home-category-row { width:100%; min-width:0; display:flex; gap:20px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; overscroll-behavior-inline:contain; -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y; }
 .home-category-row::-webkit-scrollbar { display:none; }
 .home-category-row.has-more { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; }
 .home-category-row.has-more::-webkit-scrollbar { display:none; }
