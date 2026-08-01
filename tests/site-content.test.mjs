@@ -18,7 +18,7 @@ test("uses hero slides as the only main banner data source", async () => {
   assert.match(admin, /يمكن تعديل الإعلان الرئيسي وشرائح العرض من قسم إدارة البانر المتحرك/);
 });
 
-test("includes favorites, empty-category and admin safety copy", async () => {
+test("includes favorites and admin safety copy", async () => {
   const [home, admin] = await Promise.all([
     read("app/home-client.tsx"),
     read("app/admin/admin-dashboard.tsx"),
@@ -28,8 +28,6 @@ test("includes favorites, empty-category and admin safety copy", async () => {
     "مسح المفضلة",
     "إضافة إلى المفضلة",
     "إزالة من المفضلة",
-    "تواصل مع مختص القسم",
-    "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا",
   ]) assert.match(home, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 
   assert.match(admin, /هل أنت متأكد من حذف هذا المنتج؟/);

@@ -1,15 +1,12 @@
 "use client";
 
 import Image, { getImageProps } from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { normalizeMediaUrl } from "../lib/media-url";
 import { isOpenInAden } from "./business-hours";
 import {
-  ALL_PRINTERS_FILTER,
-  PRINTER_CATEGORIES,
   resolvePrinterCategory,
   type PrinterCategory,
-  type PrinterCategoryFilter,
 } from "./printer-categories";
 import {
   buildQuickViewSpecificationRows,
@@ -108,36 +105,13 @@ const allCategories = [
 const categories = allCategories.filter((category) => isPublicCategoryEnabled(category.id));
 
 type CategoryId = typeof categories[number]["id"];
-type DesktopCategoryMenu = "printers" | "machines" | "technology" | "more";
 
-const machineCategoryIds: CategoryId[] = ["engraving-presses", "advertising-machines", "money-machines"];
-const technologyCategoryIds: CategoryId[] = ["electronics", "cameras", "3d-printers", "networks"];
-const directlyShownCategoryIds: CategoryId[] = ["printers", "inks", "papers", "laptops"];
-const homeCategoryOrder: CategoryId[] = ["printers", "papers", "inks"];
+const homeCategoryOrder = ["printers", "papers", "inks"] as const;
+type HomeCategoryId = typeof homeCategoryOrder[number];
+const homeCategoryLabels: Record<HomeCategoryId, string> = { printers: "الطابعات", papers: "الأوراق", inks: "الأحبار" };
 
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
-}
-
-function interleaveProductsByCategory(sourceProducts: Product[]) {
-  const categoryOrder = new Map(categories.map((category, index) => [category.id, index]));
-  const buckets = new Map<CategoryId, Product[]>();
-  sourceProducts.forEach((product) => {
-    const bucket = buckets.get(product.category) ?? [];
-    bucket.push(product);
-    buckets.set(product.category, bucket);
-  });
-  const orderedBuckets = [...buckets.entries()].sort(([firstCategory, firstProducts], [secondCategory, secondProducts]) =>
-    secondProducts.length - firstProducts.length
-    || (categoryOrder.get(firstCategory) ?? 0) - (categoryOrder.get(secondCategory) ?? 0)
-  );
-  const interleaved: Product[] = [];
-  for (let productIndex = 0; interleaved.length < sourceProducts.length; productIndex += 1) {
-    orderedBuckets.forEach(([, bucket]) => {
-      if (bucket[productIndex]) interleaved.push(bucket[productIndex]);
-    });
-  }
-  return interleaved;
 }
 
 function safeImageSrc(value: string | null | undefined) {
@@ -282,29 +256,24 @@ export default function HomeClient({
     }));
   });
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<PrinterCategoryFilter>(ALL_PRINTERS_FILTER.value);
   const [activeCategory, setActiveCategory] = useState<CategoryId>("printers");
-  const [allCategoriesActive, setAllCategoriesActive] = useState(true);
   const [pageView, setPageView] = useState<PageView>("home");
   const [selected, setSelected] = useState<Product | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [favoritesReady, setFavoritesReady] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [desktopCategoryMenu, setDesktopCategoryMenu] = useState<DesktopCategoryMenu | null>(null);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
   const [scrollRequest, setScrollRequest] = useState<{ targetId: string; sequence: number } | null>(null);
   const [customerPhoneCopied, setCustomerPhoneCopied] = useState(false);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [outgoingHeroSlide, setOutgoingHeroSlide] = useState<number | null>(null);
   const [heroPaused, setHeroPaused] = useState(false);
-  const [productGroupSize, setProductGroupSize] = useState(8);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const quickViewTriggerRef = useRef<HTMLElement | null>(null);
   const quickViewDialogRef = useRef<HTMLDivElement | null>(null);
   const quickViewCloseRef = useRef<HTMLButtonElement | null>(null);
   const categoryStripRef = useRef<HTMLElement | null>(null);
-  const productGridRef = useRef<HTMLDivElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
   const heroTransitionTimerRef = useRef<number | null>(null);
@@ -466,14 +435,6 @@ export default function HomeClient({
   }, [pageView]);
 
   useEffect(() => {
-    const mobileProductGrid = window.matchMedia("(max-width: 1000px)");
-    const updateProductGroupSize = () => setProductGroupSize(mobileProductGrid.matches ? 6 : 8);
-    updateProductGroupSize();
-    mobileProductGrid.addEventListener("change", updateProductGroupSize);
-    return () => mobileProductGrid.removeEventListener("change", updateProductGroupSize);
-  }, []);
-
-  useEffect(() => {
     if (!scrollRequest) return undefined;
     let firstFrame = 0;
     let secondFrame = 0;
@@ -498,14 +459,6 @@ export default function HomeClient({
   }, [scrollRequest]);
 
   useEffect(() => {
-    const closeCategoryMenu = (event: PointerEvent) => {
-      if (!categoryStripRef.current?.contains(event.target as Node)) setDesktopCategoryMenu(null);
-    };
-    document.addEventListener("pointerdown", closeCategoryMenu);
-    return () => document.removeEventListener("pointerdown", closeCategoryMenu);
-  }, []);
-
-  useEffect(() => {
     if (!favoritesOpen || selected) return undefined;
     const closeDialog = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -515,87 +468,24 @@ export default function HomeClient({
     return () => document.removeEventListener("keydown", closeDialog);
   }, [favoritesOpen, selected]);
 
-  const visibleProducts = useMemo(() => products.filter((product) => {
-    const matchesCategory = allCategoriesActive || product.category === activeCategory;
-    const searchText = `${product.name} ${product.family} ${product.description}`.toLowerCase();
-    const matchesQuery = searchText.includes(query.toLowerCase());
-    const matchesFilter = allCategoriesActive || activeCategory !== "printers" ||
-      filter === ALL_PRINTERS_FILTER.value ||
-      product.printerCategory === filter;
-    return matchesCategory && matchesQuery && matchesFilter;
-  }), [products, query, filter, activeCategory, allCategoriesActive]);
-  const orderedVisibleProducts = useMemo(
-    () => allCategoriesActive ? interleaveProductsByCategory(visibleProducts) : visibleProducts,
-    [allCategoriesActive, visibleProducts]
-  );
-  const productGroups = useMemo(() => {
-    const groups: Product[][] = [];
-    for (let index = 0; index < orderedVisibleProducts.length; index += productGroupSize) {
-      groups.push(orderedVisibleProducts.slice(index, index + productGroupSize));
-    }
-    return groups;
-  }, [orderedVisibleProducts, productGroupSize]);
-
   const currentCategory = categories.find((category) => category.id === activeCategory) ?? categories[0];
-  const machineCategories = categories.filter((category) => machineCategoryIds.includes(category.id));
-  const technologyCategories = categories.filter((category) => technologyCategoryIds.includes(category.id));
-  const moreCategories = categories.filter((category) =>
-    !directlyShownCategoryIds.includes(category.id)
-    && !machineCategoryIds.includes(category.id)
-    && !technologyCategoryIds.includes(category.id)
-  );
-  const categoryVisuals = useMemo(() => new Map(categories.map((category) => {
-    const customImage = settings.categoryImages[category.id];
-    const productImage = products.find((product) => product.category === category.id)?.image;
-    return [category.id, {
-      src: customImage || productImage || DEFAULT_IMAGE_SRC,
-      placeholder: !customImage && !productImage,
-    }];
-  })), [products, settings.categoryImages]);
-  const allProductsVisual = settings.categoryImages["all-products"] || "/hero/technology-solutions.png";
 
   const requestSectionScroll = (targetId: string) => {
     scrollRequestSequenceRef.current += 1;
     setScrollRequest({ targetId, sequence: scrollRequestSequenceRef.current });
   };
 
-  const scrollProductGroups = (direction: "next" | "previous") => {
-    const grid = productGridRef.current;
-    if (!grid) return;
-    grid.scrollBy({
-      left: direction === "next" ? -grid.clientWidth : grid.clientWidth,
-      behavior: "smooth",
-    });
-  };
-
   const openCategory = (category: CategoryId) => {
-    setDesktopCategoryMenu(null);
     setPageView("home");
     setMobileNavSection("home");
-    setAllCategoriesActive(false);
     setActiveCategory(category);
-    setFilter(ALL_PRINTERS_FILTER.value);
     setQuery("");
-    requestSectionScroll("products");
+    requestSectionScroll(`home-category-${category}`);
   };
 
   const openAllCategories = () => {
-    setDesktopCategoryMenu(null);
     setPageView("home");
     setMobileNavSection("home");
-    setAllCategoriesActive(true);
-    setFilter(ALL_PRINTERS_FILTER.value);
-    setQuery("");
-    requestSectionScroll("products");
-  };
-
-  const openPrinterFilter = (printerFilter: PrinterCategory) => {
-    setDesktopCategoryMenu(null);
-    setPageView("home");
-    setMobileNavSection("home");
-    setAllCategoriesActive(false);
-    setActiveCategory("printers");
-    setFilter(printerFilter);
     setQuery("");
     requestSectionScroll("products");
   };
@@ -603,19 +493,16 @@ export default function HomeClient({
   const openHomeView = () => {
     setPageView("home");
     setMobileNavSection("home");
-    setAllCategoriesActive(true);
-    setFilter(ALL_PRINTERS_FILTER.value);
     setQuery("");
     setMenuOpen(false);
     requestSectionScroll("home");
   };
 
   const openCategoriesView = () => {
-    setPageView("categories");
+    setPageView("home");
     setMobileNavSection("categories");
-    setDesktopCategoryMenu(null);
     setMenuOpen(false);
-    requestSectionScroll("categories");
+    requestSectionScroll("products");
   };
 
   const openHomeSection = (targetId: string) => {
@@ -804,68 +691,10 @@ export default function HomeClient({
 
       <nav ref={categoryStripRef} className="category-strip" aria-label="أقسام المنتجات">
         <div className="container category-strip-list">
-          <button type="button" className={pageView === "home" && allCategoriesActive ? "active" : ""} onClick={openAllCategories} aria-current={pageView === "home" && allCategoriesActive ? "page" : undefined}>جميع المنتجات</button>
-          <div
-            className={desktopCategoryMenu === "printers" ? "category-strip-item open" : "category-strip-item"}
-            onMouseEnter={() => setDesktopCategoryMenu("printers")}
-            onMouseLeave={() => setDesktopCategoryMenu(null)}
-            onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDesktopCategoryMenu(null); }}
-          >
-            <button
-              type="button"
-              className={pageView === "home" && !allCategoriesActive && activeCategory === "printers" ? "category-strip-trigger active" : "category-strip-trigger"}
-              onClick={() => {
-                if (pageView === "categories" || allCategoriesActive || activeCategory !== "printers") openCategory("printers");
-                setDesktopCategoryMenu((current) => current === "printers" ? null : "printers");
-              }}
-              aria-haspopup="menu"
-              aria-expanded={desktopCategoryMenu === "printers"}
-            >طابعات EPSON<span className="category-menu-chevron" aria-hidden="true">⌄</span></button>
-            <div className="category-dropdown-desktop printer-mega-menu" role="menu" aria-label="تصنيفات طابعات EPSON">
-              <strong>اختر فئة الطابعة</strong>
-              <div>{PRINTER_CATEGORIES.map((printerCategory) => <button
-                key={printerCategory.value}
-                type="button"
-                className={pageView === "home" && activeCategory === "printers" && filter === printerCategory.value ? "active" : ""}
-                onClick={() => openPrinterFilter(printerCategory.value)}
-                role="menuitem"
-              >{printerCategory.label.split(" (")[0]}</button>)}</div>
-            </div>
-          </div>
-          {(["inks", "papers", "laptops"] as CategoryId[]).map((categoryId) => {
+          <button type="button" className="active" onClick={openAllCategories} aria-current="page">جميع المنتجات</button>
+          {homeCategoryOrder.map((categoryId) => {
             const category = categories.find((item) => item.id === categoryId);
-            return category && <button key={category.id} type="button" className={pageView === "home" && !allCategoriesActive && activeCategory === category.id ? "active" : ""} onClick={() => openCategory(category.id)}>{category.name}</button>;
-          })}
-          {([
-            { id: "machines", label: "الماكينات", items: machineCategories },
-            { id: "technology", label: "التقنية", items: technologyCategories },
-            { id: "more", label: "المزيد", items: moreCategories },
-          ] as const).filter((group) => group.items.length > 0).map((group) => {
-            const groupActive = pageView === "home" && !allCategoriesActive && group.items.some((category) => category.id === activeCategory);
-            return <div
-              key={group.id}
-              className={desktopCategoryMenu === group.id ? "category-strip-item open" : "category-strip-item"}
-              onMouseEnter={() => setDesktopCategoryMenu(group.id)}
-              onMouseLeave={() => setDesktopCategoryMenu(null)}
-              onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDesktopCategoryMenu(null); }}
-            >
-              <button
-                type="button"
-                className={groupActive ? "category-strip-trigger active" : "category-strip-trigger"}
-                onClick={() => setDesktopCategoryMenu((current) => current === group.id ? null : group.id)}
-                aria-haspopup="menu"
-                aria-expanded={desktopCategoryMenu === group.id}
-              >{group.label}<span className="category-menu-chevron" aria-hidden="true">⌄</span></button>
-              <div className="category-dropdown-desktop" role="menu" aria-label={`أقسام ${group.label}`}>
-                {group.items.length ? group.items.map((category) => <button
-                  key={category.id}
-                  type="button"
-                  className={pageView === "home" && !allCategoriesActive && activeCategory === category.id ? "active" : ""}
-                  onClick={() => openCategory(category.id)}
-                  role="menuitem"
-                >{category.name}</button>) : <span className="category-dropdown-empty">جميع الأقسام ظاهرة في الشريط</span>}
-              </div>
-            </div>;
+            return category && <button key={category.id} type="button" onClick={() => openCategory(category.id)}>{category.name}</button>;
           })}
         </div>
       </nav>
@@ -963,50 +792,19 @@ export default function HomeClient({
       </section>
 
       <section className="search-panel-wrap"><div className="container search-panel">
-        <label className="search-field" id="general-search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => updateProductSearch(event.target.value)} placeholder={allCategoriesActive ? "ابحث في جميع المنتجات..." : `ابحث داخل قسم ${currentCategory.name}...`} aria-label="البحث في المنتجات المعروضة" /></label>
+        <label className="search-field" id="general-search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => updateProductSearch(event.target.value)} placeholder="ابحث في جميع المنتجات..." aria-label="البحث في المنتجات المعروضة" /></label>
         <div className="quick-points"><span>✓ أسعار منافسة</span><span>✓ منتجات موثوقة</span><span>✓ دعم فني متخصص</span></div>
       </div></section>
       </>}
 
-      {pageView === "categories" && <section className="categories-section categories-view" id="categories"><div className="container">
-        <div className="center-heading categories-heading"><span className="section-kicker">أقسامنا التجارية</span><h2>اختر القسم الذي تبحث عنه</h2><p>تصفح أقسامنا المتنوعة واختر المنتجات التي تناسب احتياجاتك.</p></div>
-        <div className="category-grid">
-          <article className={allCategoriesActive ? "category-card active" : "category-card"}>
-            <button type="button" className="category-main" onClick={openAllCategories} aria-label="عرض جميع المنتجات">
-              <span className="category-image">
-                <Image src={allProductsVisual} alt="" fill sizes="(max-width: 760px) 31vw, (max-width: 1200px) 20vw, 190px" />
-              </span>
-              <b>جميع المنتجات</b>
-            </button>
-          </article>
-          {categories.map((category) => {
-            const visual = categoryVisuals.get(category.id) ?? { src: DEFAULT_IMAGE_SRC, placeholder: true };
-            return <article key={category.id} className={!allCategoriesActive && activeCategory === category.id ? "category-card active" : "category-card"}>
-              <button type="button" className="category-main" onClick={() => openCategory(category.id)} aria-label={`فتح قسم ${category.name}`}>
-                <span className={visual.placeholder ? "category-image placeholder" : "category-image"}>
-                  <Image src={visual.src} alt="" fill sizes="(max-width: 760px) 31vw, (max-width: 1200px) 20vw, 190px" />
-                  {visual.placeholder && <small>صورة مؤقتة</small>}
-                </span>
-                <b>{category.name}</b>
-              </button>
-            </article>;
-          })}
-        </div>
-      </div></section>}
-
       {pageView === "home" && <>
       <section className="products-section" id="products"><div className="container">
-        {!allCategoriesActive && activeCategory === "printers" && <div className="filters" role="group" aria-label="تصنيف طابعات إبسون">{[ALL_PRINTERS_FILTER, ...PRINTER_CATEGORIES].map((item) => <button key={item.value} className={filter === item.value ? "active" : ""} onClick={() => setFilter(item.value)}>{item.label}</button>)}</div>}
-        {allCategoriesActive && <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
-          const category = categories.find((item) => item.id === categoryId);
-          const categoryProducts = products.filter((product) => product.category === categoryId);
+        <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
+          const normalizedQuery = query.trim().toLowerCase();
+          const categoryProducts = products.filter((product) => product.category === categoryId && `${product.name} ${product.family} ${product.description}`.toLowerCase().includes(normalizedQuery));
           const hintClass = categoryProducts.length > 3 ? " has-more" : categoryProducts.length > 2 ? " has-mobile-more" : "";
-          return <section className="home-category-section" key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{category?.name}</h2></div><a href={`/${categoryId}`}>الكل</a></div>{categoryProducts.length ? <div className={`home-category-row${hintClass}`}>{categoryProducts.map(renderProductCard)}</div> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
-        })}</div>}
-        {!allCategoriesActive && (orderedVisibleProducts.length ? <><div className="product-group-controls" aria-label="التنقل بين مجموعات المنتجات"><a className="category-all-link" href={`/${activeCategory}`}>الكل</a>
-          <button type="button" onClick={() => scrollProductGroups("previous")} aria-label="مجموعة المنتجات السابقة">→</button>
-          <button type="button" onClick={() => scrollProductGroups("next")} aria-label="مجموعة المنتجات التالية">←</button>
-        </div><div className={productGroups.length > 1 ? "product-grid has-more" : "product-grid"} ref={productGridRef}>{productGroups.map((group, groupIndex) => <div className="product-group" key={`${activeCategory}-${filter}-${query}-${groupIndex}-${group[0]?.id ?? "empty"}`}>{group.map(renderProductCard)}</div>)}</div></> : <div className="empty-state"><span className="empty-icon">{currentCategory.icon}</span><b>{query ? "لم نعثر على هذا المنتج" : `سيتم إضافة منتجات ${currentCategory.name} قريبًا`}</b><p>{query ? "جرّب البحث باسم آخر أو تواصل معنا وسنساعدك." : "سيتم إضافة منتجات هذا القسم قريبًا. يمكنك التواصل مع مختص القسم لمعرفة المنتجات المتوفرة حاليًا"}</p><div className="empty-actions">{query ? <button type="button" onClick={() => { setQuery(""); setFilter(ALL_PRINTERS_FILTER.value); }}>عرض جميع المنتجات</button> : <a className="empty-specialist" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer">تواصل مع مختص القسم</a>}</div></div>)}
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{homeCategoryLabels[categoryId]}</h2></div><a href={`/${categoryId}`}>الكل</a></div>{categoryProducts.length ? <div className={`home-category-row${hintClass}`}>{categoryProducts.map(renderProductCard)}</div> : <p className="home-category-empty">{query ? "لا توجد نتائج مطابقة في هذا القسم." : "لا توجد منتجات في هذا القسم حاليًا."}</p>}</section>;
+        })}</div>
       </div></section>
 
       <section className="feature-band" id="about"><div className="container feature-band-inner">

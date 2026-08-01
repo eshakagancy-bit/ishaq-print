@@ -6,7 +6,7 @@ import { PRINTER_CATEGORIES } from "../app/printer-categories.ts";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("defines printer categories once and shares them with customer and admin interfaces", async () => {
+test("defines printer categories once for product data and the admin interface", async () => {
   const [shared, home, admin] = await Promise.all([
     read("app/printer-categories.ts"),
     read("app/home-client.tsx"),
@@ -20,18 +20,17 @@ test("defines printer categories once and shares them with customer and admin in
     assert.equal(admin.includes(label), false, `${label} must come from the shared list`);
   }
 
-  assert.match(home, /\[ALL_PRINTERS_FILTER, \.\.\.PRINTER_CATEGORIES\]/);
+  assert.doesNotMatch(home, /ALL_PRINTERS_FILTER|PRINTER_CATEGORIES|openPrinterFilter/);
   assert.match(admin, /PRINTER_CATEGORIES\.map/);
 });
 
-test("filters by stable values and requires an Arabic category selection in admin", async () => {
+test("keeps printer category filtering out of the home page and requires an Arabic category selection in admin", async () => {
   const [home, admin] = await Promise.all([
     read("app/home-client.tsx"),
     read("app/admin/admin-dashboard.tsx"),
   ]);
 
-  assert.match(home, /product\.printerCategory === filter/);
-  assert.match(home, /filter === ALL_PRINTERS_FILTER\.value/);
+  assert.doesNotMatch(home, /product\.printerCategory === filter|ALL_PRINTERS_FILTER/);
   assert.match(admin, /value=\{productForm\.printerCategory \?\? ""\}/);
   assert.match(admin, /required/);
   assert.match(admin, /يرجى اختيار فئة الطابعة قبل إضافة المنتج\./);

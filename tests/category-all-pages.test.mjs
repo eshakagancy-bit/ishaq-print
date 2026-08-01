@@ -27,18 +27,22 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.match(client, /onClick=\{\(\) => openQuickView\(product\)\}>تفاصيل سريعة/);
   assert.match(client, /اطلب من المختص/);
   assert.match(client, /فتح صفحة التفاصيل/);
-  assert.match(home, /className="category-all-link" href=\{`\/\$\{activeCategory\}`\}>الكل/);
-  assert.match(home, /homeCategoryOrder: CategoryId\[\] = \["printers", "papers", "inks"\]/);
+  assert.match(home, /homeCategoryOrder = \["printers", "papers", "inks"\] as const/);
+  assert.match(home, /printers: "الطابعات", papers: "الأوراق", inks: "الأحبار"/);
   assert.match(home, /className={`home-category-row\$\{hintClass\}`}/);
   assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
 });
 
-test("the home carousel only shows a next-card hint when another group exists", async () => {
+test("the public home renders only three independent category rows without the legacy storefront", async () => {
   const [home, styles] = await Promise.all([
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  assert.match(home, /productGroups\.length > 1 \? "product-grid has-more" : "product-grid"/);
-  assert.match(styles, /\.product-grid\.has-more \.product-group \{ flex-basis:calc\(100% - 52px\); \}/);
+  assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
+  assert.match(home, /product\.category === categoryId/);
+  assert.match(home, /<a href={`\/\$\{categoryId\}`}>الكل<\/a>/);
+  assert.doesNotMatch(home, /categories-view|أقسامنا التجارية|PRINTER_CATEGORIES|productGroups|openPrinterFilter/);
+  assert.doesNotMatch(home, /سيتم إضافة منتجات|قريبًا/);
+  assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
   assert.match(styles, /scroll-snap-align:start/);
 });
