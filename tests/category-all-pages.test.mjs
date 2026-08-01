@@ -31,6 +31,13 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.match(home, /printers: "الطابعات", papers: "الأوراق", inks: "الأحبار"/);
   assert.match(home, /className={`home-category-row\$\{hintClass\}`}/);
   assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
+  assert.match(styles, /\.home-category-sections \{[^}]*grid-template-columns:minmax\(0,1fr\)/);
+  assert.match(styles, /\.home-category-section \{ min-width:0; \}/);
+  assert.match(styles, /\.home-category-row \{[^}]*width:100%;[^}]*min-width:0;[^}]*overflow-x:auto;[^}]*overflow-y:hidden;[^}]*-webkit-overflow-scrolling:touch;[^}]*touch-action:pan-x;/);
+  assert.match(styles, /\.home-category-row \.product-card \{ width:clamp\(210px,18vw,240px\); flex:0 0 clamp\(210px,18vw,240px\); \}/);
+  assert.match(styles, /width:clamp\(150px,42vw,175px\); flex:0 0 clamp\(150px,42vw,175px\)/);
+  assert.doesNotMatch(styles, /\.home-category-row \.product-card \{[^}]*flex:1/);
+  assert.doesNotMatch(styles, /\.home-category-row \.product-card \{[^}]*width:100%/);
 });
 
 test("the public home renders only three independent category rows without the legacy storefront", async () => {
