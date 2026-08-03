@@ -122,7 +122,8 @@ test("customer card stays concise and quick view renders only prepared specifica
   assert.equal(card.includes("product.features.map"), false);
   assert.match(home, /selectedSpecificationRows\.map/);
   assert.match(home, /product-modal-shell/);
-  assert.match(home, /selected\.price\?\.trim\(\) \|\| "اطلب عرض سعر"/);
+  assert.match(home, /selected\.price\?\.trim\(\) && <div className="modal-price"/);
+  assert.match(home, /"اطلب عرض سعر عبر واتساب"/);
   assert.match(home, /selected\.badge\?\.trim\(\)/);
   assert.match(home, /aria-labelledby=\{`product-dialog-title-\$\{selected\.id\}`\}/);
   assert.match(home, /element\.inert = true/);

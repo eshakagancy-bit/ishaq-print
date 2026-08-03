@@ -13,6 +13,7 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
   const availableImages = [...new Set(images.filter(Boolean))];
   const [activeIndex, setActiveIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [failedImage, setFailedImage] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
   const multiple = availableImages.length > 1;
   const show = (index: number) => setActiveIndex((index + availableImages.length) % availableImages.length);
@@ -32,6 +33,7 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
   };
 
   const activeImage = availableImages[activeIndex] ?? "/brand/eshak-logo.png";
+  const resolvedImage = failedImage === activeImage ? "/brand/eshak-logo.png" : activeImage;
   return <div
     className={`ink-carousel ink-carousel-${variant}`}
     onMouseEnter={() => setPaused(true)}
@@ -43,13 +45,16 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
     aria-label={`صور ${alt}`}
   >
     <Image
-      key={activeImage}
-      src={activeImage}
+      key={resolvedImage}
+      src={resolvedImage}
       alt={`${alt} — صورة ${activeIndex + 1}`}
       width={variant === "quick" ? 700 : 560}
       height={variant === "quick" ? 600 : 440}
-      sizes={variant === "quick" ? "(max-width: 760px) 90vw, 405px" : "(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px"}
-      loading={activeIndex === 0 ? "eager" : "lazy"}
+      sizes={variant === "quick" ? "(max-width: 760px) calc(100vw - 56px), 420px" : "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px"}
+      loading={variant === "quick" ? "eager" : "lazy"}
+      placeholder="blur"
+      blurDataURL="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12'%3E%3Crect width='16' height='12' fill='%23eef4f6'/%3E%3C/svg%3E"
+      onError={() => setFailedImage(activeImage)}
     />
     {multiple && <>
       <button type="button" className="ink-carousel-arrow previous" onClick={() => { show(activeIndex - 1); setPaused(true); }} aria-label="الصورة السابقة">‹</button>

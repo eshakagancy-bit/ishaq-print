@@ -39,6 +39,8 @@ import InkImageCarousel from "./ink-image-carousel";
 import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES } from "./public-categories";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
+const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
+const PRODUCT_MODAL_IMAGE_SIZES = "(max-width: 760px) calc(100vw - 56px), 420px";
 const DEFAULT_IMAGE_SRC = "/brand/eshak-logo.png";
 const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 const allowedImagePrefixes = ["/api/media/", "/brand/", "/hero/", "/products/"];
@@ -136,6 +138,21 @@ function safeImageSrc(value: string | null | undefined) {
 
 function imageSrcOrFallback(value: string | null | undefined, fallback = DEFAULT_IMAGE_SRC) {
   return safeImageSrc(value) ?? fallback;
+}
+
+function ProductImage({ src, alt, modal = false }: { src: string; alt: string; modal?: boolean }) {
+  const [resolvedSrc, setResolvedSrc] = useState(() => imageSrcOrFallback(src));
+  return <Image
+    src={resolvedSrc}
+    alt={alt}
+    width={modal ? 700 : 560}
+    height={modal ? 600 : 440}
+    sizes={modal ? PRODUCT_MODAL_IMAGE_SIZES : PRODUCT_CARD_IMAGE_SIZES}
+    loading={modal ? "eager" : "lazy"}
+    placeholder="blur"
+    blurDataURL="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12'%3E%3Crect width='16' height='12' fill='%23eef4f6'/%3E%3C/svg%3E"
+    onError={() => setResolvedSrc(DEFAULT_IMAGE_SRC)}
+  />;
 }
 
 function normalizeInitialProduct(product: StoredProduct): Product {
@@ -286,6 +303,10 @@ export default function HomeClient({
   const featureImageSrc = safeImageSrc(settings.featureImage);
   const favoriteProducts = products.filter((product) => favorites.includes(product.id));
   const businessIsOpen = isOpenInAden(currentTime, settings);
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchingProducts = normalizedQuery
+    ? products.filter((product) => `${product.name} ${product.family} ${product.description}`.toLowerCase().includes(normalizedQuery))
+    : products;
 
   const showHeroSlide = useCallback((requestedIndex: number) => {
     if (heroSlides.length < 2) return;
@@ -642,7 +663,7 @@ export default function HomeClient({
   const renderProductCard = (product: Product) => {
     const cardTags = getProductCardSpecificationTags(product);
     return <article className="product-card" data-category={product.category} key={product.id} onClick={product.category === "papers" ? (event) => { if (!(event.target as HTMLElement).closest("button,a")) window.location.href = `/papers/${getPaperSlug(product)}`; } : undefined}>
-      <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button>{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} /> : product.category === "printers" ? <button type="button" className="product-image-trigger" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`عرض التفاصيل السريعة لـ ${getProductDisplayName(product)}`}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" /></button> : <Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={560} height={440} sizes="(max-width: 760px) 88vw, (max-width: 1000px) 44vw, 360px" loading="lazy" />}</div>
+      <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button>{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} /> : product.category === "printers" ? <button type="button" className="product-image-trigger" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`عرض التفاصيل السريعة لـ ${getProductDisplayName(product)}`}><ProductImage src={product.image} alt={getProductDisplayName(product)} /></button> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</div>
       <div className="product-body">{product.family && <span className="product-family">{product.family}</span>}<h3>{getProductDisplayName(product)}</h3><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)}>تفاصيل سريعة</button>{product.description && <p>{product.description}</p>}{cardTags.length > 0 && <div className="product-tags">{cardTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}<div className="product-footer"><div className="price"><small>السعر</small><strong>{product.price || "اطلب عرض سعر"}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
     </article>;
   };
@@ -780,7 +801,7 @@ export default function HomeClient({
       </section>
 
       <section className="search-panel-wrap"><div className="container search-panel">
-        <label className="search-field" id="general-search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => updateProductSearch(event.target.value)} placeholder="ابحث في جميع المنتجات..." aria-label="البحث في المنتجات المعروضة" /></label>
+        <label className="search-field" id="general-search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => updateProductSearch(event.target.value)} placeholder="ابحث في جميع المنتجات..." aria-label="البحث في المنتجات المعروضة" />{query && <button type="button" className="search-clear" onClick={() => setQuery("")} aria-label="مسح البحث">×</button>}</label>
         <div className="quick-points"><span>✓ أسعار منافسة</span><span>✓ منتجات موثوقة</span><span>✓ دعم فني متخصص</span></div>
       </div></section>
       </>}
@@ -788,11 +809,11 @@ export default function HomeClient({
       {pageView === "home" && <>
       <section className="products-section" id="products"><div className="container">
         <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
-          const normalizedQuery = query.trim().toLowerCase();
-          const categoryProducts = products.filter((product) => product.category === categoryId && `${product.name} ${product.family} ${product.description}`.toLowerCase().includes(normalizedQuery));
+          const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
+          if (normalizedQuery && categoryProducts.length === 0) return null;
           const hintClass = categoryProducts.length > 3 ? " has-more" : categoryProducts.length > 2 ? " has-mobile-more" : "";
-          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>الكل</a></div>{categoryProducts.length ? <div className={`home-category-row${hintClass}`}>{categoryProducts.map(renderProductCard)}</div> : <p className="home-category-empty">{query ? "لا توجد نتائج مطابقة في هذا القسم." : "لا توجد منتجات في هذا القسم حاليًا."}</p>}</section>;
-        })}</div>
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>الكل</a></div>{categoryProducts.length ? <div className={`home-category-row${hintClass}`}>{categoryProducts.map(renderProductCard)}</div> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
+        })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
       </div></section>
 
       <section className="feature-band" id="about"><div className="container feature-band-inner">
@@ -856,7 +877,7 @@ export default function HomeClient({
         {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={110} height={90} sizes="76px" /><div><b>{getProductDisplayName(product)}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={(event) => { setFavoritesOpen(false); openQuickView(product, event.currentTarget); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
         {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح المفضلة</button>}
       </aside></div>}
-      {selected && <div className="modal-backdrop" onMouseDown={closeQuickView}><div ref={quickViewDialogRef} className="product-modal-shell" role="dialog" aria-modal="true" aria-labelledby={`product-dialog-title-${selected.id}`} onMouseDown={(event) => event.stopPropagation()}><button ref={quickViewCloseRef} type="button" className="modal-close" onClick={closeQuickView} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image">{selected.category === "inks" ? <InkImageCarousel images={selected.images?.length ? selected.images : [selected.image]} alt={getProductDisplayName(selected)} variant="quick" /> : <Image src={imageSrcOrFallback(selected.image)} alt={getProductDisplayName(selected)} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" loading="eager" />}</div><div className="modal-content">{selected.badge?.trim() && <span className="modal-product-badge">{selected.badge}</span>}{selected.family && <span className="product-family">{selected.family}</span>}<h2 id={`product-dialog-title-${selected.id}`}>{getProductDisplayName(selected)}</h2>{selected.description && <p>{selected.description}</p>}<div className="modal-price"><small>السعر</small><strong>{selected.price?.trim() || "اطلب عرض سعر"}</strong></div>{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}{selected.category === "printers" && <a className="secondary-btn modal-more-details" href={`/printers/${getPrinterSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}{selected.category === "inks" && <a className="secondary-btn modal-more-details" href={`/inks/${getInkSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">اسأل المختص عن السعر والتوفر <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div></div>}
+      {selected && <div className="modal-backdrop" onMouseDown={closeQuickView}><div ref={quickViewDialogRef} className="product-modal-shell" role="dialog" aria-modal="true" aria-labelledby={`product-dialog-title-${selected.id}`} onMouseDown={(event) => event.stopPropagation()}><button ref={quickViewCloseRef} type="button" className="modal-close" onClick={closeQuickView} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image">{selected.category === "inks" ? <InkImageCarousel images={selected.images?.length ? selected.images : [selected.image]} alt={getProductDisplayName(selected)} variant="quick" /> : <ProductImage src={selected.image} alt={getProductDisplayName(selected)} modal />}</div><div className="modal-content">{selected.badge?.trim() && <span className="modal-product-badge">{selected.badge}</span>}<span className="modal-category">{categories.find((category) => category.id === selected.category)?.name ?? selected.family}</span>{selected.family && <span className="product-family">{selected.family}</span>}<h2 id={`product-dialog-title-${selected.id}`}>{getProductDisplayName(selected)}</h2>{selected.description && <p>{selected.description}</p>}{selected.price?.trim() && <div className="modal-price"><small>السعر</small><strong>{selected.price}</strong></div>}{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}{selected.category === "printers" && <a className="secondary-btn modal-more-details" href={`/printers/${getPrinterSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}{selected.category === "inks" && <a className="secondary-btn modal-more-details" href={`/inks/${getInkSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">{selected.price?.trim() ? "اطلب المنتج عبر واتساب" : "اطلب عرض سعر عبر واتساب"} <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div></div>}
     </main>
   );
 }
