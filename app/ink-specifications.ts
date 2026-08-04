@@ -16,11 +16,12 @@ export const INK_COLOR_COUNT_OPTIONS = ["4 ألوان", "5 ألوان", "6 أل�
 export type InkColorCount = typeof INK_COLOR_COUNT_OPTIONS[number];
 export const INK_CAPACITY_OPTIONS = ["70 مل", "100 مل", "500 مل", "1000 مل"] as const;
 
-const INK_NAME_CAPACITY_PATTERN = /\d+\s*مل/g;
+const INK_NAME_CAPACITY_PATTERN = /\d+\s*(?:مل|ml)(?![A-Za-z\u0600-\u06ff])/giu;
 const INK_NAME_MARKETING_PATTERN = /(?:^|\s)(?:أفضل|ممتاز|احترافي|بريميوم|premium|professional)(?:\s|$)/iu;
 
 function normalizeCapacityLabel(value: string) {
-  return value.trim().replace(/\s+/g, " ").replace(/(\d+)\s*مل/g, "$1 مل");
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized.match(/^(\d+)\s*(?:مل|ml)$/iu)?.[1] ?? normalized.toLocaleLowerCase("en");
 }
 
 export function getInkProductNameError(name: string, capacities: string[]) {
@@ -35,7 +36,7 @@ export function getInkProductNameError(name: string, capacities: string[]) {
   const namedCapacities = [...new Set((normalizedName.match(INK_NAME_CAPACITY_PATTERN) ?? []).map(normalizeCapacityLabel))].sort();
   if (namedCapacities.length !== selectedCapacities.length
     || namedCapacities.some((capacity, index) => capacity !== selectedCapacities[index])) {
-    return "يجب أن يذكر الاسم جميع السعات المحددة في حقل «السعات المتوفرة» فقط.";
+    return "يجب أن يذكر الاسم جميع السعات المحددة فقط، ويمكن كتابة الوحدة بصيغة «مل» أو «ML».";
   }
   return null;
 }
