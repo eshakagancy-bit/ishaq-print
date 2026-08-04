@@ -11,7 +11,7 @@ export type InkSpecifications = {
   uses: string[];
 };
 
-export const INK_TYPE_OPTIONS = ["Dye", "Pigment", "Sublimation", "Eco-Solvent", "UV Ink", "أخرى"] as const;
+export const INK_TYPE_OPTIONS = ["Dye", "Pigment", "Sublimation", "Eco-Solvent", "UV Ink", "DTF", "أخرى"] as const;
 export const INK_COLOR_COUNT_OPTIONS = ["4 ألوان", "5 ألوان", "6 ألوان", "أخرى"] as const;
 export type InkColorCount = typeof INK_COLOR_COUNT_OPTIONS[number];
 export const INK_CAPACITY_OPTIONS = ["70 مل", "100 مل", "500 مل", "1000 مل"] as const;
