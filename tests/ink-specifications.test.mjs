@@ -32,25 +32,13 @@ test("rejects unsupported color-count values", () => {
   assert.equal(normalizeInkSpecifications({ colorCount: "7 ألوان" })?.colorCount, null);
 });
 
-test("requires singular ink names with every selected capacity", () => {
-  for (const name of [
-    "حبر Dye 100 مل",
-    "حبر Dye 100مل",
-    "حبر Dye 100 ML",
-    "حبر Dye 100ML",
-    "حبر Dye 100 ml",
-    "حبر Dye 100ml",
-    "حبر Dye 100 Ml",
-    "حبر Dye 100 mL",
-  ]) {
-    assert.equal(getInkProductNameError(name, ["100 مل"]), null, name);
-  }
-  assert.equal(getInkProductNameError("حبر Pigment 500 مل / 1000 ML", ["500 مل", "1000 مل"]), null);
-  assert.equal(getInkProductNameError("حبر Dye 70ml / 250 مل / 500 mL", ["70 مل", "250 مل", "500 مل"]), null);
-  assert.match(getInkProductNameError("أحبار Pigment 500 مل", ["500 مل"]), /«حبر»/);
-  assert.match(getInkProductNameError("حبر Pigment", ["500 مل"]), /«مل» أو «ML»/);
-  assert.match(getInkProductNameError("حبر Pigment 500 ML", ["500 مل", "1000 مل"]), /«مل» أو «ML»/);
-  assert.match(getInkProductNameError("حبر Pigment 500 مل / 1000ML", ["500 مل"]), /«مل» أو «ML»/);
-  assert.match(getInkProductNameError("أفضل حبر Pigment 500 مل", ["500 مل"]), /«حبر»/);
-  assert.match(getInkProductNameError("حبر Pigment Premium 500 مل", ["500 مل"]), /تسويقية/);
+test("requires a non-empty ink name", () => {
+  assert.equal(getInkProductNameError("", ["100 مل"]), "يجب إدخال اسم لمنتج الحبر.");
+  assert.equal(getInkProductNameError("   ", ["100 مل"]), "يجب إدخال اسم لمنتج الحبر.");
+});
+
+test("accepts any valid ink name", () => {
+  assert.equal(getInkProductNameError("حبر Dye 100 مل", ["100 مل"]), null);
+  assert.equal(getInkProductNameError("أي اسم منتج", ["100 مل"]), null);
+  assert.equal(getInkProductNameError("DTF Ink", ["500 مل"]), null);
 });
