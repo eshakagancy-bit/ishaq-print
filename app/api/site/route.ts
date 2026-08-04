@@ -9,7 +9,7 @@ import {
   normalizeSpecificationsVerifiedAt,
 } from "../../printer-specifications";
 import { normalizePaperSpecifications } from "../../paper-specifications";
-import { normalizeInkSpecifications } from "../../ink-specifications";
+import { getInkProductNameError, normalizeInkSpecifications } from "../../ink-specifications";
 import { normalizePrinterPageContent } from "../../printer-page-content";
 import {
   defaultSiteSettings,
@@ -171,6 +171,10 @@ export async function POST(request: Request) {
     const payload = await request.json() as { product?: unknown };
     const product = normalizeProduct(payload.product, 0);
     if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
+    if (product.category === "inks") {
+      const nameError = getInkProductNameError(product.name, product.inkSpecifications?.capacities ?? []);
+      if (nameError) return Response.json({ error: nameError }, { status: 400 });
+    }
     const savedProduct = await createProduct(product);
     return Response.json({ ok: true, product: savedProduct }, { status: 201 });
   } catch (error) {
@@ -185,6 +189,10 @@ export async function PATCH(request: Request) {
     const payload = await request.json() as { product?: unknown };
     const product = normalizeProduct(payload.product, 0);
     if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
+    if (product.category === "inks") {
+      const nameError = getInkProductNameError(product.name, product.inkSpecifications?.capacities ?? []);
+      if (nameError) return Response.json({ error: nameError }, { status: 400 });
+    }
     const savedProduct = await updateProduct(product);
     return Response.json({ ok: true, product: savedProduct });
   } catch (error) {

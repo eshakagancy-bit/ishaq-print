@@ -16,6 +16,30 @@ export const INK_COLOR_COUNT_OPTIONS = ["4 ألوان", "5 ألوان", "6 أل�
 export type InkColorCount = typeof INK_COLOR_COUNT_OPTIONS[number];
 export const INK_CAPACITY_OPTIONS = ["70 مل", "100 مل", "500 مل", "1000 مل"] as const;
 
+const INK_NAME_CAPACITY_PATTERN = /\d+\s*مل/g;
+const INK_NAME_MARKETING_PATTERN = /(?:^|\s)(?:أفضل|ممتاز|احترافي|بريميوم|premium|professional)(?:\s|$)/iu;
+
+function normalizeCapacityLabel(value: string) {
+  return value.trim().replace(/\s+/g, " ").replace(/(\d+)\s*مل/g, "$1 مل");
+}
+
+export function getInkProductNameError(name: string, capacities: string[]) {
+  const normalizedName = name.trim().replace(/\s+/g, " ");
+  if (!normalizedName.startsWith("حبر ")) return "يجب أن يبدأ اسم منتج الحبر بكلمة «حبر» بصيغة المفرد.";
+  if (normalizedName.length > 80) return "اسم منتج الحبر طويل. استخدم الاسم الفني والسعة فقط.";
+  if (INK_NAME_MARKETING_PATTERN.test(normalizedName)) return "لا تُضف كلمات تسويقية إلى اسم منتج الحبر.";
+
+  const selectedCapacities = [...new Set(capacities.map(normalizeCapacityLabel).filter(Boolean))].sort();
+  if (!selectedCapacities.length) return "حدّد سعة واحدة على الأقل في حقل «السعات المتوفرة».";
+
+  const namedCapacities = [...new Set((normalizedName.match(INK_NAME_CAPACITY_PATTERN) ?? []).map(normalizeCapacityLabel))].sort();
+  if (namedCapacities.length !== selectedCapacities.length
+    || namedCapacities.some((capacity, index) => capacity !== selectedCapacities[index])) {
+    return "يجب أن يذكر الاسم جميع السعات المحددة في حقل «السعات المتوفرة» فقط.";
+  }
+  return null;
+}
+
 export function createEmptyInkSpecifications(): InkSpecifications {
   return { images: [], brand: null, inkType: null, colorCount: null, capacities: [], compatiblePrinters: [], features: [], uses: [] };
 }

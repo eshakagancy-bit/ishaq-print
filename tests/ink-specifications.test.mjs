@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   INK_COLOR_COUNT_OPTIONS,
   buildInkSpecificationRows,
+  getInkProductNameError,
   normalizeInkSpecifications,
 } from "../app/ink-specifications.ts";
 
@@ -29,4 +30,14 @@ test("loads legacy ink specifications without treating a color name as a count",
 
 test("rejects unsupported color-count values", () => {
   assert.equal(normalizeInkSpecifications({ colorCount: "7 ألوان" })?.colorCount, null);
+});
+
+test("requires singular ink names with every selected capacity", () => {
+  assert.equal(getInkProductNameError("حبر Pigment 500 مل", ["500 مل"]), null);
+  assert.equal(getInkProductNameError("حبر Pigment 500 مل / 1000 مل", ["500 مل", "1000 مل"]), null);
+  assert.match(getInkProductNameError("أحبار Pigment 500 مل", ["500 مل"]), /«حبر»/);
+  assert.match(getInkProductNameError("حبر Pigment", ["500 مل"]), /جميع السعات/);
+  assert.match(getInkProductNameError("حبر Pigment 500 مل", ["500 مل", "1000 مل"]), /جميع السعات/);
+  assert.match(getInkProductNameError("أفضل حبر Pigment 500 مل", ["500 مل"]), /«حبر»/);
+  assert.match(getInkProductNameError("حبر Pigment Premium 500 مل", ["500 مل"]), /تسويقية/);
 });

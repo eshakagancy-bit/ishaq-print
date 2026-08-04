@@ -64,6 +64,7 @@ import {
   INK_COLOR_COUNT_OPTIONS,
   INK_TYPE_OPTIONS as PRODUCT_INK_TYPE_OPTIONS,
   createEmptyInkSpecifications,
+  getInkProductNameError,
   type InkSpecifications,
 } from "../ink-specifications";
 import { categoryImageDefinitions, defaultCategoryImages, defaultHeroSettings, defaultSiteSettings, type CategoryImageKey, type HeroSettings, type HeroSlide, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
@@ -475,6 +476,13 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       setStatus("الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.");
       return;
     }
+    if (productForm.category === "inks") {
+      const inkNameError = getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []);
+      if (inkNameError) {
+        setStatus(inkNameError);
+        return;
+      }
+    }
     const inkImages = productForm.category === "inks"
       ? productForm.images?.length ? productForm.images : productForm.image ? [productForm.image] : []
       : undefined;
@@ -853,7 +861,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
           <option value="">اختر فئة الطابعة</option>
           {PRINTER_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
         </select>{printerCategoryError && <span className="admin-field-error" id="printer-category-error" role="alert">{printerCategoryError}</span>}</label>}
-        {productForm.category !== "papers" && <label>اسم المنتج<input required value={productForm.name} onChange={(e) => updateProductForm({ name: e.target.value })} /></label>}
+        {productForm.category !== "papers" && <label>اسم المنتج<input required value={productForm.name} aria-invalid={productForm.category === "inks" && Boolean(getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []))} onChange={(e) => updateProductForm({ name: e.target.value })} />{productForm.category === "inks" && <><small>الصيغة المعتمدة: حبر + الاسم الفني + جميع السعات، مثال: حبر Pigment 500 مل / 1000 مل</small>{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []) && <span className="admin-field-error" role="alert">{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? [])}</span>}</>}</label>}
         {productForm.category !== "papers" && productForm.category !== "inks" && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
         <datalist id="printer-family-options">{PRINTER_FAMILY_OPTIONS.map((family) => <option key={family} value={family} />)}</datalist></>}
         {productForm.category === "printers" && <PrinterSpecificationsEditor product={productForm} onChange={updateProductForm} />}
