@@ -61,7 +61,7 @@ import {
 } from "../paper-specifications";
 import {
   INK_CAPACITY_OPTIONS,
-  INK_COLOR_OPTIONS,
+  INK_COLOR_COUNT_OPTIONS,
   INK_TYPE_OPTIONS as PRODUCT_INK_TYPE_OPTIONS,
   createEmptyInkSpecifications,
   type InkSpecifications,
@@ -1002,7 +1002,7 @@ function InkSpecificationsEditor({
     <div className="admin-two-columns">
       <label>العلامة التجارية<input value={specifications.brand ?? ""} onChange={(event) => update({ brand: event.target.value || null })} /></label>
       <label>نوع الحبر<select value={specifications.inkType ?? ""} onChange={(event) => update({ inkType: event.target.value || null })}><option value="">غير محدد</option>{PRODUCT_INK_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-      <label>اللون<select value={specifications.color ?? ""} onChange={(event) => update({ color: event.target.value || null })}><option value="">غير محدد</option>{INK_COLOR_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+      <label>عدد الألوان<select value={specifications.colorCount ?? ""} onChange={(event) => update({ colorCount: event.target.value as InkSpecifications["colorCount"] || null })}><option value="">غير محدد</option>{INK_COLOR_COUNT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
     </div>
     <div className="admin-option-group"><span>السعات المتوفرة</span><div className="admin-options-grid">{INK_CAPACITY_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.capacities.includes(option)} onChange={() => toggle("capacities", option)} /> {option}</label>)}</div></div>
     <div className="admin-two-columns"><label>سعة أخرى<input value={customCapacity} onChange={(event) => setCustomCapacity(event.target.value)} placeholder="مثال: 250 مل" /></label><button type="button" onClick={() => addCustom("capacities", customCapacity, () => setCustomCapacity(""))}>إضافة السعة</button></div>
