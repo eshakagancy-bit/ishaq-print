@@ -28,7 +28,7 @@ export default async function CategoriesPage() {
     <header className="categories-index-header"><div className="container"><Link href="/">العودة إلى الرئيسية</Link><Image src={data.settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} priority /></div></header>
     <section className="container categories-index-content">
       <div className="categories-index-title"><span>أقسام المنتجات</span><h1>الفئات</h1><p>اختر القسم الذي تريد تصفحه</p></div>
-      <div className="categories-index-grid">{categories.map((item) => <Link className="categories-index-card" href={item.href} key={item.category}>
+      <div className="categories-index-grid">{categories.map((item) => <Link className="categories-index-card" data-category={item.category} href={item.href} key={item.category}>
         <div className="categories-index-image"><Image src={item.image || "/brand/eshak-logo.png"} alt={item.label} width={560} height={380} sizes="(max-width: 560px) calc(100vw - 56px), (max-width: 900px) 44vw, 360px" /></div>
         <div className="categories-index-card-content"><span>{item.count === 0 ? "لا توجد منتجات حاليًا" : `${item.count} ${item.count === 1 ? "منتج" : "منتجات"}`}</span><h2>{item.label}</h2><p>{item.description}</p><b>عرض المنتجات <i aria-hidden="true">←</i></b></div>
       </Link>)}</div>
