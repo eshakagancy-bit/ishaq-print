@@ -24,6 +24,12 @@ test("uses native Next.js scripts for Vercel", async () => {
   }
 });
 
+test("serves Next.js images directly without Vercel Image Optimization", async () => {
+  const nextConfig = await readFile(new URL("next.config.ts", root), "utf8");
+  assert.match(nextConfig, /images\s*:\s*\{[\s\S]*?unoptimized\s*:\s*true/);
+  assert.match(nextConfig, /localPatterns\s*:/);
+});
+
 test("obsolete Cloudflare runtime files are absent", async () => {
   for (const path of ["vite.config.ts", "worker/index.ts", "worker-configuration.d.ts", "drizzle.config.ts", "db/index.ts"]) {
     assert.equal(await exists(path), false, `${path} should not exist`);
