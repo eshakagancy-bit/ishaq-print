@@ -136,6 +136,9 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     sortOrder: Number.isSafeInteger(Number(input.sortOrder)) && Number(input.sortOrder) >= 0
       ? Number(input.sortOrder)
       : index,
+    homeDisplayOrder: Number.isSafeInteger(Number(input.homeDisplayOrder)) && Number(input.homeDisplayOrder) >= 0
+      ? Number(input.homeDisplayOrder)
+      : undefined,
   };
 }
 

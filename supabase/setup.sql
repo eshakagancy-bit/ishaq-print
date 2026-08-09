@@ -23,11 +23,15 @@ create table if not exists public.products (
   features jsonb not null default '[]'::jsonb,
   printer_page_content jsonb,
   sort_order integer not null default 0,
+  home_display_order integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint products_features_is_array check (jsonb_typeof(features) = 'array'),
   constraint products_printer_page_content_is_object check (
     printer_page_content is null or jsonb_typeof(printer_page_content) = 'object'
+  ),
+  constraint products_home_display_order_nonnegative check (
+    home_display_order is null or home_display_order >= 0
   )
 );
 
@@ -61,6 +65,8 @@ create table if not exists public.hero_settings (
 );
 
 create index if not exists products_sort_order_idx on public.products (sort_order, id);
+create index if not exists products_home_display_order_idx
+  on public.products (home_display_order asc nulls last, sort_order, id);
 create index if not exists hero_slides_display_order_idx on public.hero_slides (display_order, id);
 create index if not exists hero_slides_active_order_idx on public.hero_slides (is_active, display_order, id);
 
@@ -104,7 +110,7 @@ begin
 
   insert into public.products (
     id, name, family, image, category, type, size, badge, price,
-    description, features, printer_page_content, sort_order, created_at, updated_at
+    description, features, printer_page_content, sort_order, home_display_order, created_at, updated_at
   )
   select
     item.id,
@@ -120,6 +126,7 @@ begin
     coalesce(item.features, '[]'::jsonb),
     item.printer_page_content,
     coalesce(item.sort_order, 0),
+    item.home_display_order,
     now(),
     now()
   from jsonb_to_recordset(coalesce(p_products, '[]'::jsonb)) as item(
@@ -135,13 +142,118 @@ begin
     description text,
     features jsonb,
     printer_page_content jsonb,
-    sort_order integer
+    sort_order integer,
+    home_display_order integer
   );
 end;
 $$;
 
 revoke all on function public.replace_site_data(jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.replace_site_data(jsonb, jsonb) to service_role;
+
+create or replace function public.set_home_product_order(p_items jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  expected_count integer;
+  updated_count integer;
+begin
+  if jsonb_typeof(coalesce(p_items, '[]'::jsonb)) is distinct from 'array' then
+    raise exception 'home product order must be a JSON array';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as item(
+      id bigint,
+      category text,
+      home_display_order integer
+    )
+    where item.id is null
+      or item.category not in ('printers', 'papers', 'inks')
+      or item.home_display_order is null
+      or item.home_display_order < 0
+  ) or exists (
+    select 1
+    from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as item(
+      id bigint,
+      category text,
+      home_display_order integer
+    )
+    group by item.id
+    having count(*) > 1
+  ) or exists (
+    select 1
+    from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as item(
+      id bigint,
+      category text,
+      home_display_order integer
+    )
+    group by item.category, item.home_display_order
+    having count(*) > 1
+  ) then
+    raise exception 'invalid or duplicate home product order item';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as item(
+      id bigint,
+      category text,
+      home_display_order integer
+    )
+    group by item.category
+    having min(item.home_display_order) <> 0
+      or max(item.home_display_order) <> count(*) - 1
+  ) then
+    raise exception 'home product order must be contiguous in every category';
+  end if;
+
+  select count(*) into expected_count
+  from public.products
+  where category in ('printers', 'workforce', 'ecotank', 'ecotank-6-color', 'lq', 'papers', 'inks');
+
+  if jsonb_array_length(coalesce(p_items, '[]'::jsonb)) <> expected_count
+    or exists (
+      select 1
+      from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as item(
+        id bigint,
+        category text,
+        home_display_order integer
+      )
+      left join public.products as product on product.id = item.id
+      where product.id is null
+        or case
+          when product.category in ('printers', 'workforce', 'ecotank', 'ecotank-6-color', 'lq') then 'printers'
+          else product.category
+        end <> item.category
+    )
+  then
+    raise exception 'home product order does not match current public products';
+  end if;
+
+  update public.products as product
+  set home_display_order = item.home_display_order,
+      updated_at = now()
+  from jsonb_to_recordset(coalesce(p_items, '[]'::jsonb)) as item(
+    id bigint,
+    category text,
+    home_display_order integer
+  )
+  where product.id = item.id;
+
+  get diagnostics updated_count = row_count;
+  if updated_count <> expected_count then
+    raise exception 'home product order update was incomplete';
+  end if;
+end;
+$$;
+
+revoke all on function public.set_home_product_order(jsonb) from public, anon, authenticated;
+grant execute on function public.set_home_product_order(jsonb) to service_role;
 
 -- Idempotent copy corrections for existing records. Legacy hero fields are removed
 -- because public.hero_slides is the only source used by the main banner.

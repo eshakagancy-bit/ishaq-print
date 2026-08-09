@@ -1,4 +1,4 @@
-import { getHeroData, getSiteData } from "../lib/site-database";
+import { getHeroData, getHomeData } from "../lib/site-database";
 import HomeClient from "./home-client";
 import { isPublicCategoryEnabled, isPublicCategoryUrl } from "./public-categories";
 import {
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const [siteData, heroData] = await Promise.all([
-    getSiteData().catch(() => ({
+    getHomeData().catch(() => ({
       settings: defaultSiteSettings,
       products: starterProducts,
     })),

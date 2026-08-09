@@ -140,6 +140,7 @@ export type StoredProduct = {
   specificationsSourceUrl?: string;
   specificationsVerifiedAt?: string;
   sortOrder?: number;
+  homeDisplayOrder?: number;
 };
 
 export type HeroSlide = {

@@ -73,6 +73,13 @@ import {
   type PrinterPageContent,
 } from "../printer-page-content";
 import { addProductToCollection, removeProductById, replaceProductById } from "../product-collection";
+import {
+  HOME_PRODUCT_CATEGORIES,
+  buildHomeProductOrder,
+  homeProductsForCategory,
+  moveHomeProduct,
+  type HomeProductCategory,
+} from "../home-product-order";
 
 const categories = [
   ["printers", "طابعات EPSON"], ["laptops", "اللابتوبات"], ["engraving-presses", "آلات النحت والمكابس"],
@@ -80,6 +87,12 @@ const categories = [
   ["electronics", "الملحقات الإلكترونية"], ["cameras", "الكاميرات"], ["3d-printers", "طابعات ثلاثية الأبعاد"],
   ["money-machines", "آلات عد وفحص النقود"], ["networks", "الشبكات وأجهزة الواي فاي"],
 ] as const;
+
+const homeOrderCategoryLabels: Record<HomeProductCategory, string> = {
+  printers: "الطابعات Printers",
+  papers: "الأوراق Papers",
+  inks: "الأحبار Inks",
+};
 
 const emptyProduct: StoredProduct = {
   id: 0, name: "", family: "", image: "", images: undefined, category: "printers", type: "", size: "",
@@ -105,7 +118,7 @@ const emptyHeroSlide: HeroSlide = {
 };
 
 const UNSAVED_CHANGES_MESSAGE = "توجد تعديلات لم يتم حفظها. هل تريد مغادرة الصفحة؟";
-type DirtyScope = "site" | "product-form" | "hero-form" | "hero-settings";
+type DirtyScope = "site" | "product-form" | "hero-form" | "hero-settings" | "home-order";
 type PaperUpdatePreview = {
   matchedCount: number;
   expectedCount: number;
@@ -121,6 +134,19 @@ type PaperUpdateResult = {
   names: string[];
   preview: PaperUpdatePreview;
 };
+
+function normalizeAdminProducts(products: StoredProduct[]) {
+  return products.map((product) => ({
+    ...product,
+    image: normalizeMediaUrl(product.image),
+    images: product.category === "inks"
+      ? (product.images?.length ? product.images : [product.image]).map((image) => normalizeMediaUrl(image)).filter(Boolean)
+      : product.images,
+    printerCategory: product.category === "printers"
+      ? resolvePrinterCategory(product.printerCategory, product.name)
+      : undefined,
+  }));
+}
 
 export default function AdminDashboard({ userName, signOutPath }: { userName: string; signOutPath: string }) {
   const [settings, setSettings] = useState<SiteSettings>(defaultSiteSettings);
@@ -138,10 +164,11 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(defaultHeroSettings);
   const [heroForm, setHeroForm] = useState<HeroSlide>(emptyHeroSlide);
   const [editingHeroId, setEditingHeroId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"page" | "ads" | "category-images" | "hero" | "products">("page");
+  const [activeTab, setActiveTab] = useState<"page" | "ads" | "category-images" | "hero" | "home-order" | "products">("page");
   const [status, setStatus] = useState("جاري تحميل بيانات الموقع...");
   const [saving, setSaving] = useState(false);
   const [heroSaving, setHeroSaving] = useState(false);
+  const [homeOrderSaving, setHomeOrderSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [dirtyScopes, setDirtyScopes] = useState<DirtyScope[]>([]);
   const pendingMediaDeletes = useRef(new Set<string>());
@@ -165,16 +192,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
           ...nextSettings.categoryImages,
         }).map(([key, value]) => [key, normalizeMediaUrl(value)])) as SiteSettings["categoryImages"],
       });
-      setProducts(Array.isArray(data.products)
-        ? data.products.map((product) => ({
-          ...product,
-          image: normalizeMediaUrl(product.image),
-          images: product.category === "inks" ? (product.images?.length ? product.images : [product.image]).map((image) => normalizeMediaUrl(image)).filter(Boolean) : undefined,
-          printerCategory: product.category === "printers"
-            ? resolvePrinterCategory(product.printerCategory, product.name)
-            : undefined,
-        }))
-        : []);
+      setProducts(Array.isArray(data.products) ? normalizeAdminProducts(data.products) : []);
       setStatus("تم تحميل البيانات");
     }).catch((error) => setStatus(error instanceof Error ? error.message : "تعذر تحميل البيانات"));
   }, []);
@@ -352,6 +370,39 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     return failures;
   };
 
+  const moveProductInHomeOrder = (category: HomeProductCategory, productId: number, direction: -1 | 1) => {
+    setProducts((current) => moveHomeProduct(current, category, productId, direction));
+    markDirty("home-order");
+  };
+
+  const requestHomeOrderSave = async (currentProducts: StoredProduct[]) => {
+    const response = await fetch("/api/admin/home-product-order", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ orders: buildHomeProductOrder(currentProducts) }),
+    });
+    const data = await response.json() as { error?: string; products?: StoredProduct[] };
+    if (!response.ok || !Array.isArray(data.products)) {
+      throw new Error(data.error || "تعذر حفظ ترتيب الواجهة الرئيسية");
+    }
+    return normalizeAdminProducts(data.products);
+  };
+
+  const saveHomeOrder = async () => {
+    setHomeOrderSaving(true);
+    setStatus("جاري حفظ ترتيب الواجهة الرئيسية...");
+    try {
+      const savedProducts = await requestHomeOrderSave(products);
+      setProducts(savedProducts);
+      clearDirty("home-order");
+      setStatus("تم حفظ ترتيب الواجهة الرئيسية ونشره بنجاح ✓");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "تعذر حفظ ترتيب الواجهة الرئيسية");
+    } finally {
+      setHomeOrderSaving(false);
+    }
+  };
+
   const uploadFile = async (
     selectedFile: File,
     folder: "logos" | "banners" | "products" | "general" = "general",
@@ -450,10 +501,15 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       });
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || "تعذر الحفظ");
-      const savedUrls = activeMediaUrls(settings, products, heroSlides);
+      const savedProducts = dirtyScopes.includes("home-order")
+        ? await requestHomeOrderSave(products)
+        : products;
+      if (savedProducts !== products) setProducts(savedProducts);
+      const savedUrls = activeMediaUrls(settings, savedProducts, heroSlides);
       markUploadsSaved(savedUrls);
       const deleteFailures = await flushPendingMediaDeletes(savedUrls);
       clearDirty("site");
+      clearDirty("home-order");
       setStatus(deleteFailures
         ? "تم حفظ التعديلات، لكن تعذر تنظيف بعض الصور القديمة"
         : "تم حفظ التعديلات ونشرها بنجاح ✓");
@@ -713,6 +769,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       <button className={activeTab === "ads" ? "active" : ""} onClick={() => setActiveTab("ads")}>الإعلانات والصور</button>
       <button className={activeTab === "category-images" ? "active" : ""} onClick={() => setActiveTab("category-images")}>صور الفئات</button>
       <button className={activeTab === "hero" ? "active" : ""} onClick={() => setActiveTab("hero")}>إدارة البانر المتحرك</button>
+      <button className={activeTab === "home-order" ? "active" : ""} onClick={() => setActiveTab("home-order")}>ترتيب الواجهة الرئيسية</button>
       <button className={activeTab === "products" ? "active" : ""} onClick={() => setActiveTab("products")}>المنتجات</button>
     </nav><button className="save-all-button" onClick={saveAll} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ جميع التعديلات"}</button></div>
     <p className="admin-live-status" role="status" aria-busy={uploadingImage}>{uploadingImage && <span className="upload-spinner" aria-hidden="true"></span>}{status}</p>
@@ -825,6 +882,25 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         <label className="admin-check"><input type="checkbox" checked={heroSettings.pauseOnHover} onChange={(e) => updateHeroSettings({ pauseOnHover: e.target.checked })} /> التوقف عند مرور الماوس</label>
         <button className="save-all-button" type="button" onClick={saveHeroSettings} disabled={heroSaving}>{heroSaving ? "جاري الحفظ..." : "حفظ إعدادات البانر"}</button>
       </div>
+    </section>}
+
+    {activeTab === "home-order" && <section className="real-admin-card home-order-manager" aria-labelledby="home-order-title">
+      <div className="home-order-heading"><div><h2 id="home-order-title">ترتيب الواجهة الرئيسية</h2><p>رتّب منتجات كل قسم بشكل مستقل باستخدام السهمين، ثم احفظ لنشر الترتيب في الصفحة الرئيسية فقط.</p></div><button type="button" onClick={saveHomeOrder} disabled={homeOrderSaving || !dirtyScopes.includes("home-order")}>{homeOrderSaving ? "جاري الحفظ..." : "حفظ ترتيب الواجهة الرئيسية"}</button></div>
+      <div className="home-order-categories">{HOME_PRODUCT_CATEGORIES.map((category) => {
+        const categoryProducts = homeProductsForCategory(products, category);
+        return <article className="home-order-category" key={category} data-category={category}>
+          <header><div><h3>{homeOrderCategoryLabels[category]}</h3><span>{categoryProducts.length} منتج</span></div><small>ترتيب مستقل</small></header>
+          {categoryProducts.length ? <ol>{categoryProducts.map((product, index) => <li key={product.id}>
+            <span className="home-order-position" aria-label={`الترتيب ${index + 1}`}>{index + 1}</span>
+            <img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" />
+            <b>{product.name}</b>
+            <div className="home-order-actions">
+              <button type="button" onClick={() => moveProductInHomeOrder(category, product.id, -1)} disabled={index === 0} aria-label={`نقل ${product.name} لأعلى`}>↑</button>
+              <button type="button" onClick={() => moveProductInHomeOrder(category, product.id, 1)} disabled={index === categoryProducts.length - 1} aria-label={`نقل ${product.name} لأسفل`}>↓</button>
+            </div>
+          </li>)}</ol> : <p className="home-order-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}
+        </article>;
+      })}</div>
     </section>}
 
     {activeTab === "products" && <>

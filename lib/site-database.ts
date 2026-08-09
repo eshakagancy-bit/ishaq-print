@@ -1,6 +1,10 @@
 import { getSupabaseAdmin } from "./supabase-server";
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "./media-url";
-import { isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
+import { PRINTER_CATEGORIES, isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
+import {
+  isHomeProductCategory,
+  type HomeProductOrderItem,
+} from "../app/home-product-order";
 import {
   normalizePrinterSpecifications,
   normalizeSpecificationsSourceUrl,
@@ -50,6 +54,7 @@ type ProductRow = {
   specifications_source_url: string | null;
   specifications_verified_at: string | null;
   sort_order: number;
+  home_display_order: number | null;
 };
 
 type HeroSlideRow = {
@@ -142,6 +147,8 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     specifications_source_url: product.specificationsSourceUrl || null,
     specifications_verified_at: product.specificationsVerifiedAt || null,
     sort_order: product.sortOrder ?? index,
+    home_display_order: product.homeDisplayOrder
+      ?? (isHomeProductCategory(product.category) ? product.sortOrder ?? index : null),
   };
 }
 
@@ -183,6 +190,7 @@ function productFromRow(row: ProductRow): StoredProduct {
     specificationsSourceUrl: normalizeSpecificationsSourceUrl(row.specifications_source_url),
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(row.specifications_verified_at),
     sortOrder: row.sort_order,
+    homeDisplayOrder: row.home_display_order ?? undefined,
   };
 }
 
@@ -284,6 +292,28 @@ export async function getSiteData() {
   };
 }
 
+export async function getHomeData() {
+  await ensureSiteDefaults();
+  const client = getSupabaseAdmin();
+  const [settingsResult, productsResult] = await Promise.all([
+    client.from("site_settings").select("payload").eq("id", 1).single(),
+    client.from("products").select("*")
+      .order("home_display_order", { ascending: true, nullsFirst: false })
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true }),
+  ]);
+  databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
+  databaseError("تعذر تحميل منتجات الصفحة الرئيسية", productsResult.error);
+
+  return {
+    settings: normalizeSiteSettingsMedia({
+      ...defaultSiteSettings,
+      ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
+    }),
+    products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
+  };
+}
+
 export async function replaceSiteData(settings: SiteSettings, products: StoredProduct[]) {
   const client = getSupabaseAdmin();
   const result = await client.rpc("replace_site_data", {
@@ -354,13 +384,41 @@ export async function updateProduct(product: StoredProduct) {
 
 export async function createProduct(product: StoredProduct) {
   const client = getSupabaseAdmin();
+  let homeDisplayOrder = product.homeDisplayOrder;
+  if (isHomeProductCategory(product.category) && homeDisplayOrder === undefined) {
+    const databaseCategories = product.category === "printers"
+      ? ["printers", ...PRINTER_CATEGORIES.map((category) => category.value)]
+      : [product.category];
+    const orderResult = await client
+      .from("products")
+      .select("home_display_order")
+      .in("category", databaseCategories);
+    databaseError("تعذر تحديد نهاية ترتيب قسم المنتج", orderResult.error);
+    const currentOrders = (orderResult.data ?? [])
+      .map((row) => Number(row.home_display_order))
+      .filter((order) => Number.isSafeInteger(order) && order >= 0);
+    homeDisplayOrder = (currentOrders.length ? Math.max(...currentOrders) : -1) + 1;
+  }
   const result = await client
     .from("products")
-    .insert(productToRow(product, product.sortOrder ?? 0))
+    .insert(productToRow({ ...product, homeDisplayOrder }, product.sortOrder ?? 0))
     .select("*")
     .single();
   databaseError("تعذر إضافة المنتج", result.error);
   return productFromRow(result.data as ProductRow);
+}
+
+export async function saveHomeProductOrder(items: HomeProductOrderItem[]) {
+  const client = getSupabaseAdmin();
+  const result = await client.rpc("set_home_product_order", {
+    p_items: items.map((item) => ({
+      id: item.id,
+      category: item.category,
+      home_display_order: item.homeDisplayOrder,
+    })),
+  });
+  databaseError("تعذر حفظ ترتيب الواجهة الرئيسية", result.error);
+  return (await getSiteData()).products;
 }
 
 export async function removeProduct(id: number) {
