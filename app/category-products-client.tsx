@@ -81,7 +81,7 @@ export default function CategoryProductsClient({ category, products }: { categor
     ? selected.category === "inks" ? buildInkSpecificationRows(selected) : selected.category === "papers" ? buildPaperSpecificationRows(selected) : buildQuickViewSpecificationRows(selected)
     : [];
 
-  return <main className="category-products-page" dir="rtl">
+  return <main className="category-products-page" data-category={category} dir="rtl">
     <header className="category-products-header"><div className="container"><Link href="/">العودة إلى الرئيسية</Link><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={160} height={70} priority /></div></header>
     <section className="container category-products-content">
       <div className="category-products-title"><span>منتجات القسم</span><h1>{categoryLabels[category]}</h1></div>

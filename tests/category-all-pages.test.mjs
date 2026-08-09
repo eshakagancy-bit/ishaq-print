@@ -67,3 +67,20 @@ test("the public home renders only three independent category rows without the l
   assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
   assert.match(styles, /scroll-snap-align:start/);
 });
+
+test("the printers page uses a compact two-column grid only on mobile", async () => {
+  const [client, styles] = await Promise.all([
+    readFile(new URL("../app/category-products-client.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(client, /className="category-products-page" data-category=\{category\} dir="rtl"/);
+  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?data-category="printers"[^}]*\.category-products-list \{[^}]*display:grid;[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);[^}]*gap:9px;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-row \{[^}]*height:100%;[^}]*display:flex;[^}]*flex-direction:column;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-image \{[^}]*height:128px;[^}]*flex:0 0 128px;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-image img \{[^}]*width:90%;[^}]*height:90%;[^}]*object-fit:contain;[^}]*object-position:center;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-content h2 \{[^}]*overflow-wrap:anywhere;[^}]*font-size:12px;[^}]*-webkit-line-clamp:2;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-content>p \{[^}]*overflow:hidden;[^}]*font-size:8px;[^}]*-webkit-line-clamp:3;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-actions \{[^}]*grid-template-columns:1fr;/);
+  assert.doesNotMatch(styles, /@media \(min-width:[^)]+\)[\s\S]*?data-category="printers"[^}]*\.category-products-list/);
+});

@@ -614,6 +614,17 @@ footer { background:#07121f; color:#c7d0d9; padding-top:65px; }
   .category-product-content { padding:16px; }
   .category-product-content h2 { font-size:16px; }
   .category-product-content .quick-view { width:100%; font-size:10px; }
+  .category-products-page[data-category="printers"] .category-products-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:9px; }
+  .category-products-page[data-category="printers"] .category-product-row { height:100%; display:flex; flex-direction:column; }
+  .category-products-page[data-category="printers"] .category-product-image { min-height:0; height:128px; flex:0 0 128px; }
+  .category-products-page[data-category="printers"] .category-product-image img { width:90%; height:90%; object-fit:contain; object-position:center; }
+  .category-products-page[data-category="printers"] .category-product-content { flex:1; padding:9px; }
+  .category-products-page[data-category="printers"] .category-product-content .product-family { font-size:7px; }
+  .category-products-page[data-category="printers"] .category-product-content h2 { min-height:34px; margin:4px 0 6px; overflow:hidden; display:-webkit-box; overflow-wrap:anywhere; font-size:12px; line-height:1.4; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+  .category-products-page[data-category="printers"] .category-product-content>p { min-height:40px; max-height:40px; margin-bottom:8px; overflow:hidden; display:-webkit-box; font-size:8px; line-height:1.65; -webkit-box-orient:vertical; -webkit-line-clamp:3; }
+  .category-products-page[data-category="printers"] .category-product-content .quick-view { min-height:31px; margin-bottom:6px; padding:5px 3px; font-size:8px; line-height:1.3; }
+  .category-products-page[data-category="printers"] .category-product-actions { display:grid; grid-template-columns:1fr; gap:5px; padding-top:7px; }
+  .category-products-page[data-category="printers"] .category-product-actions a { min-width:0; min-height:30px; display:grid; place-items:center; padding:5px 3px; overflow-wrap:anywhere; text-align:center; font-size:7px; line-height:1.35; }
   .product-footer>a { min-height:32px; padding:5px 3px; display:grid; place-items:center; text-align:center; font-size:7px; line-height:1.25; }
   .feature-band-inner { grid-template-columns:1fr; gap:0; } .feature-image { min-height:440px; order:2; } .feature-copy { padding:70px 0 10px; text-align:center; }
   .feature-copy .eyebrow { justify-content:center; } .feature-copy li { text-align:right; }
