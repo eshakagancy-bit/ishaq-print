@@ -41,6 +41,16 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.doesNotMatch(styles, /\.home-category-row \.product-card \{[^}]*width:100%/);
 });
 
+test("home paper and ink cards use a portrait image area without changing printers", async () => {
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const portraitCards = String.raw`\.home-category-row \.product-card:is\(\[data-category="papers"\],\[data-category="inks"\]\)`;
+
+  assert.match(styles, new RegExp(`${portraitCards} \\.product-image \\{[^}]*height:auto;[^}]*flex:0 0 auto;[^}]*aspect-ratio:4/5;`));
+  assert.match(styles, new RegExp(`${portraitCards} \\.product-image img \\{[^}]*width:94%;[^}]*height:94%;[^}]*object-fit:contain;[^}]*object-position:center;`));
+  assert.match(styles, /\.home-category-row \.product-image \{ height:160px; flex-basis:160px; \}/);
+  assert.doesNotMatch(styles, /data-category="printers"[^}]*aspect-ratio/);
+});
+
 test("the public home renders only three independent category rows without the legacy storefront", async () => {
   const [home, styles] = await Promise.all([
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
