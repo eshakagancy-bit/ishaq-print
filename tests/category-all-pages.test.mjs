@@ -26,7 +26,7 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.match(client, /onClick=\{\(\) => toggleFavorite\(product\.id\)\}/);
   assert.match(client, /onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}>تفاصيل سريعة/);
   assert.match(client, /اطلب من المختص/);
-  assert.match(client, /فتح صفحة التفاصيل/);
+  assert.doesNotMatch(client, /فتح صفحة التفاصيل/);
   assert.match(home, /homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);
   assert.match(home, /className={`home-category-row\$\{hintClass\}`}/);

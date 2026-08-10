@@ -13,7 +13,8 @@ test("paper cards and details use the shared site data with safe slugs and Next.
   assert.match(page, /buildPaperSpecificationRows\(product\)/);
   assert.match(page, /product\.images\?\.length/);
   assert.match(page, /منتجات ورقية مشابهة/);
-  assert.match(home, /window\.location\.href = `\/papers\/\$\{getPaperSlug\(product\)\}`/);
+  assert.doesNotMatch(home, /window\.location\.href = `\/papers\/\$\{getPaperSlug\(product\)\}`/);
+  assert.match(home, /`\/papers\/\$\{getPaperSlug\(selected\)\}`/);
   assert.match(slug, /product\.slug\?\.trim\(\)/);
   assert.match(slug, /`\$\{product\.id\}-\$\{name \|\| "paper"\}`/);
 });
