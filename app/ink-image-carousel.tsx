@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 type InkImageCarouselProps = {
   images: string[];
   alt: string;
-  variant?: "card" | "quick";
+  variant?: "card" | "home-static" | "quick";
 };
 
 export default function InkImageCarousel({ images, alt, variant = "card" }: InkImageCarouselProps) {
@@ -16,6 +16,7 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
   const multiple = availableImages.length > 1;
+  const staticMode = variant === "home-static";
   const show = (index: number) => setActiveIndex((index + availableImages.length) % availableImages.length);
 
   useEffect(() => {
@@ -36,11 +37,11 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
   const resolvedImage = failedImage === activeImage ? "/brand/eshak-logo.png" : activeImage;
   return <div
     className={`ink-carousel ink-carousel-${variant}`}
-    onMouseEnter={() => setPaused(true)}
-    onMouseLeave={() => setPaused(false)}
-    onFocus={() => setPaused(true)}
-    onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; setPaused(true); }}
-    onTouchEnd={(event) => endTouch(event.changedTouches[0]?.clientX ?? 0)}
+    onMouseEnter={staticMode ? undefined : () => setPaused(true)}
+    onMouseLeave={staticMode ? undefined : () => setPaused(false)}
+    onFocus={staticMode ? undefined : () => setPaused(true)}
+    onTouchStart={staticMode ? undefined : (event) => { touchStartX.current = event.touches[0]?.clientX ?? null; setPaused(true); }}
+    onTouchEnd={staticMode ? undefined : (event) => endTouch(event.changedTouches[0]?.clientX ?? 0)}
     aria-roledescription="carousel"
     aria-label={`صور ${alt}`}
   >
@@ -56,7 +57,7 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
       blurDataURL="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12'%3E%3Crect width='16' height='12' fill='%23eef4f6'/%3E%3C/svg%3E"
       onError={() => setFailedImage(activeImage)}
     />
-    {multiple && <>
+    {multiple && !staticMode && <>
       <button type="button" className="ink-carousel-arrow previous" onClick={() => { show(activeIndex - 1); setPaused(true); }} aria-label="الصورة السابقة">‹</button>
       <button type="button" className="ink-carousel-arrow next" onClick={() => { show(activeIndex + 1); setPaused(true); }} aria-label="الصورة التالية">›</button>
       <div className="ink-carousel-dots" aria-label="اختيار صورة المنتج">{availableImages.map((image, index) => <button type="button" className={index === activeIndex ? "active" : ""} onClick={() => { show(index); setPaused(true); }} aria-label={`عرض الصورة ${index + 1}`} aria-current={index === activeIndex ? "true" : undefined} key={image} />)}</div>
