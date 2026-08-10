@@ -37,7 +37,7 @@ import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
 import QuickViewModal from "./quick-view-modal";
-import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES } from "./public-categories";
+import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES, type PublicEnabledCategory } from "./public-categories";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -111,6 +111,11 @@ const categories = allCategories.filter((category) => isPublicCategoryEnabled(ca
 type CategoryId = typeof categories[number]["id"];
 
 const homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES;
+const HOME_DESKTOP_GROUP_SIZE = 8;
+
+function chunkProducts<T>(items: T[], size: number) {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
+}
 
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
@@ -293,6 +298,7 @@ export default function HomeClient({
   const [heroPaused, setHeroPaused] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [quickViewTrigger, setQuickViewTrigger] = useState<HTMLElement | null>(null);
+  const [homeProductGroupIndices, setHomeProductGroupIndices] = useState<Partial<Record<PublicEnabledCategory, number>>>({});
   const categoryStripRef = useRef<HTMLElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
@@ -579,6 +585,12 @@ export default function HomeClient({
     setSelected(product);
   }, []);
   const closeQuickView = useCallback(() => setSelected(null), []);
+  const changeHomeProductGroup = (category: PublicEnabledCategory, groupCount: number, direction: number) => {
+    setHomeProductGroupIndices((current) => ({
+      ...current,
+      [category]: Math.min(groupCount - 1, Math.max(0, (current[category] ?? 0) + direction)),
+    }));
+  };
   const selectedSpecificationRows = selected
     ? selected.category === "inks"
       ? buildInkSpecificationRows(selected)
@@ -738,8 +750,10 @@ export default function HomeClient({
         <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
           const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
           if (normalizedQuery && categoryProducts.length === 0) return null;
-          const hintClass = categoryProducts.length > 3 ? " has-more" : categoryProducts.length > 2 ? " has-mobile-more" : "";
-          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>الكل</a></div>{categoryProducts.length ? <div className={`home-category-row${hintClass}`}>{categoryProducts.map(renderProductCard)}</div> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
+          const desktopGroups = chunkProducts(categoryProducts, HOME_DESKTOP_GROUP_SIZE);
+          const mobileGroups = chunkProducts(categoryProducts, 6);
+          const activeDesktopGroup = Math.min(homeProductGroupIndices[categoryId] ?? 0, Math.max(0, desktopGroups.length - 1));
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>الكل</a></div>{categoryProducts.length ? <><div className="home-category-desktop-products">{desktopGroups.length > 1 && <div className="product-group-controls"><button type="button" disabled={activeDesktopGroup === 0} onClick={() => changeHomeProductGroup(categoryId, desktopGroups.length, -1)} aria-label={`المجموعة السابقة من ${PUBLIC_CATEGORY_DETAILS[categoryId].label}`}>→</button><button type="button" disabled={activeDesktopGroup === desktopGroups.length - 1} onClick={() => changeHomeProductGroup(categoryId, desktopGroups.length, 1)} aria-label={`المجموعة التالية من ${PUBLIC_CATEGORY_DETAILS[categoryId].label}`}>←</button></div>}<div className="home-category-desktop-grid product-group">{desktopGroups[activeDesktopGroup]?.map(renderProductCard)}</div></div><div className={`home-category-mobile-products product-grid${mobileGroups.length > 1 ? " has-more" : ""}`}>{mobileGroups.map((group, index) => <div className="product-group" key={`${categoryId}-mobile-${index}`}>{group.map(renderProductCard)}</div>)}</div></> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
         })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
       </div></section>
 

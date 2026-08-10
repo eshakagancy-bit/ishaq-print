@@ -29,25 +29,20 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.doesNotMatch(client, /فتح صفحة التفاصيل/);
   assert.match(home, /homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);
-  assert.match(home, /className={`home-category-row\$\{hintClass\}`}/);
-  assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
+  assert.match(home, /className={`home-category-mobile-products product-grid\$\{mobileGroups\.length > 1 \? " has-more" : ""\}`}/);
   assert.match(styles, /\.home-category-sections \{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(styles, /\.home-category-section \{ min-width:0; \}/);
-  assert.match(styles, /\.home-category-row \{[^}]*width:100%;[^}]*min-width:0;[^}]*overflow-x:auto;[^}]*overflow-y:hidden;[^}]*-webkit-overflow-scrolling:touch;[^}]*touch-action:pan-x pan-y;/);
-  assert.doesNotMatch(styles, /\.home-category-row \{[^}]*touch-action:pan-x;/);
-  assert.match(styles, /\.home-category-row \.product-card \{ width:clamp\(210px,18vw,240px\); flex:0 0 clamp\(210px,18vw,240px\); \}/);
-  assert.match(styles, /width:clamp\(150px,42vw,175px\); flex:0 0 clamp\(150px,42vw,175px\)/);
-  assert.doesNotMatch(styles, /\.home-category-row \.product-card \{[^}]*flex:1/);
-  assert.doesNotMatch(styles, /\.home-category-row \.product-card \{[^}]*width:100%/);
+  assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
+  assert.match(styles, /\.home-category-desktop-grid \.product-card \{ width:auto; min-width:0; \}/);
 });
 
 test("home paper and ink cards use a portrait image area without changing printers", async () => {
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  const portraitCards = String.raw`\.home-category-row \.product-card:is\(\[data-category="papers"\],\[data-category="inks"\]\)`;
+  const portraitCards = String.raw`\.home-category-section \.product-card:is\(\[data-category="papers"\],\[data-category="inks"\]\)`;
 
   assert.match(styles, new RegExp(`${portraitCards} \\.product-image \\{[^}]*height:auto;[^}]*flex:0 0 auto;[^}]*aspect-ratio:4/5;`));
   assert.match(styles, new RegExp(`${portraitCards} \\.product-image img \\{[^}]*width:94%;[^}]*height:94%;[^}]*object-fit:contain;[^}]*object-position:center;`));
-  assert.match(styles, /\.home-category-row \.product-image \{ height:160px; flex-basis:160px; \}/);
+  assert.match(styles, /\.product-image \{ position:relative; height:220px; flex:0 0 220px;/);
   assert.doesNotMatch(styles, /data-category="printers"[^}]*aspect-ratio/);
 });
 
@@ -58,13 +53,18 @@ test("the public home renders only three independent category rows without the l
   ]);
   assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
   assert.match(home, /product\.category === categoryId/);
+  assert.match(home, /HOME_DESKTOP_GROUP_SIZE = 8/);
+  assert.match(home, /home-category-desktop-grid product-group/);
   assert.match(
     home,
     /<a href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}>الكل<\/a>/,
   );
   assert.doesNotMatch(home, /categories-view|أقسامنا التجارية|PRINTER_CATEGORIES|productGroups|openPrinterFilter/);
   assert.doesNotMatch(home, /سيتم إضافة منتجات|قريبًا/);
-  assert.match(styles, /\.home-category-row\.has-more \{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory;/);
+  assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
+  assert.match(styles, /\.home-page \.container \{ width:min\(1440px,calc\(100% - 48px\)\); \}/);
+  assert.match(styles, /\.product-group \{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
+  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.product-group \{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
   assert.match(styles, /scroll-snap-align:start/);
 });
 
