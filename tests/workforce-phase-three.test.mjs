@@ -7,7 +7,7 @@ import {
 } from "../app/printer-specifications.ts";
 
 const root = new URL("../", import.meta.url);
-const migrationPath = "supabase/migrations/20260723_populate_workforce_phase_three_specifications.sql";
+const migrationPath = "supabase/migrations/20260723090000_populate_workforce_phase_three_specifications.sql";
 const read = (path) => readFile(new URL(path, root), "utf8");
 
 const expectedProducts = {

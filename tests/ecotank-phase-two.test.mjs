@@ -6,7 +6,7 @@ import {
   normalizePrinterSpecifications,
 } from "../app/printer-specifications.ts";
 
-const migrationUrl = new URL("../supabase/migrations/20260722_populate_ecotank_phase_two_specifications.sql", import.meta.url);
+const migrationUrl = new URL("../supabase/migrations/20260722090300_populate_ecotank_phase_two_specifications.sql", import.meta.url);
 
 const expectedProducts = {
   "EPSON EcoTank L11050": { category: "ecotank", paperSize: "A3+", colorCount: 4, duplexMode: null, wifiDirect: true, cdDvdPrinting: false, plasticCardPrinting: false },

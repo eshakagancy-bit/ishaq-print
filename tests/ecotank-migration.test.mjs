@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const migrationUrl = new URL("../supabase/migrations/20260722_classify_live_ecotank_products.sql", import.meta.url);
+const migrationUrl = new URL("../supabase/migrations/20260722090100_classify_live_ecotank_products.sql", import.meta.url);
 
 test("keeps the EcoTank migration exact, transactional and category-only", async () => {
   const migration = await readFile(migrationUrl, "utf8");

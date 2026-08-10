@@ -131,7 +131,7 @@ assert.deepEqual(liveCounts, { all: 25, workforce: 12, ecotank: 7, "ecotank-6-co
 
 const localTestData = structuredClone(liveData);
 for (const product of localTestData.products) product.image = "/brand/eshak-logo.png";
-const ecoTankMigration = await readFile(new URL("../supabase/migrations/20260722_populate_ecotank_phase_two_specifications.sql", import.meta.url), "utf8");
+const ecoTankMigration = await readFile(new URL("../supabase/migrations/20260722090300_populate_ecotank_phase_two_specifications.sql", import.meta.url), "utf8");
 const approvedEcoTankNames = [
   "EPSON EcoTank L11050", "EPSON EcoTank L15150", "EPSON EcoTank L18050",
   "EPSON EcoTank L3210", "EPSON EcoTank L3250", "EPSON EcoTank L4260",
@@ -155,7 +155,7 @@ for (const [name, approved] of Object.entries(approvedEcoTankProducts)) {
   assert.ok(product, `${name} must exist in the read-only live fixture`);
   Object.assign(product, approved);
 }
-const workForceMigration = await readFile(new URL("../supabase/migrations/20260723_populate_workforce_phase_three_specifications.sql", import.meta.url), "utf8");
+const workForceMigration = await readFile(new URL("../supabase/migrations/20260723090000_populate_workforce_phase_three_specifications.sql", import.meta.url), "utf8");
 const approvedWorkForceTuples = [...workForceMigration.matchAll(
   /\(\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*'(\[[^']*\])'::jsonb,\s*'(\{[^']+\})'::jsonb,\s*'(https:\/\/[^']+)'\s*\)/g,
 )];

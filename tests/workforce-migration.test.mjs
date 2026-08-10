@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const migrationUrl = new URL("../supabase/migrations/20260722_classify_live_workforce_products.sql", import.meta.url);
+const migrationUrl = new URL("../supabase/migrations/20260722090200_classify_live_workforce_products.sql", import.meta.url);
 
 test("uses a narrowly scoped and non-destructive WorkForce migration", async () => {
   const migration = await readFile(migrationUrl, "utf8");

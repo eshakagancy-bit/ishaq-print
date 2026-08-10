@@ -39,7 +39,7 @@ test("keeps printer category filtering out of the home page and requires an Arab
 test("maps printer categories to database values and migrates existing WorkForce products", async () => {
   const [database, migration] = await Promise.all([
     read("lib/site-database.ts"),
-    read("supabase/migrations/20260722_classify_live_workforce_products.sql"),
+    read("supabase/migrations/20260722090200_classify_live_workforce_products.sql"),
   ]);
 
   assert.match(database, /category: printerCategory \?\? product\.category/);

@@ -6,7 +6,7 @@ const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
 test("uses an independent additive database migration without changing product rows", async () => {
-  const migration = (await read("supabase/migrations/20260722_add_printer_specifications.sql")).toLowerCase();
+  const migration = (await read("supabase/migrations/20260722090000_add_printer_specifications.sql")).toLowerCase();
   assert.match(migration, /add column if not exists specifications jsonb/);
   assert.match(migration, /specifications_source_url text/);
   assert.match(migration, /specifications_verified_at timestamptz/);
@@ -55,7 +55,7 @@ test("admin provides structured choices, tri-state fields, conditional LQ fields
 });
 
 test("EcoTank phase-two migration is transactional, exact and preserves all protected data", async () => {
-  const migration = await read("supabase/migrations/20260722_populate_ecotank_phase_two_specifications.sql");
+  const migration = await read("supabase/migrations/20260722090300_populate_ecotank_phase_two_specifications.sql");
   const lower = migration.toLowerCase();
   const approvedBlock = migration.match(/with approved[\s\S]+?\n  update public\.products/)?.[0] ?? "";
 
@@ -90,7 +90,7 @@ test("EcoTank phase-two migration is transactional, exact and preserves all prot
 });
 
 test("LQ phase-one data migration is transactional, exact and preserves protected fields", async () => {
-  const migration = (await read("supabase/migrations/20260722_populate_lq_phase_one_specifications.sql")).toLowerCase();
+  const migration = (await read("supabase/migrations/20260722090400_populate_lq_phase_one_specifications.sql")).toLowerCase();
   assert.match(migration, /^--[\s\S]*\nbegin;/);
   assert.match(migration, /commit;\s*$/);
   assert.match(migration, /having count\(product\.id\) <> 1/);
