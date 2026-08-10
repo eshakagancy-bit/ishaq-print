@@ -24,7 +24,7 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.match(styles, /\.category-product-row \{ grid-template-columns:1fr; \}/);
   assert.doesNotMatch(client, /product-grid|product-group/);
   assert.match(client, /onClick=\{\(\) => toggleFavorite\(product\.id\)\}/);
-  assert.match(client, /onClick=\{\(\) => openQuickView\(product\)\}>تفاصيل سريعة/);
+  assert.match(client, /onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}>تفاصيل سريعة/);
   assert.match(client, /اطلب من المختص/);
   assert.match(client, /فتح صفحة التفاصيل/);
   assert.match(home, /homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES/);

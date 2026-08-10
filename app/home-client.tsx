@@ -36,6 +36,7 @@ import { getPrinterSlug } from "./printers/product-slug";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
+import QuickViewModal from "./quick-view-modal";
 import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES } from "./public-categories";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
@@ -162,13 +163,18 @@ function normalizeInitialProduct(product: StoredProduct): Product {
       .map((image) => safeImageSrc(image))
       .filter((image): image is string => Boolean(image))
     : undefined;
+  const paperImages = category === "papers"
+    ? (product.images?.length ? product.images : product.paperSpecifications?.images?.length ? product.paperSpecifications.images : [product.image])
+      .map((image) => safeImageSrc(image))
+      .filter((image): image is string => Boolean(image))
+    : undefined;
   return {
     ...product,
     name: normalizeProductBrandName(product.name),
     family: category === "inks" ? "" : product.family,
     badge: category === "inks" ? undefined : product.badge,
     image: inkImages?.[0] ?? imageSrcOrFallback(product.image),
-    images: inkImages,
+    images: inkImages ?? paperImages,
     category,
     printerCategory: category === "printers"
       ? resolvePrinterCategory(product.printerCategory, product.name)
@@ -286,9 +292,7 @@ export default function HomeClient({
   const [outgoingHeroSlide, setOutgoingHeroSlide] = useState<number | null>(null);
   const [heroPaused, setHeroPaused] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const quickViewTriggerRef = useRef<HTMLElement | null>(null);
-  const quickViewDialogRef = useRef<HTMLDivElement | null>(null);
-  const quickViewCloseRef = useRef<HTMLButtonElement | null>(null);
+  const [quickViewTrigger, setQuickViewTrigger] = useState<HTMLElement | null>(null);
   const categoryStripRef = useRef<HTMLElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
@@ -571,12 +575,7 @@ export default function HomeClient({
     current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
   );
   const openQuickView = useCallback((product: Product, trigger: HTMLElement | null = null) => {
-    if (product.category === "papers") {
-      window.location.href = `/papers/${getPaperSlug(product)}`;
-      return;
-    }
-    quickViewTriggerRef.current = trigger
-      ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    setQuickViewTrigger(trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     setSelected(product);
   }, []);
   const closeQuickView = useCallback(() => setSelected(null), []);
@@ -587,78 +586,6 @@ export default function HomeClient({
       ? buildPaperSpecificationRows(selected)
       : buildQuickViewSpecificationRows(selected)
     : [];
-
-  useEffect(() => {
-    if (!selected) return undefined;
-
-    const dialog = quickViewDialogRef.current;
-    if (!dialog) return undefined;
-
-    const backgroundElements = [...document.querySelectorAll<HTMLElement>("main > :not(.modal-backdrop)")];
-    const backgroundState = backgroundElements.map((element) => ({
-      element,
-      inert: element.inert,
-      ariaHidden: element.getAttribute("aria-hidden"),
-    }));
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousDocumentOverflow = document.documentElement.style.overflow;
-
-    for (const element of backgroundElements) {
-      element.inert = true;
-      element.setAttribute("aria-hidden", "true");
-    }
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    const focusCloseButton = window.requestAnimationFrame(() => quickViewCloseRef.current?.focus());
-    const handleDialogKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeQuickView();
-        return;
-      }
-      if (event.key !== "Tab") return;
-
-      const focusableElements = [...dialog.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      )].filter((element) => element.tabIndex >= 0 && element.getAttribute("aria-hidden") !== "true");
-      if (!focusableElements.length) {
-        event.preventDefault();
-        quickViewCloseRef.current?.focus();
-        return;
-      }
-
-      const firstFocusable = focusableElements[0];
-      const lastFocusable = focusableElements[focusableElements.length - 1];
-      const activeElement = document.activeElement;
-      if (event.shiftKey && (activeElement === firstFocusable || !dialog.contains(activeElement))) {
-        event.preventDefault();
-        lastFocusable.focus();
-      } else if (!event.shiftKey && (activeElement === lastFocusable || !dialog.contains(activeElement))) {
-        event.preventDefault();
-        firstFocusable.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleDialogKeyDown);
-    return () => {
-      window.cancelAnimationFrame(focusCloseButton);
-      document.removeEventListener("keydown", handleDialogKeyDown);
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousDocumentOverflow;
-      for (const { element, inert, ariaHidden } of backgroundState) {
-        element.inert = inert;
-        if (ariaHidden === null) element.removeAttribute("aria-hidden");
-        else element.setAttribute("aria-hidden", ariaHidden);
-      }
-
-      const trigger = quickViewTriggerRef.current;
-      window.requestAnimationFrame(() => {
-        if (trigger?.isConnected) trigger.focus();
-        else document.querySelector<HTMLElement>(".favorite-counter")?.focus();
-      });
-    };
-  }, [closeQuickView, selected]);
 
   const renderProductCard = (product: Product) => {
     const cardTags = getProductCardSpecificationTags(product);
@@ -877,7 +804,7 @@ export default function HomeClient({
         {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={110} height={90} sizes="76px" /><div><b>{getProductDisplayName(product)}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={(event) => { setFavoritesOpen(false); openQuickView(product, event.currentTarget); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
         {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح المفضلة</button>}
       </aside></div>}
-      {selected && <div className="modal-backdrop" onMouseDown={closeQuickView}><div ref={quickViewDialogRef} className="product-modal-shell" role="dialog" aria-modal="true" aria-labelledby={`product-dialog-title-${selected.id}`} onMouseDown={(event) => event.stopPropagation()}><button ref={quickViewCloseRef} type="button" className="modal-close" onClick={closeQuickView} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image">{selected.category === "inks" ? <InkImageCarousel images={selected.images?.length ? selected.images : [selected.image]} alt={getProductDisplayName(selected)} variant="quick" /> : <ProductImage src={selected.image} alt={getProductDisplayName(selected)} modal />}</div><div className="modal-content">{selected.badge?.trim() && <span className="modal-product-badge">{selected.badge}</span>}<span className="modal-category">{categories.find((category) => category.id === selected.category)?.name ?? selected.family}</span>{selected.family && <span className="product-family">{selected.family}</span>}<h2 id={`product-dialog-title-${selected.id}`}>{getProductDisplayName(selected)}</h2>{selected.description && <p>{selected.description}</p>}{selected.price?.trim() && <div className="modal-price"><small>السعر</small><strong>{selected.price}</strong></div>}{selectedSpecificationRows.length > 0 && <dl className="modal-specs">{selectedSpecificationRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}{selected.category === "printers" && <a className="secondary-btn modal-more-details" href={`/printers/${getPrinterSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}{selected.category === "inks" && <a className="secondary-btn modal-more-details" href={`/inks/${getInkSlug(selected)}`}>تفاصيل أكثر <span>←</span></a>}<a className="primary-btn" href={specialistWaLink(selected.category, selected)} target="_blank" rel="noreferrer">{selected.price?.trim() ? "اطلب المنتج عبر واتساب" : "اطلب عرض سعر عبر واتساب"} <span>←</span></a><small>سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي.</small></div></div></div></div>}
+      {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel={selected.price?.trim() ? "اطلب المنتج عبر واتساب" : "اطلب عرض سعر عبر واتساب"} footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
     </main>
   );
 }

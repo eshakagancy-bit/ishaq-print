@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { buildInkSpecificationRows } from "./ink-specifications";
 import InkImageCarousel from "./ink-image-carousel";
 import { buildPaperSpecificationRows } from "./paper-specifications";
@@ -18,6 +18,7 @@ import type { StoredProduct } from "./site-defaults";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import { getPrinterSlug } from "./printers/product-slug";
+import QuickViewModal from "./quick-view-modal";
 
 const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 const categoryLabels: Record<PublicEnabledCategory, string> = { printers: "جميع الطابعات", inks: "جميع الأحبار", papers: "جميع الأوراق" };
@@ -48,6 +49,7 @@ export default function CategoryProductsClient({ category, products }: { categor
   const [printerFilter, setPrinterFilter] = useState<PrinterCategoryFilter>(ALL_PRINTERS_FILTER.value);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [selected, setSelected] = useState<StoredProduct | null>(null);
+  const [quickViewTrigger, setQuickViewTrigger] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     let storedFavorites: number[] = [];
@@ -64,13 +66,11 @@ export default function CategoryProductsClient({ category, products }: { categor
     localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(next));
     return next;
   });
-  const openQuickView = (product: StoredProduct) => {
-    if (product.category === "papers") {
-      window.location.href = `/papers/${getPaperSlug(product)}`;
-      return;
-    }
+  const openQuickView = (product: StoredProduct, trigger: HTMLElement | null = null) => {
+    setQuickViewTrigger(trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null));
     setSelected(product);
   };
+  const closeQuickView = useCallback(() => setSelected(null), []);
   const visibleProducts = products.filter((product) => {
     const matchesPrinterFilter = category !== "printers"
       || printerFilter === ALL_PRINTERS_FILTER.value
@@ -97,10 +97,10 @@ export default function CategoryProductsClient({ category, products }: { categor
         const images = product.images?.length ? product.images : [product.image];
         return <article className="category-product-row" key={product.id}>
           <div className="category-product-image"><button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"}>♥</button>{product.category === "inks" ? <InkImageCarousel images={images} alt={displayName(product)} /> : <Link href={`/${category}/${slug}`}><Image src={product.image || "/brand/eshak-logo.png"} alt={displayName(product)} width={420} height={320} sizes="(max-width: 700px) 92vw, 280px" /></Link>}</div>
-          <div className="category-product-content">{product.family && <span className="product-family">{product.family}</span>}<Link href={`/${category}/${slug}`}><h2>{displayName(product)}</h2></Link>{product.description && <p>{product.description}</p>}<button type="button" className="quick-view" onClick={() => openQuickView(product)}>تفاصيل سريعة</button><div className="category-product-actions"><Link href={`/${category}/${slug}`}>فتح صفحة التفاصيل</Link><a href={whatsappLink(product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
+          <div className="category-product-content">{product.family && <span className="product-family">{product.family}</span>}<Link href={`/${category}/${slug}`}><h2>{displayName(product)}</h2></Link>{product.description && <p>{product.description}</p>}<button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)}>تفاصيل سريعة</button><div className="category-product-actions"><Link href={`/${category}/${slug}`}>فتح صفحة التفاصيل</Link><a href={whatsappLink(product)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div>
         </article>;
       })}</div> : <div className="empty-state"><b>{query ? "لا توجد نتائج مطابقة" : category === "printers" && printerFilter !== ALL_PRINTERS_FILTER.value ? "لا توجد طابعات في هذا التصنيف حاليًا" : `لا توجد منتجات في ${categoryLabels[category]} حاليًا`}</b><p>{query ? "جرّب البحث باسم آخر." : "يمكنك العودة لاحقًا أو التواصل معنا لمعرفة المتوفر."}</p></div>}
     </section>
-    {selected && <div className="modal-backdrop" onMouseDown={() => setSelected(null)}><div className="product-modal-shell" role="dialog" aria-modal="true" aria-labelledby="category-quick-view-title" onMouseDown={(event) => event.stopPropagation()}><button type="button" className="modal-close" onClick={() => setSelected(null)} aria-label="إغلاق">×</button><div className="product-modal"><div className="modal-image">{selected.category === "inks" ? <InkImageCarousel images={selected.images?.length ? selected.images : [selected.image]} alt={displayName(selected)} variant="quick" /> : <Image src={selected.image || "/brand/eshak-logo.png"} alt={displayName(selected)} width={700} height={600} sizes="(max-width: 760px) 90vw, 405px" />}</div><div className="modal-content"><h2 id="category-quick-view-title">{displayName(selected)}</h2>{selected.description && <p>{selected.description}</p>}{selectedRows.length > 0 && <dl className="modal-specs">{selectedRows.map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<Link className="secondary-btn modal-more-details" href={`/${category}/${productSlug(selected)}`}>تفاصيل أكثر <span>←</span></Link><a className="primary-btn" href={whatsappLink(selected)} target="_blank" rel="noreferrer">اطلب من المختص</a></div></div></div></div>}
+    {selected && <QuickViewModal id={selected.id} title={displayName(selected)} categoryLabel={categoryLabels[category]} family={selected.family} badge={selected.badge} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : selected.paperSpecifications?.images?.length ? selected.paperSpecifications.images : selected.inkSpecifications?.images?.length ? selected.inkSpecifications.images : [selected.image]} rows={selectedRows} detailsHref={`/${category}/${productSlug(selected)}`} whatsappHref={whatsappLink(selected)} whatsappLabel="اطلب من المختص" trigger={quickViewTrigger} onClose={closeQuickView} />}
   </main>;
 }

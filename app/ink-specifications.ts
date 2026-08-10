@@ -79,5 +79,7 @@ export function buildInkSpecificationRows(product: InkDisplayInput): Specificati
     specifications.colorCount ? { key: "color-count", label: "عدد الألوان", value: specifications.colorCount } : null,
     specifications.capacities.length ? { key: "capacities", label: "السعات المتوفرة", value: specifications.capacities.join("، ") } : null,
     specifications.compatiblePrinters.length ? { key: "compatible-printers", label: "الطابعات المتوافقة", value: specifications.compatiblePrinters.join("، ") } : null,
+    specifications.features.length ? { key: "features", label: "الخصائص", value: specifications.features.join("، ") } : null,
+    specifications.uses.length ? { key: "uses", label: "الاستخدامات", value: specifications.uses.join("، ") } : null,
   ].filter((row): row is SpecificationDisplayRow => Boolean(row));
 }

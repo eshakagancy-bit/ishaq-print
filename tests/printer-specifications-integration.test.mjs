@@ -109,6 +109,7 @@ test("LQ phase-one data migration is transactional, exact and preserves protecte
 
 test("customer card stays concise and quick view renders only prepared specification rows", async () => {
   const home = await read("app/home-client.tsx");
+  const quickView = await read("app/quick-view-modal.tsx");
   const cardStart = home.indexOf("const cardTags = getProductCardSpecificationTags(product)");
   const cardEnd = home.indexOf("</article>;", cardStart);
   const card = home.slice(cardStart, cardEnd);
@@ -120,13 +121,13 @@ test("customer card stays concise and quick view renders only prepared specifica
   assert.match(card, /cardTags/);
   assert.match(card, /product\.price/);
   assert.equal(card.includes("product.features.map"), false);
-  assert.match(home, /selectedSpecificationRows\.map/);
-  assert.match(home, /product-modal-shell/);
-  assert.match(home, /selected\.price\?\.trim\(\) && <div className="modal-price"/);
+  assert.match(home, /rows=\{selectedSpecificationRows\}/);
+  assert.match(quickView, /product-modal-shell/);
+  assert.match(quickView, /price\?\.trim\(\) && <div className="modal-price"/);
   assert.match(home, /"اطلب عرض سعر عبر واتساب"/);
-  assert.match(home, /selected\.badge\?\.trim\(\)/);
-  assert.match(home, /aria-labelledby=\{`product-dialog-title-\$\{selected\.id\}`\}/);
-  assert.match(home, /element\.inert = true/);
-  assert.match(home, /document\.body\.style\.overflow = "hidden"/);
-  assert.match(home, /quickViewTriggerRef\.current/);
+  assert.match(quickView, /badge\?\.trim\(\)/);
+  assert.match(quickView, /aria-labelledby=\{titleId\}/);
+  assert.match(quickView, /element\.inert = true/);
+  assert.match(quickView, /document\.body\.style\.overflow = "hidden"/);
+  assert.match(home, /trigger=\{quickViewTrigger\}/);
 });

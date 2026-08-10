@@ -646,7 +646,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:65px; }
   .modal-content>p { max-height:4.9em; overflow:hidden; font-size:11px; line-height:1.65; }
   .modal-price { margin:12px 0; }
   .modal-specs { margin:15px 0; gap:7px; }
-  .modal-specs>div:nth-child(n+4) { display:none; }
   .printer-hero { padding:18px 0 28px; } .product-details-breadcrumb { margin-bottom:12px; } .product-details-breadcrumb b { max-width:48%; } .printer-hero-grid { grid-template-columns:1fr; gap:14px; } .printer-gallery { min-height:330px; } .product-gallery-main { min-height:325px; padding:10px; } .product-gallery-main img { height:300px; } .product-gallery-zoom { left:12px; bottom:12px; width:38px; height:38px; }
   .printer-summary { padding:20px 16px; } .printer-summary h1 { font-size:29px; } .printer-summary-description { font-size:12px; } .printer-sections { padding-block:24px 60px; } .printer-sections>section { padding:22px 18px; } .product-section-nav { top:6px; margin-inline:-2px; } .printer-feature-list { grid-template-columns:1fr; }
   .product-lightbox { padding:12px; } .product-lightbox-image { width:96vw; height:82vh; } .product-lightbox-close { top:12px; left:12px; }
