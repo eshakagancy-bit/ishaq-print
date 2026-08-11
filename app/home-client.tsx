@@ -2,7 +2,7 @@
 
 import Image, { getImageProps } from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { normalizeMediaUrl } from "../lib/media-url";
 import { isOpenInAden } from "./business-hours";
 import {
@@ -37,7 +37,7 @@ import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
 import QuickViewModal from "./quick-view-modal";
-import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES, type PublicEnabledCategory } from "./public-categories";
+import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES } from "./public-categories";
 
 const HERO_IMAGE_SIZES = "(max-width: 460px) 94vw, (max-width: 760px) 410px, (max-width: 1200px) 48vw, 600px";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -76,6 +76,45 @@ type HomeClientProps = {
 
 type MobileNavSection = "home" | "categories" | "search" | "contact";
 type PageView = "home" | "categories";
+
+function HomeProductSlider({ groups, label }: { groups: ReactNode[][]; label: string }) {
+  const sliderRef = useRef<HTMLDivElement | null>(null);
+  const [activeGroup, setActiveGroup] = useState(0);
+
+  const updateActiveGroup = useCallback(() => {
+    const slider = sliderRef.current;
+    if (!slider) return;
+    const groupElements = Array.from(slider.querySelectorAll<HTMLElement>(":scope > .product-group"));
+    if (!groupElements.length) return;
+    const sliderStart = slider.getBoundingClientRect().right;
+    const nearestIndex = groupElements.reduce((nearest, group, index) => {
+      const currentDistance = Math.abs(sliderStart - group.getBoundingClientRect().right);
+      const nearestDistance = Math.abs(sliderStart - groupElements[nearest].getBoundingClientRect().right);
+      return currentDistance < nearestDistance ? index : nearest;
+    }, 0);
+    setActiveGroup(nearestIndex);
+  }, []);
+
+  const showGroup = (requestedIndex: number) => {
+    const slider = sliderRef.current;
+    if (!slider) return;
+    const nextIndex = Math.min(groups.length - 1, Math.max(0, requestedIndex));
+    const target = slider.querySelectorAll<HTMLElement>(":scope > .product-group")[nextIndex];
+    if (!target) return;
+    const distanceFromStart = slider.getBoundingClientRect().right - target.getBoundingClientRect().right;
+    slider.scrollTo({ left: slider.scrollLeft - distanceFromStart, behavior: "smooth" });
+  };
+
+  return <div className="home-product-slider">
+    {groups.length > 1 && <div className="product-group-controls">
+      <button type="button" disabled={activeGroup === 0} onClick={() => showGroup(activeGroup - 1)} aria-label={`المجموعة السابقة من ${label}`}>→</button>
+      <button type="button" disabled={activeGroup === groups.length - 1} onClick={() => showGroup(activeGroup + 1)} aria-label={`المجموعة التالية من ${label}`}>←</button>
+    </div>}
+    <div ref={sliderRef} className={`home-category-products product-grid${groups.length > 1 ? " has-more" : ""}`} onScroll={updateActiveGroup} data-product-slider={label}>
+      {groups.map((group, index) => <div className="product-group" key={`${label}-${index}`}>{group}</div>)}
+    </div>
+  </div>;
+}
 
 const mobileNavTargets: Record<MobileNavSection, string> = {
   home: "home",
@@ -298,7 +337,6 @@ export default function HomeClient({
   const [heroPaused, setHeroPaused] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [quickViewTrigger, setQuickViewTrigger] = useState<HTMLElement | null>(null);
-  const [homeProductGroupIndices, setHomeProductGroupIndices] = useState<Partial<Record<PublicEnabledCategory, number>>>({});
   const categoryStripRef = useRef<HTMLElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
@@ -585,12 +623,6 @@ export default function HomeClient({
     setSelected(product);
   }, []);
   const closeQuickView = useCallback(() => setSelected(null), []);
-  const changeHomeProductGroup = (category: PublicEnabledCategory, groupCount: number, direction: number) => {
-    setHomeProductGroupIndices((current) => ({
-      ...current,
-      [category]: Math.min(groupCount - 1, Math.max(0, (current[category] ?? 0) + direction)),
-    }));
-  };
   const selectedSpecificationRows = selected
     ? selected.category === "inks"
       ? buildInkSpecificationRows(selected)
@@ -750,10 +782,9 @@ export default function HomeClient({
         <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
           const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
           if (normalizedQuery && categoryProducts.length === 0) return null;
-          const desktopGroups = chunkProducts(categoryProducts, HOME_DESKTOP_GROUP_SIZE);
-          const mobileGroups = chunkProducts(categoryProducts, 6);
-          const activeDesktopGroup = Math.min(homeProductGroupIndices[categoryId] ?? 0, Math.max(0, desktopGroups.length - 1));
-          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>الكل</a></div>{categoryProducts.length ? <><div className="home-category-desktop-products">{desktopGroups.length > 1 && <div className="product-group-controls"><button type="button" disabled={activeDesktopGroup === 0} onClick={() => changeHomeProductGroup(categoryId, desktopGroups.length, -1)} aria-label={`المجموعة السابقة من ${PUBLIC_CATEGORY_DETAILS[categoryId].label}`}>→</button><button type="button" disabled={activeDesktopGroup === desktopGroups.length - 1} onClick={() => changeHomeProductGroup(categoryId, desktopGroups.length, 1)} aria-label={`المجموعة التالية من ${PUBLIC_CATEGORY_DETAILS[categoryId].label}`}>←</button></div>}<div className="home-category-desktop-grid product-group">{desktopGroups[activeDesktopGroup]?.map(renderProductCard)}</div></div><div className={`home-category-mobile-products product-grid${mobileGroups.length > 1 ? " has-more" : ""}`}>{mobileGroups.map((group, index) => <div className="product-group" key={`${categoryId}-mobile-${index}`}>{group.map(renderProductCard)}</div>)}</div></> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
+          const desktopGroups = chunkProducts(categoryProducts, HOME_DESKTOP_GROUP_SIZE).map((group) => group.map(renderProductCard));
+          const mobileGroups = chunkProducts(categoryProducts, 6).map((group) => group.map(renderProductCard));
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>منتجات القسم</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>الكل</a></div>{categoryProducts.length ? <><div className="home-category-desktop-products"><HomeProductSlider groups={desktopGroups} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /></div><div className="home-category-mobile-products"><HomeProductSlider groups={mobileGroups} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /></div></> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
         })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
       </div></section>
 

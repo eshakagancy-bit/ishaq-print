@@ -29,11 +29,14 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.doesNotMatch(client, /فتح صفحة التفاصيل/);
   assert.match(home, /homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);
-  assert.match(home, /className={`home-category-mobile-products product-grid\$\{mobileGroups\.length > 1 \? " has-more" : ""\}`}/);
+  assert.match(home, /<div className="home-category-mobile-products"><HomeProductSlider groups=\{mobileGroups\}/);
+  assert.match(home, /function HomeProductSlider/);
+  assert.match(home, /const sliderRef = useRef<HTMLDivElement \| null>\(null\)/);
+  assert.match(home, /const \[activeGroup, setActiveGroup\] = useState\(0\)/);
   assert.match(styles, /\.home-category-sections \{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(styles, /\.home-category-section \{ min-width:0; \}/);
   assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
-  assert.match(styles, /\.home-category-desktop-grid \.product-card \{ width:auto; min-width:0; \}/);
+  assert.match(styles, /\.home-category-products \.product-card \{ width:auto; min-width:0; \}/);
 });
 
 test("home paper and ink cards use a portrait image area without changing printers", async () => {
@@ -54,7 +57,8 @@ test("the public home renders only three independent category rows without the l
   assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
   assert.match(home, /product\.category === categoryId/);
   assert.match(home, /HOME_DESKTOP_GROUP_SIZE = 8/);
-  assert.match(home, /home-category-desktop-grid product-group/);
+  assert.match(home, /<HomeProductSlider groups=\{desktopGroups\}/);
+  assert.doesNotMatch(home, /homeProductGroupIndices|changeHomeProductGroup/);
   assert.match(
     home,
     /<a href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}>الكل<\/a>/,

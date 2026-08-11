@@ -11,7 +11,8 @@ test("home uses a wide desktop container with four-by-two product groups without
   assert.match(styles, /\.home-page \.container \{ width:min\(1440px,calc\(100% - 48px\)\); \}/);
   assert.match(styles, /\.product-group \{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);[^}]*gap:20px;/);
   assert.match(home, /chunkProducts\(categoryProducts, HOME_DESKTOP_GROUP_SIZE\)/);
-  assert.match(home, /className="home-category-desktop-grid product-group"/);
+  assert.match(home, /<div className="home-category-desktop-products"><HomeProductSlider groups=\{desktopGroups\}/);
+  assert.match(home, /className={`home-category-products product-grid\$\{groups\.length > 1 \? " has-more" : ""\}`}/);
   assert.match(home, /className="product-group-controls"/);
   assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.home-page \.container \{ width:min\(100% - 28px,1180px\); \}/);
   assert.match(home, /chunkProducts\(categoryProducts, 6\)/);
