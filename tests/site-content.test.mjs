@@ -24,8 +24,8 @@ test("includes favorites and admin safety copy", async () => {
     read("app/admin/admin-dashboard.tsx"),
   ]);
   for (const text of [
-    "لم تقم بإضافة أي منتجات إلى المفضلة بعد",
-    "مسح المفضلة",
+    "لا توجد منتجات في قائمة الرغبات",
+    "مسح قائمة الرغبات",
     "إضافة إلى المفضلة",
     "إزالة من المفضلة",
   ]) assert.match(home, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

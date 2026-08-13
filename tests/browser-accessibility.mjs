@@ -62,17 +62,39 @@ assert.equal(await evaluate("document.activeElement?.id"), "main-content", "skip
 
 assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false, "desktop overflow");
 assert.equal(await evaluate("[...document.querySelectorAll('.product-group[aria-hidden=true]')].every((group) => group.inert)"), true, "inactive slides must be inert");
+assert.equal(await evaluate("Math.abs((document.querySelector('.brand').getBoundingClientRect().left + document.querySelector('.brand').getBoundingClientRect().width / 2) - document.documentElement.clientWidth / 2) < 2"), true, "desktop logo must be centered");
+assert.equal(await evaluate("document.querySelector('.menu-btn').getBoundingClientRect().right > innerWidth / 2 && document.querySelector('.favorite-counter').getBoundingClientRect().left < innerWidth / 2"), true, "RTL header controls must occupy opposite physical sides");
+await navigate("/", 1440, 900);
+assert.equal(await evaluate("Math.abs((document.querySelector('.brand').getBoundingClientRect().left + document.querySelector('.brand').getBoundingClientRect().width / 2) - document.documentElement.clientWidth / 2) < 2"), true, "1440px logo must be centered");
+assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false, "1440px overflow");
+await navigate("/", 1366, 768);
 
 await evaluate("document.querySelector('.favorite-counter').focus()");
 await key(" ", "Space");
+await delay(250);
 assert.equal(await evaluate("document.querySelector('.favorites-panel')?.getAttribute('role')"), "dialog");
-assert.equal(await evaluate("document.activeElement?.getAttribute('aria-label')"), "إغلاق المفضلة");
+assert.equal(await evaluate("Math.abs(document.querySelector('#wishlist-drawer').getBoundingClientRect().left) < 2"), true, "wishlist drawer must open from the left");
+assert.equal(await evaluate("document.activeElement?.getAttribute('aria-label')"), "إغلاق قائمة الرغبات");
 await evaluate("[...document.querySelectorAll('.favorites-panel button:not([disabled]),.favorites-panel a[href]')].at(-1)?.focus()");
 await key("Tab");
-assert.equal(await evaluate("document.activeElement?.getAttribute('aria-label')"), "إغلاق المفضلة", "favorites focus trap");
+assert.equal(await evaluate("document.activeElement?.getAttribute('aria-label')"), "إغلاق قائمة الرغبات", "favorites focus trap");
 await key("Escape");
-assert.equal(await evaluate("Boolean(document.querySelector('.favorites-panel'))"), false);
+assert.equal(await evaluate("document.querySelector('.favorites-panel')?.getAttribute('aria-hidden')"), "true");
 assert.equal(await evaluate("document.activeElement?.classList.contains('favorite-counter')"), true, "favorites focus return");
+
+await evaluate("document.querySelector('.heart').click()");
+await delay(100);
+assert.equal(await evaluate("document.querySelector('.favorite-counter b')?.textContent"), "1", "wishlist badge must reflect real favorites");
+await send("Page.reload");
+await delay(700);
+assert.equal(await evaluate("document.querySelector('.favorite-counter b')?.textContent"), "1", "favorites must persist after reload");
+await evaluate("document.querySelector('.favorite-counter').click()");
+await delay(200);
+assert.equal(await evaluate("document.querySelectorAll('#wishlist-drawer .favorites-list article').length"), 1, "saved product must appear in wishlist drawer");
+await evaluate("document.querySelector('#wishlist-drawer .remove-favorite').click()");
+assert.equal(await evaluate("document.querySelector('.favorite-counter b')"), null, "zero-count badge must be hidden");
+assert.equal(await evaluate("Boolean(document.querySelector('#wishlist-drawer .favorites-empty'))"), true, "removal must restore empty state");
+await key("Escape");
 
 await evaluate("document.querySelector('.quick-view').focus()");
 await key(" ", "Space");
@@ -94,12 +116,21 @@ assert.notEqual(await evaluate("getComputedStyle(document.activeElement).outline
 
 await navigate("/", 390, 844);
 assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false, "mobile overflow");
+assert.equal(await evaluate("Math.abs((document.querySelector('.brand').getBoundingClientRect().left + document.querySelector('.brand').getBoundingClientRect().width / 2) - document.documentElement.clientWidth / 2) < 2"), true, "mobile logo must be centered");
 await evaluate("document.querySelector('.menu-btn').focus()");
 await key(" ", "Space");
 assert.equal(await evaluate("document.querySelector('.menu-btn').getAttribute('aria-expanded')"), "true");
 assert.equal(await evaluate("getComputedStyle(document.querySelector('#site-menu-drawer')).visibility !== 'hidden' && document.querySelector('.menu-overlay').classList.contains('open')"), true);
-await delay(50);
+await delay(300);
+assert.equal(await evaluate("Math.abs(document.querySelector('#site-menu-drawer').getBoundingClientRect().right - innerWidth) < 2"), true, "menu drawer must open from the right");
 assert.equal(await evaluate("document.activeElement?.classList.contains('drawer-close')"), true, "drawer focus entry");
+await evaluate("document.querySelector('.drawer-nav>button:not(.drawer-accordion-trigger)').click()");
+await delay(300);
+assert.equal(await evaluate("document.querySelector('.menu-overlay').classList.contains('wishlist-open') && document.querySelector('#site-menu-drawer').getAttribute('aria-hidden') === 'true' && document.querySelector('#wishlist-drawer').getAttribute('aria-hidden') === 'false'"), true, "drawers must be mutually exclusive");
+await key("Escape");
+assert.equal(await evaluate("document.activeElement?.classList.contains('favorite-counter')"), true, "wishlist focus return after menu switch");
+await evaluate("document.querySelector('.menu-btn').click()");
+await delay(200);
 await key("Escape");
 assert.equal(await evaluate("document.querySelector('.menu-btn').getAttribute('aria-expanded')"), "false");
 assert.equal(await evaluate("document.activeElement?.classList.contains('menu-btn')"), true, "menu focus return");

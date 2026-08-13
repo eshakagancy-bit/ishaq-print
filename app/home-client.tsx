@@ -377,8 +377,9 @@ export default function HomeClient({
   const [selected, setSelected] = useState<Product | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [favoritesReady, setFavoritesReady] = useState(false);
-  const [favoritesOpen, setFavoritesOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeHeaderDrawer, setActiveHeaderDrawer] = useState<"closed" | "menu" | "wishlist">("closed");
+  const menuOpen = activeHeaderDrawer === "menu";
+  const favoritesOpen = activeHeaderDrawer === "wishlist";
   const [importantLinksOpen, setImportantLinksOpen] = useState(false);
   const [headerCompact, setHeaderCompact] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
@@ -521,7 +522,7 @@ export default function HomeClient({
     if (url.searchParams.get("favorites") !== "1") return;
     url.searchParams.delete("favorites");
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    const timer = window.setTimeout(() => setFavoritesOpen(true), 0);
+    const timer = window.setTimeout(() => setActiveHeaderDrawer("wishlist"), 0);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -609,7 +610,7 @@ export default function HomeClient({
     const handleMenuKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setMenuOpen(false);
+        setActiveHeaderDrawer("closed");
         return;
       }
       if (event.key !== "Tab" || !drawer) return;
@@ -626,22 +627,24 @@ export default function HomeClient({
       window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", handleMenuKey);
       document.body.style.overflow = bodyOverflow;
-      window.requestAnimationFrame(() => menuButton?.focus());
+      window.requestAnimationFrame(() => {
+        if (!document.querySelector(".menu-overlay.open")) menuButton?.focus();
+      });
     };
   }, [menuOpen]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!favoritesOpen || selected) return undefined;
     const panel = favoritesPanelRef.current;
     const favoritesButton = favoritesButtonRef.current;
-    const backgroundElements = [...document.querySelectorAll<HTMLElement>("main > :not(.favorites-backdrop)")];
+    const backgroundElements = [...document.querySelectorAll<HTMLElement>("main > :not(.menu-overlay)")];
     const backgroundState = backgroundElements.map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute("aria-hidden") }));
     backgroundElements.forEach((element) => { element.inert = true; element.setAttribute("aria-hidden", "true"); });
     const bodyOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const focusFrame = window.requestAnimationFrame(() => favoritesCloseRef.current?.focus());
+    favoritesCloseRef.current?.focus();
     const handleDialogKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); setFavoritesOpen(false); return; }
+      if (event.key === "Escape") { event.preventDefault(); setActiveHeaderDrawer("closed"); return; }
       if (event.key !== "Tab" || !panel) return;
       const focusable = [...panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')]
         .filter((element) => element.tabIndex >= 0);
@@ -653,7 +656,6 @@ export default function HomeClient({
     };
     document.addEventListener("keydown", handleDialogKey);
     return () => {
-      window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", handleDialogKey);
       document.body.style.overflow = bodyOverflow;
       backgroundState.forEach(({ element, inert, ariaHidden }) => {
@@ -692,13 +694,13 @@ export default function HomeClient({
     setPageView("home");
     setMobileNavSection("home");
     setQuery("");
-    setMenuOpen(false);
+    setActiveHeaderDrawer("closed");
     requestSectionScroll("home");
   };
 
   const openHomeSection = (targetId: string) => {
     setPageView("home");
-    setMenuOpen(false);
+    setActiveHeaderDrawer("closed");
     requestSectionScroll(targetId);
   };
 
@@ -718,8 +720,14 @@ export default function HomeClient({
   };
 
   const openSiteMenu = () => {
-    setMenuOpen(true);
+    setActiveHeaderDrawer("menu");
     window.setTimeout(() => document.querySelector<HTMLElement>("#site-menu-drawer .drawer-close")?.focus(), 150);
+  };
+
+  const openWishlist = () => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setActiveHeaderDrawer("wishlist");
+    window.setTimeout(() => document.querySelector<HTMLElement>("#wishlist-drawer .drawer-close")?.focus(), 150);
   };
 
   const changeHeroSlide = (step: number) => {
@@ -776,50 +784,43 @@ export default function HomeClient({
 
       <header className={headerCompact ? "header compact" : "header"}>
         <div className="container nav-wrap">
+          <button ref={menuButtonRef} className="menu-btn" type="button" onClick={openSiteMenu} aria-label="فتح القائمة" aria-controls="site-menu-drawer" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
           <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>
-          <nav className="nav-links" aria-label="التنقل الرئيسي">
-            <a href="#home" aria-current={pageView === "home" ? "page" : undefined} onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a>
-            <Link href="/categories" onClick={() => setMenuOpen(false)}>الفئات</Link>
-            <Link href="/printers" onClick={() => setMenuOpen(false)}>الطابعات</Link>
-            <Link href="/inks" onClick={() => setMenuOpen(false)}>الأحبار</Link>
-            <Link href="/papers" onClick={() => setMenuOpen(false)}>الأوراق</Link>
-            <a href="#general-search" onClick={(event) => { event.preventDefault(); openHomeSection("general-search"); }}>البحث</a>
-            <a href="#contact" onClick={(event) => { event.preventDefault(); openHomeSection("contact"); }}>تواصل معنا</a>
-          </nav>
-          <div className="nav-actions">
-            <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={() => setFavoritesOpen(true)} aria-label={`فتح المفضلة، ${favorites.length} منتجات`} aria-haspopup="dialog"><DrawerIcon name="heart"/><b>{favorites.length}</b></button>
-            <a className="nav-contact" href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">استشارات ومبيعات</a>
-            <button ref={menuButtonRef} className="menu-btn" type="button" onClick={openSiteMenu} aria-label="فتح القائمة" aria-controls="site-menu-drawer" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
-          </div>
+          <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={openWishlist} aria-label={favorites.length ? `فتح قائمة الرغبات، ${favorites.length} منتجات` : "فتح قائمة الرغبات"} aria-controls="wishlist-drawer" aria-expanded={favoritesOpen} aria-haspopup="dialog"><DrawerIcon name="heart"/>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
         </div>
       </header>
 
-      <div className={menuOpen ? "menu-overlay open" : "menu-overlay"} aria-hidden={!menuOpen} onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
+      <div className={activeHeaderDrawer === "closed" ? "menu-overlay" : `menu-overlay open ${activeHeaderDrawer}-open`} aria-hidden={activeHeaderDrawer === "closed"} onMouseDown={(event) => { if (event.target === event.currentTarget) setActiveHeaderDrawer("closed"); }}>
         <aside ref={menuDrawerRef} id="site-menu-drawer" className="site-menu-drawer" role="dialog" aria-modal={menuOpen ? "true" : undefined} aria-hidden={!menuOpen} inert={!menuOpen} aria-labelledby="site-menu-title">
           <div className="drawer-header">
-            <button ref={menuCloseRef} type="button" className="drawer-close" autoFocus={menuOpen} onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+            <button ref={menuCloseRef} type="button" className="drawer-close" autoFocus={menuOpen} onClick={() => setActiveHeaderDrawer("closed")} aria-label="إغلاق القائمة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
             <a href="#home" className="drawer-brand" onClick={(event) => { event.preventDefault(); openHomeView(); }} aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={176} height={72} sizes="176px" /></a>
           </div>
           <h2 id="site-menu-title" className="drawer-title">القائمة الرئيسية</h2>
           <nav className="drawer-nav" aria-label="قائمة الموقع">
             <a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}><DrawerIcon name="home"/><span>الرئيسية</span></a>
-            <Link href="/categories" onClick={() => setMenuOpen(false)}><DrawerIcon name="grid"/><span>جميع المنتجات</span></Link>
-            <button type="button" onClick={() => { setMenuOpen(false); setFavoritesOpen(true); }}><DrawerIcon name="heart"/><span>قائمة الرغبات</span><b>{favorites.length}</b></button>
+            <Link href="/categories" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="grid"/><span>جميع المنتجات</span></Link>
+            <button type="button" onClick={openWishlist}><DrawerIcon name="heart"/><span>قائمة الرغبات</span>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
             <a href="#general-search" onClick={(event) => { event.preventDefault(); openHomeSection("general-search"); }}><DrawerIcon name="search"/><span>البحث</span></a>
-            <a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}><DrawerIcon name="headset"/><span>استشارات ومبيعات</span></a>
+            <a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="headset"/><span>استشارات ومبيعات</span></a>
             <a href="#contact" onClick={(event) => { event.preventDefault(); openHomeSection("contact"); }}><DrawerIcon name="phone"/><span>تواصل معنا</span></a>
             <button type="button" className="drawer-accordion-trigger" onClick={() => setImportantLinksOpen((current) => !current)} aria-expanded={importantLinksOpen} aria-controls="drawer-important-links"><DrawerIcon name="link"/><span>روابط مهمة</span><svg className="drawer-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>
           </nav>
           <div id="drawer-important-links" className={importantLinksOpen ? "drawer-important-links open" : "drawer-important-links"} hidden={!importantLinksOpen}>
-            <Link href="/printers" onClick={() => setMenuOpen(false)}><DrawerIcon name="printer"/><span>الطابعات</span></Link>
-            <Link href="/inks" onClick={() => setMenuOpen(false)}><DrawerIcon name="ink"/><span>الأحبار</span></Link>
-            <Link href="/papers" onClick={() => setMenuOpen(false)}><DrawerIcon name="paper"/><span>الأوراق</span></Link>
-            <Link href="/categories" onClick={() => setMenuOpen(false)}><DrawerIcon name="grid"/><span>الفئات</span></Link>
+            <Link href="/printers" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="printer"/><span>الطابعات</span></Link>
+            <Link href="/inks" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="ink"/><span>الأحبار</span></Link>
+            <Link href="/papers" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="paper"/><span>الأوراق</span></Link>
+            <Link href="/categories" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="grid"/><span>الفئات</span></Link>
           </div>
           <div className="drawer-contact-area">
             <a href={customerPhoneHref}><DrawerIcon name="phone"/><span><small>خدمة العملاء</small><b dir="ltr">{customerPhoneDisplay}</b></span></a>
             <a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer"><DrawerIcon name="whatsapp"/><span><small>استشارات ومبيعات</small><b dir="ltr">{generalWhatsappDisplay}</b></span></a>
           </div>
+        </aside>
+        <aside ref={favoritesPanelRef} id="wishlist-drawer" className="favorites-panel wishlist-drawer" role="dialog" aria-modal={favoritesOpen ? "true" : undefined} aria-hidden={!favoritesOpen} inert={!favoritesOpen} aria-labelledby="favorites-title">
+          <div className="favorites-header"><div><h2 id="favorites-title">قائمة الرغبات</h2><span>{favorites.length} منتجات</span></div><button ref={favoritesCloseRef} type="button" className="drawer-close" autoFocus={favoritesOpen} onClick={() => setActiveHeaderDrawer("closed")} aria-label="إغلاق قائمة الرغبات"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+          {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={110} height={90} sizes="76px" /><div><b>{getProductDisplayName(product)}</b><span>{product.family}</span><div className="favorite-actions"><Link href={getProductDetailsHref(product)} onClick={() => setActiveHeaderDrawer("closed")}>فتح المنتج</Link><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <div className="favorites-empty"><DrawerIcon name="heart"/><h3>لا توجد منتجات في قائمة الرغبات</h3><p>أضف المنتجات التي تهمك للرجوع إليها لاحقًا.</p><Link href="/categories" onClick={() => setActiveHeaderDrawer("closed")}>تسوق الآن</Link></div>}
+          {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح قائمة الرغبات</button>}
         </aside>
       </div>
 
@@ -963,11 +964,6 @@ export default function HomeClient({
           onClick={() => openMobileSection(section)}
         ><MobileNavIcon section={section} /><span>{label}</span></button>)}
       </nav>
-      {favoritesOpen && <div className="modal-backdrop favorites-backdrop" onMouseDown={() => setFavoritesOpen(false)}><aside ref={favoritesPanelRef} className="favorites-panel" role="dialog" aria-modal="true" aria-labelledby="favorites-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="favorites-header"><div><span>قائمتك المحفوظة</span><h2 id="favorites-title">المفضلة ({favorites.length})</h2></div><button ref={favoritesCloseRef} type="button" onClick={() => setFavoritesOpen(false)} aria-label="إغلاق المفضلة">×</button></div>
-        {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={110} height={90} sizes="76px" /><div><b>{getProductDisplayName(product)}</b><span>{product.family}</span><div className="favorite-actions"><button type="button" onClick={(event) => { setFavoritesOpen(false); openQuickView(product, event.currentTarget); }}>عرض المنتج</button><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <p className="favorites-empty">لم تقم بإضافة أي منتجات إلى المفضلة بعد</p>}
-        {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح المفضلة</button>}
-      </aside></div>}
       {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
     </main>
   );

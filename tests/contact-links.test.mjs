@@ -46,7 +46,8 @@ test("labels every main contact channel without changing its linked role", async
   const home = await readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8");
 
   assert.match(home, /href=\{customerPhoneHref\}[^>]*>خدمة العملاء: \{customerPhoneDisplay\}<\/a>/);
-  assert.match(home, /className="nav-contact" href=\{generalWaLink\(settings\.generalWhatsapp\)\}[^>]*>استشارات ومبيعات<\/a>/);
+  assert.doesNotMatch(home, /className="nav-contact"/);
+  assert.match(home, /href=\{generalWaLink\(settings\.generalWhatsapp\)\}[\s\S]*?<DrawerIcon name="headset"\/><span>استشارات ومبيعات<\/span><\/a>/);
   assert.match(home, /href=\{generalWaLink\(settings\.generalWhatsapp\)\}[^>]*>استشارات ومبيعات: \{generalWhatsappDisplay\}<\/a>/);
   assert.match(home, /href=\{salesPhoneHref\}>هاتف المبيعات: \{settings\.salesPhone\}<\/a>/);
   assert.match(home, /label: "الصيانة 1", phone: "967777103838"/);

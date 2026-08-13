@@ -24,7 +24,7 @@ test("navigation, filters, sliders and favorites expose state to assistive techn
     read("app/category-products-client.tsx"),
   ]);
   assert.match(home, /aria-controls="site-menu-drawer" aria-expanded=\{menuOpen\}/);
-  assert.match(home, /if \(event\.key === "Escape"\)[\s\S]*?setMenuOpen\(false\)/);
+  assert.match(home, /if \(event\.key === "Escape"\)[\s\S]*?setActiveHeaderDrawer\("closed"\)/);
   assert.match(home, /role="dialog" aria-modal=\{menuOpen \? "true" : undefined\} aria-hidden=\{!menuOpen\} inert=\{!menuOpen\}/);
   assert.match(home, /#site-menu-drawer \.drawer-close/);
   assert.match(home, /menuButton\?\.focus\(\)/);
