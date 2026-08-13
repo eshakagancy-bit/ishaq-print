@@ -20,6 +20,22 @@ test("homepage follows the image-led storefront journey", async () => {
   assert.match(styles, /\.hero-slider \{ height:clamp\(520px,42vw,610px\); min-height:520px/);
 });
 
+test("homepage categories are three circular links without legacy card details", async () => {
+  const [home, styles] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css")]);
+  const categoryStart = home.indexOf('<section className="storefront-categories"');
+  const section = home.slice(categoryStart, home.indexOf("</div></section>", categoryStart) + "</div></section>".length);
+
+  assert.equal((section.match(/className="storefront-category-card"/g) ?? []).length, 1, "one mapped category-link template renders the three current categories");
+  assert.match(section, /homeCategoryOrder\.map/);
+  assert.match(section, /href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}/);
+  assert.match(section, /<h3>\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label\}<\/h3>/);
+  assert.doesNotMatch(section, /منتجات|تصفح القسم|تسوق الآن|عرض جميع الفئات|<b>|<i/);
+  assert.match(styles, /\.storefront-category-image \{[^}]*aspect-ratio:1;[^}]*border-radius:50%;/);
+  assert.match(styles, /\.storefront-category-card \{[^}]*display:flex;[^}]*align-items:center;[^}]*cursor:pointer;/);
+  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.storefront-category-grid \{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\); gap:12px; \}/);
+  assert.match(styles, /\.storefront-category-card:focus-visible \{[^}]*outline:/);
+});
+
 test("collections provide real safe sorting and a mobile filter drawer", async () => {
   const [client, styles] = await Promise.all([read("app/category-products-client.tsx"), read("app/globals.css")]);
   assert.match(client, /type SortMode = "default" \| "name-asc" \| "name-desc"/);
