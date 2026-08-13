@@ -9,12 +9,15 @@ test("homepage follows the image-led storefront journey", async () => {
   const hero = home.indexOf('className="hero hero-slider"');
   const categories = home.indexOf('className="storefront-categories"');
   const products = home.indexOf('className="products-section"');
-  assert.ok(hero >= 0 && hero < categories && categories < products);
+  const search = home.indexOf('className="search-panel-wrap"');
+  const trust = home.indexOf('className="feature-band"');
+  assert.ok(hero >= 0 && hero < categories && categories < products && products < search && search < trust);
   assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
   assert.match(home, /className="storefront-category-card"/);
   assert.match(home, /className="product-image-link" href=\{detailsHref\}/);
   assert.doesNotMatch(home.slice(home.indexOf("const renderProductCard"), home.indexOf("return (", home.indexOf("const renderProductCard"))), /cardTags|product\.description/);
   assert.match(styles, /\.storefront-category-grid \{ display:grid; grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(styles, /\.hero-slider \{ height:clamp\(520px,42vw,610px\); min-height:520px/);
 });
 
 test("collections provide real safe sorting and a mobile filter drawer", async () => {

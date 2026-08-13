@@ -805,6 +805,18 @@ export default function HomeClient({
         })}</div>
       </div></section>
 
+      </>}
+
+      {pageView === "home" && <>
+      <section className="products-section" id="products"><div className="container">
+        <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
+          const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
+          if (normalizedQuery && categoryProducts.length === 0) return null;
+          const productGroups = chunkProducts(categoryProducts, homeProductGroupSize).map((group) => group.map(renderProductCard));
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>اكتشف منتجاتنا</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider key={`${categoryId}-${homeProductGroupSize}`} groups={productGroups} groupSize={homeProductGroupSize} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
+        })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
+      </div></section>
+
       <section className="search-panel-wrap"><div className="container search-panel">
         <label className="search-field" id="general-search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => updateProductSearch(event.target.value)} placeholder="ابحث في جميع المنتجات..." aria-label="البحث في المنتجات المعروضة" />{query && <button type="button" className="search-clear" onClick={() => setQuery("")} aria-label="مسح البحث">×</button>}</label>
         <div className="quick-points"><span>✓ أسعار منافسة</span><span>✓ منتجات موثوقة</span><span>✓ دعم فني متخصص</span></div>
@@ -819,17 +831,6 @@ export default function HomeClient({
           })}
         </div>
       </nav>
-      </>}
-
-      {pageView === "home" && <>
-      <section className="products-section" id="products"><div className="container">
-        <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
-          const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
-          if (normalizedQuery && categoryProducts.length === 0) return null;
-          const productGroups = chunkProducts(categoryProducts, homeProductGroupSize).map((group) => group.map(renderProductCard));
-          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>اكتشف منتجاتنا</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider key={`${categoryId}-${homeProductGroupSize}`} groups={productGroups} groupSize={homeProductGroupSize} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
-        })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
-      </div></section>
 
       <section className="feature-band" id="about"><div className="container feature-band-inner">
         <div className="feature-image"><div className="cyan-disc"></div>{featureImageSrc && <Image src={featureImageSrc} alt="صورة البانر الدعائي" width={640} height={640} sizes="(max-width: 760px) 92vw, (max-width: 1200px) 46vw, 540px" loading="lazy" />}</div>

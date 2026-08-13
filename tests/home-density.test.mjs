@@ -5,13 +5,13 @@ import test from "node:test";
 const home = readFileSync(new URL("../app/home-client.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 
-test("home prioritizes category discovery then search before products", () => {
+test("home prioritizes category discovery and products before support controls", () => {
   const hero = home.indexOf('className="hero hero-slider"');
   const categoryCards = home.indexOf('className="storefront-categories"');
   const search = home.indexOf('className="search-panel-wrap"');
   const categories = home.indexOf('className="category-strip home-category-strip');
   const products = home.indexOf('className="products-section"');
-  assert.ok(hero < categoryCards && categoryCards < search && search < categories && categories < products);
+  assert.ok(hero < categoryCards && categoryCards < products && products < search && search < categories);
   assert.match(styles, /@media \(max-width:820px\)[\s\S]*?\.home-category-strip \{[^}]*display:block;[^}]*overflow-x:auto;[^}]*touch-action:pan-x;/);
 });
 
