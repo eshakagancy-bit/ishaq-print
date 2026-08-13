@@ -23,8 +23,11 @@ test("navigation, filters, sliders and favorites expose state to assistive techn
     read("app/home-client.tsx"),
     read("app/category-products-client.tsx"),
   ]);
-  assert.match(home, /aria-controls="mobile-site-menu" aria-expanded=\{menuOpen\}/);
-  assert.match(home, /event\.key !== "Escape"[\s\S]*?setMenuOpen\(false\)[\s\S]*?menuButtonRef\.current\?\.focus\(\)/);
+  assert.match(home, /aria-controls="site-menu-drawer" aria-expanded=\{menuOpen\}/);
+  assert.match(home, /if \(event\.key === "Escape"\)[\s\S]*?setMenuOpen\(false\)/);
+  assert.match(home, /role="dialog" aria-modal=\{menuOpen \? "true" : undefined\} aria-hidden=\{!menuOpen\} inert=\{!menuOpen\}/);
+  assert.match(home, /#site-menu-drawer \.drawer-close/);
+  assert.match(home, /menuButton\?\.focus\(\)/);
   assert.match(home, /role="region" aria-label=\{`سلايدر \$\{label\}`\}/);
   assert.match(home, /inert=\{index !== activeGroup\} aria-hidden=\{index !== activeGroup\}/);
   assert.match(home, /aria-pressed=\{favorites\.includes\(product\.id\)\}/);

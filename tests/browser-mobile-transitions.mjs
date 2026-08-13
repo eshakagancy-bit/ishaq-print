@@ -337,15 +337,15 @@ await page.send("Page.bringToFront");
 
 await page.navigate();
 const menuBefore = await page.tap(".menu-btn");
-await page.waitFor('document.querySelector(".menu-btn").getAttribute("aria-expanded") === "true" && document.querySelector(".nav-links").classList.contains("open")');
+await page.waitFor('document.querySelector(".menu-btn").getAttribute("aria-expanded") === "true" && document.querySelector(".menu-overlay").classList.contains("open")');
 const menuOpen = await page.evaluate(`({
   expanded: document.querySelector(".menu-btn").getAttribute("aria-expanded"),
-  visible: getComputedStyle(document.querySelector(".nav-links")).display !== "none",
+  visible: document.querySelector(".site-menu-drawer").getBoundingClientRect().right === innerWidth,
   timeOrigin: performance.timeOrigin
 })`);
 assert.equal(menuOpen.timeOrigin, menuBefore.timeOrigin);
-await page.tap(".menu-btn");
-await page.waitFor('document.querySelector(".menu-btn").getAttribute("aria-expanded") === "false" && !document.querySelector(".nav-links").classList.contains("open")');
+await page.tap(".drawer-close");
+await page.waitFor('document.querySelector(".menu-btn").getAttribute("aria-expanded") === "false" && !document.querySelector(".menu-overlay").classList.contains("open")');
 record("header-menu", { opened: menuOpen.visible, closed: true, reloaded: false });
 
 await page.navigate();

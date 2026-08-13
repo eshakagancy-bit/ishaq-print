@@ -15,6 +15,7 @@ test("header compacts only when the scroll threshold changes", () => {
 
 test("desktop and mobile header sizes transition without hiding controls", () => {
   assert.match(styles, /\.nav-wrap \{ height:84px;[^}]*transition:height \.22s ease;/);
+  assert.match(styles, /\.nav-wrap \{ height:76px; \}/);
   assert.match(styles, /\.header\.compact \.nav-wrap \{ height:64px; \}/);
   assert.match(styles, /\.header\.compact \.brand \{ width:166px; height:56px; \}/);
   assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.header\.compact \.nav-wrap \{ height:58px; \}[^\n]*\.header\.compact \.brand \{ width:124px; height:48px; \}/);
@@ -23,8 +24,8 @@ test("desktop and mobile header sizes transition without hiding controls", () =>
   assert.match(home, /className="nav-contact"/);
 });
 
-test("compact mobile menu follows the shorter header", () => {
-  assert.match(styles, /\.header\.compact \.nav-links \{ top:58px; \}/);
-  assert.match(styles, /\.nav-links\.open \{ display:grid;/);
+test("menu uses a viewport drawer independently from compact header height", () => {
+  assert.match(styles, /\.site-menu-drawer \{[^}]*width:min\(400px,90vw\);[^}]*height:100dvh;/);
+  assert.match(styles, /\.menu-overlay\.open \.site-menu-drawer \{ transform:translateX\(0\); \}/);
   assert.match(home, /aria-expanded=\{menuOpen\}/);
 });

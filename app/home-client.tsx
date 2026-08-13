@@ -2,7 +2,7 @@
 
 import Image, { getImageProps } from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { normalizeMediaUrl } from "../lib/media-url";
 import { isOpenInAden } from "./business-hours";
 import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
@@ -77,6 +77,24 @@ type HomeClientProps = {
 
 type MobileNavSection = "home" | "categories" | "search" | "contact";
 type PageView = "home" | "categories";
+type DrawerIconName = "home" | "grid" | "heart" | "search" | "headset" | "phone" | "link" | "printer" | "ink" | "paper" | "whatsapp";
+
+function DrawerIcon({ name }: { name: DrawerIconName }) {
+  const paths: Record<DrawerIconName, ReactNode> = {
+    home: <><path d="M3 10.8 12 3l9 7.8"/><path d="M5.5 9.8V21h13V9.8M9.5 21v-6h5v6"/></>,
+    grid: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
+    heart: <path d="M20.8 4.7a5.3 5.3 0 0 0-7.5 0L12 6l-1.3-1.3a5.3 5.3 0 0 0-7.5 7.5L12 21l8.8-8.8a5.3 5.3 0 0 0 0-7.5Z"/>,
+    search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
+    headset: <><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M4 14h3v6H5a2 2 0 0 1-2-2v-2a2 2 0 0 1 1-2Zm16 0h-3v6h2a2 2 0 0 0 2-2v-2a2 2 0 0 0-1-2Z"/><path d="M17 20c-1 1-2.7 1.5-5 1.5"/></>,
+    phone: <path d="M7.2 3.5 10 8 7.9 10a14.4 14.4 0 0 0 6.1 6.1l2-2.1 4.5 2.8-.6 3a2 2 0 0 1-2 1.7C9.4 21.5 2.5 14.6 2.5 6a2 2 0 0 1 1.7-2l3-.5Z"/>,
+    link: <><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></>,
+    printer: <><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/><path d="M18 12h.01"/></>,
+    ink: <><path d="M9 3h6v4H9zM8 7h8l2 4v10H6V11l2-4Z"/><path d="M9 14h6"/></>,
+    paper: <><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></>,
+    whatsapp: <><path d="M20.5 11.7a8.5 8.5 0 0 1-12.6 7.5L3 20.5l1.3-4.7A8.5 8.5 0 1 1 20.5 11.7Z"/><path d="M8.2 7.8c.4-.4.8-.2 1 .2l.9 2c.1.3 0 .6-.3.9l-.7.6c.7 1.5 1.8 2.6 3.4 3.4l.6-.8c.2-.3.6-.4.9-.2l1.9.9c.4.2.6.6.3 1-.5.8-1.4 1.3-2.3 1.2-3.8-.5-7-3.5-7.5-7.4-.1-.8.8-1.4 1.8-1.8Z"/></>,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
 
 function HomeProductSlider({ groups, label, groupSize }: { groups: ReactNode[][]; label: string; groupSize: number }) {
   const sliderRef = useRef<HTMLDivElement | null>(null);
@@ -361,6 +379,7 @@ export default function HomeClient({
   const [favoritesReady, setFavoritesReady] = useState(false);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [importantLinksOpen, setImportantLinksOpen] = useState(false);
   const [headerCompact, setHeaderCompact] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
   const [scrollRequest, setScrollRequest] = useState<{ targetId: string; sequence: number } | null>(null);
@@ -373,6 +392,8 @@ export default function HomeClient({
   const mobileHomeSlider = useMobileHomeSlider();
   const categoryStripRef = useRef<HTMLElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const menuDrawerRef = useRef<HTMLElement | null>(null);
+  const menuCloseRef = useRef<HTMLButtonElement | null>(null);
   const favoritesButtonRef = useRef<HTMLButtonElement | null>(null);
   const favoritesPanelRef = useRef<HTMLElement | null>(null);
   const favoritesCloseRef = useRef<HTMLButtonElement | null>(null);
@@ -578,16 +599,35 @@ export default function HomeClient({
     };
   }, [scrollRequest]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!menuOpen) return undefined;
-    const closeMenu = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setMenuOpen(false);
-      menuButtonRef.current?.focus();
+    const drawer = menuDrawerRef.current ?? document.getElementById("site-menu-drawer");
+    const menuButton = menuButtonRef.current;
+    const bodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => drawer?.querySelector<HTMLElement>(".drawer-close")?.focus(), 0);
+    const handleMenuKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMenuOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !drawer) return;
+      const focusable = [...drawer.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => element.tabIndex >= 0);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !drawer.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !drawer.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
     };
-    document.addEventListener("keydown", closeMenu);
-    return () => document.removeEventListener("keydown", closeMenu);
+    document.addEventListener("keydown", handleMenuKey);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleMenuKey);
+      document.body.style.overflow = bodyOverflow;
+      window.requestAnimationFrame(() => menuButton?.focus());
+    };
   }, [menuOpen]);
 
   useEffect(() => {
@@ -677,6 +717,11 @@ export default function HomeClient({
     if (value) requestSectionScroll("products");
   };
 
+  const openSiteMenu = () => {
+    setMenuOpen(true);
+    window.setTimeout(() => document.querySelector<HTMLElement>("#site-menu-drawer .drawer-close")?.focus(), 150);
+  };
+
   const changeHeroSlide = (step: number) => {
     if (!heroSlides.length) return;
     showHeroSlide(activeHeroSlideRef.current + step);
@@ -732,7 +777,7 @@ export default function HomeClient({
       <header className={headerCompact ? "header compact" : "header"}>
         <div className="container nav-wrap">
           <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>
-          <nav id="mobile-site-menu" className={menuOpen ? "nav-links open" : "nav-links"} aria-label="التنقل الرئيسي">
+          <nav className="nav-links" aria-label="التنقل الرئيسي">
             <a href="#home" aria-current={pageView === "home" ? "page" : undefined} onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a>
             <Link href="/categories" onClick={() => setMenuOpen(false)}>الفئات</Link>
             <Link href="/printers" onClick={() => setMenuOpen(false)}>الطابعات</Link>
@@ -742,12 +787,41 @@ export default function HomeClient({
             <a href="#contact" onClick={(event) => { event.preventDefault(); openHomeSection("contact"); }}>تواصل معنا</a>
           </nav>
           <div className="nav-actions">
-            <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={() => setFavoritesOpen(true)} aria-label={`فتح المفضلة، ${favorites.length} منتجات`} aria-haspopup="dialog"><span>♡</span><b>{favorites.length}</b></button>
+            <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={() => setFavoritesOpen(true)} aria-label={`فتح المفضلة، ${favorites.length} منتجات`} aria-haspopup="dialog"><DrawerIcon name="heart"/><b>{favorites.length}</b></button>
             <a className="nav-contact" href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">استشارات ومبيعات</a>
-            <button ref={menuButtonRef} className="menu-btn" type="button" onClick={() => setMenuOpen((current) => !current)} aria-label={menuOpen ? "إغلاق القائمة" : "فتح القائمة"} aria-controls="mobile-site-menu" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
+            <button ref={menuButtonRef} className="menu-btn" type="button" onClick={openSiteMenu} aria-label="فتح القائمة" aria-controls="site-menu-drawer" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
           </div>
         </div>
       </header>
+
+      <div className={menuOpen ? "menu-overlay open" : "menu-overlay"} aria-hidden={!menuOpen} onMouseDown={(event) => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
+        <aside ref={menuDrawerRef} id="site-menu-drawer" className="site-menu-drawer" role="dialog" aria-modal={menuOpen ? "true" : undefined} aria-hidden={!menuOpen} inert={!menuOpen} aria-labelledby="site-menu-title">
+          <div className="drawer-header">
+            <button ref={menuCloseRef} type="button" className="drawer-close" autoFocus={menuOpen} onClick={() => setMenuOpen(false)} aria-label="إغلاق القائمة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+            <a href="#home" className="drawer-brand" onClick={(event) => { event.preventDefault(); openHomeView(); }} aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={176} height={72} sizes="176px" /></a>
+          </div>
+          <h2 id="site-menu-title" className="drawer-title">القائمة الرئيسية</h2>
+          <nav className="drawer-nav" aria-label="قائمة الموقع">
+            <a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}><DrawerIcon name="home"/><span>الرئيسية</span></a>
+            <Link href="/categories" onClick={() => setMenuOpen(false)}><DrawerIcon name="grid"/><span>جميع المنتجات</span></Link>
+            <button type="button" onClick={() => { setMenuOpen(false); setFavoritesOpen(true); }}><DrawerIcon name="heart"/><span>قائمة الرغبات</span><b>{favorites.length}</b></button>
+            <a href="#general-search" onClick={(event) => { event.preventDefault(); openHomeSection("general-search"); }}><DrawerIcon name="search"/><span>البحث</span></a>
+            <a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)}><DrawerIcon name="headset"/><span>استشارات ومبيعات</span></a>
+            <a href="#contact" onClick={(event) => { event.preventDefault(); openHomeSection("contact"); }}><DrawerIcon name="phone"/><span>تواصل معنا</span></a>
+            <button type="button" className="drawer-accordion-trigger" onClick={() => setImportantLinksOpen((current) => !current)} aria-expanded={importantLinksOpen} aria-controls="drawer-important-links"><DrawerIcon name="link"/><span>روابط مهمة</span><svg className="drawer-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>
+          </nav>
+          <div id="drawer-important-links" className={importantLinksOpen ? "drawer-important-links open" : "drawer-important-links"} hidden={!importantLinksOpen}>
+            <Link href="/printers" onClick={() => setMenuOpen(false)}><DrawerIcon name="printer"/><span>الطابعات</span></Link>
+            <Link href="/inks" onClick={() => setMenuOpen(false)}><DrawerIcon name="ink"/><span>الأحبار</span></Link>
+            <Link href="/papers" onClick={() => setMenuOpen(false)}><DrawerIcon name="paper"/><span>الأوراق</span></Link>
+            <Link href="/categories" onClick={() => setMenuOpen(false)}><DrawerIcon name="grid"/><span>الفئات</span></Link>
+          </div>
+          <div className="drawer-contact-area">
+            <a href={customerPhoneHref}><DrawerIcon name="phone"/><span><small>خدمة العملاء</small><b dir="ltr">{customerPhoneDisplay}</b></span></a>
+            <a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer"><DrawerIcon name="whatsapp"/><span><small>استشارات ومبيعات</small><b dir="ltr">{generalWhatsappDisplay}</b></span></a>
+          </div>
+        </aside>
+      </div>
 
       {pageView === "home" && <>
       <section

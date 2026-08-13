@@ -97,7 +97,9 @@ assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth")
 await evaluate("document.querySelector('.menu-btn').focus()");
 await key(" ", "Space");
 assert.equal(await evaluate("document.querySelector('.menu-btn').getAttribute('aria-expanded')"), "true");
-assert.equal(await evaluate("getComputedStyle(document.querySelector('#mobile-site-menu')).display !== 'none'"), true);
+assert.equal(await evaluate("getComputedStyle(document.querySelector('#site-menu-drawer')).visibility !== 'hidden' && document.querySelector('.menu-overlay').classList.contains('open')"), true);
+await delay(50);
+assert.equal(await evaluate("document.activeElement?.classList.contains('drawer-close')"), true, "drawer focus entry");
 await key("Escape");
 assert.equal(await evaluate("document.querySelector('.menu-btn').getAttribute('aria-expanded')"), "false");
 assert.equal(await evaluate("document.activeElement?.classList.contains('menu-btn')"), true, "menu focus return");
