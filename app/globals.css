@@ -958,6 +958,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .product-modal-shell { width:min(980px,100%); border-radius:14px; }
 .product-modal { grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr); }
 .modal-image { min-height:560px; background:#fff; border-left:1px solid var(--store-line); }
+.modal-image img[data-nimg] { background:transparent; }
 .modal-content { padding:44px 42px; } .modal-content h2 { font-size:clamp(25px,3vw,34px); }
 .modal-price { padding-block:16px; border-block:1px solid var(--store-line); }
 .modal-specs { grid-template-columns:1fr; gap:0; } .modal-specs>div { border:0; border-bottom:1px solid var(--store-line); border-radius:0; background:#fff; }

@@ -13,3 +13,8 @@ test("all public product cards place one unified subtle quick-details action ove
   assert.match(styles, /\.product-image \.quick-view,[^\n]*\.category-product-image \.quick-view \{ position:absolute/);
   assert.match(styles, /\.quick-view:focus-visible/);
 });
+
+test("storefront quick view does not paint placeholder bands around loaded images", async () => {
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(styles, /\.modal-image img\[data-nimg\] \{ background:transparent; \}/);
+});
