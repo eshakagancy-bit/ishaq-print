@@ -31,7 +31,10 @@ test("homepage product tiles use factual category lines instead of price and com
   assert.match(card, /className="product-category-line"/);
   assert.match(home, /HOME_PRINTER_LABELS\[product\.printerCategory\]/);
   assert.match(await read("app/printer-categories.ts"), /LQ \(طابعات الفواتير والسندات\)/);
-  assert.match(home, /return product\.type/);
+  assert.match(home, /product\.inkSpecifications\?\.inkType\?\.trim\(\) \|\| product\.type/);
+  assert.match(home, /product\.paperSpecifications\?\.paperType\?\.trim\(\) \|\| product\.type/);
+  assert.match(home, /product\.inkSpecifications\?\.brand\?\.trim\(\) \|\| product\.family/);
+  assert.match(home, /product\.paperSpecifications\?\.brand\?\.trim\(\) \|\| product\.family/);
   assert.doesNotMatch(card, /productPriceLabel|className="price"|className="product-footer"|اعرف السعر والتوفر/);
   assert.match(styles, /\.product-card-link \{ position:absolute; z-index:2; inset:0;/);
   assert.match(styles, /\.product-category-line \{[^}]*color:var\(--store-cyan-dark\)/);

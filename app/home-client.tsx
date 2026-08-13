@@ -301,7 +301,15 @@ function getHomeProductCategoryLine(product: Product) {
   if (product.category === "printers" && product.printerCategory) {
     return HOME_PRINTER_LABELS[product.printerCategory] ?? product.type;
   }
+  if (product.category === "inks") return product.inkSpecifications?.inkType?.trim() || product.type;
+  if (product.category === "papers") return product.paperSpecifications?.paperType?.trim() || product.type;
   return product.type;
+}
+
+function getHomeProductBrandLine(product: Product) {
+  if (product.category === "inks") return product.inkSpecifications?.brand?.trim() || product.family;
+  if (product.category === "papers") return product.paperSpecifications?.brand?.trim() || product.family;
+  return product.family;
 }
 
 const categoryContacts: Record<CategoryId, string> = {
@@ -773,10 +781,11 @@ export default function HomeClient({
   const renderProductCard = (product: Product) => {
     const detailsHref = getProductDetailsHref(product);
     const categoryLine = getHomeProductCategoryLine(product);
+    const brandLine = getHomeProductBrandLine(product);
     return <article className="product-card" data-category={product.category} data-product-id={product.id} key={product.id}>
       <Link className="product-card-link" href={detailsHref} aria-label={`عرض صفحة ${getProductDisplayName(product)}`} />
       <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button><div className="product-image-link">{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} variant="home-static" /> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</div><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${getProductDisplayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
-      <div className="product-body">{product.family && <span className="product-family">{product.family}</span>}<h3>{getProductDisplayName(product)}</h3>{categoryLine && <span className="product-category-line" dir="auto">{categoryLine}</span>}</div>
+      <div className="product-body">{brandLine && <span className="product-family" dir="auto">{brandLine}</span>}<h3>{getProductDisplayName(product)}</h3>{categoryLine && <span className="product-category-line" dir="auto">{categoryLine}</span>}</div>
     </article>;
   };
 

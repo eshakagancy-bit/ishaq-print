@@ -115,7 +115,7 @@ test("customer card stays concise and quick view renders only prepared specifica
   const card = home.slice(cardStart, cardEnd);
   assert.match(card, /product\.image/);
   assert.match(card, /product\.badge/);
-  assert.match(card, /product\.family/);
+  assert.match(card, /brandLine/);
   assert.match(card, /getProductDisplayName\(product\)/);
   assert.doesNotMatch(card, /product\.description/);
   assert.doesNotMatch(card, /cardTags/);
