@@ -3,11 +3,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSiteData } from "../../../lib/site-database";
-import { buildPaperSpecificationRows } from "../../paper-specifications";
+import { buildPaperSpecificationRows, getPaperAvailabilityLabel } from "../../paper-specifications";
 import ProductGallery from "../../product-gallery";
 import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
 import { getPaperSlug } from "../product-slug";
 import { isPublicCategoryEnabled } from "../../public-categories";
+import { publicMetadata } from "../../seo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,9 +28,15 @@ function whatsappLink(product: StoredProduct) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { product } = await getPaperData((await params).slug);
+  const { slug } = await params;
+  const { product } = await getPaperData(slug);
   const title = product?.paperSpecifications?.nameEn?.trim() || product?.name;
-  return product ? { title: `${title} | مجموعة إسحاق العالمية`, description: product.description } : {};
+  return product ? publicMetadata({
+    title: `${title} | وكالة إسحاق العالمية`,
+    description: product.description || `تفاصيل ومواصفات ${title}`,
+    path: `/papers/${slug}`,
+    image: product.images?.[0] || product.image || undefined,
+  }) : {};
 }
 
 export default async function PaperDetailsPage({ params }: PageProps) {
@@ -52,12 +59,13 @@ export default async function PaperDetailsPage({ params }: PageProps) {
   const images = product.images?.length
     ? product.images
     : product.paperSpecifications?.images?.length ? product.paperSpecifications.images : [product.image || "/brand/eshak-logo.png"];
+  const availabilityLabel = getPaperAvailabilityLabel(product);
 
-  return <main className="printer-details-page">
-    <header className="printer-details-header"><div className="container"><Link href="/#products" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} priority /></Link></div></header>
+  return <main id="main-content" tabIndex={-1} className="printer-details-page">
+    <header className="printer-details-header"><div className="container"><Link href="/#products" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>←</span><Link href="/#products">الأوراق</Link><span>←</span><b>{title}</b></nav>
-      <div className="printer-hero-grid"><ProductGallery images={images} alt={title} /><div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأوراق</span><h1 dir="ltr">{title}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اطلب من المختص</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">WhatsApp</a><Link className="printer-page-back" href="/#products">العودة إلى قسم الأوراق</Link></div></div></div>
+      <div className="printer-hero-grid"><ProductGallery images={images} alt={title} /><div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}{availabilityLabel && <span className="product-availability" data-availability>{availabilityLabel}</span>}<span className="product-family">الأوراق</span><h1 dir="ltr">{title}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}{rows.length > 0 && <dl className="printer-key-info">{rows.filter((row) => row.key !== "availability").slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اطلب من المختص</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">WhatsApp</a><Link className="printer-page-back" href="/#products">العودة إلى قسم الأوراق</Link></div></div></div>
     </div></section>
     <div className="container printer-sections">
       <nav className="product-section-nav" aria-label="أقسام تفاصيل المنتج">{(content?.detailedDescription || product.description) && <a href="#description">الوصف</a>}{rows.length > 0 && <a href="#specifications">المواصفات</a>}{features.length > 0 && <a href="#features">المميزات</a>}{uses.length > 0 && <a href="#uses">الاستخدامات</a>}{content?.whyChooseThisProduct && <a href="#why-product">لماذا هذا المنتج؟</a>}{content?.faq.some((item) => item.question) && <a href="#faq">الأسئلة الشائعة</a>}</nav>

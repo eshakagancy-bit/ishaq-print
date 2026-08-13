@@ -34,6 +34,11 @@ export function detectImageMimeType(bytes: Uint8Array): SupportedImageMimeType |
 }
 
 export async function fileHasMatchingImageSignature(file: File) {
+  return Boolean(await verifiedImageMimeType(file));
+}
+
+export async function verifiedImageMimeType(file: File): Promise<SupportedImageMimeType | null> {
   const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-  return detectImageMimeType(signature) === file.type.toLowerCase();
+  const detected = detectImageMimeType(signature);
+  return detected && detected === file.type.toLowerCase() ? detected : null;
 }

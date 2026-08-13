@@ -35,12 +35,12 @@ export default function ProductGallery({ images, alt }: ProductGalleryProps) {
           onClick={() => setActiveImage(image)}
           aria-label={`عرض صورة المنتج ${index + 1}`}
           key={image}
-        ><Image src={image} alt="" width={96} height={76} sizes="76px" /></button>)}
+        ><Image src={image} alt="" width={96} height={76} sizes="76px" loading="lazy" /></button>)}
       </div>}
       {lightboxOpen && <div className="product-lightbox" role="dialog" aria-modal="true" aria-label={`صورة مكبرة لـ ${alt}`} onMouseDown={() => setLightboxOpen(false)}>
         <button type="button" className="product-lightbox-close" onClick={() => setLightboxOpen(false)} aria-label="إغلاق الصورة المكبرة">×</button>
         <div className="product-lightbox-image" onMouseDown={(event) => event.stopPropagation()}>
-          <Image src={activeImage} alt={alt} width={1200} height={960} sizes="95vw" priority />
+          <Image src={activeImage} alt={alt} width={1200} height={960} sizes="95vw" loading="eager" />
         </div>
       </div>}
     </div>

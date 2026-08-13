@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
+import { getSecurityHeaders } from "./app/security-headers";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: getSecurityHeaders() }];
+  },
   images: {
     unoptimized: true,
     localPatterns: [

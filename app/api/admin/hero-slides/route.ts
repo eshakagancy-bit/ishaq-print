@@ -16,10 +16,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
-    const slide = await createHeroSlide(normalizeHeroSlideInput(await request.json()));
+    const slide = await createHeroSlide(normalizeHeroSlideInput(await request.json(), "create"));
     return Response.json({ ok: true, slide }, { status: 201 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "تعذر إضافة الشريحة" }, { status: 400 });

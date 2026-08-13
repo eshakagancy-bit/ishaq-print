@@ -38,7 +38,7 @@ test("reuses the existing upload lifecycle without touching product records", as
   assert.match(admin, /uploadImage\(event, value, \(url\) => updateCategoryImage\(key, url\), "general"\)/);
   assert.match(admin, /removeImage\(value, \(\) => updateCategoryImage\(key, ""\)\)/);
   assert.match(admin, /\.\.\.Object\.values\(nextSettings\.categoryImages\)/);
-  assert.match(uploadRoute, /uploadImage\(file, requestedFolder\)/);
+  assert.match(uploadRoute, /uploadImage\(file, requestedFolder, verifiedMimeType\)/);
   assert.doesNotMatch(home, /categories-view|categoryVisuals|allProductsVisual/);
   assert.doesNotMatch(admin.match(/const updateCategoryImage[\s\S]+?\n  };/)?.[0] ?? "", /setProducts|productForm/);
 });

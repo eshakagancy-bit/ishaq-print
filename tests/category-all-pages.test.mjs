@@ -25,14 +25,19 @@ test("category index cards stay vertical and preserve their independent actions"
   assert.doesNotMatch(client, /product-grid|product-group/);
   assert.match(client, /onClick=\{\(\) => toggleFavorite\(product\.id\)\}/);
   assert.match(client, /onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}>تفاصيل سريعة/);
-  assert.match(client, /اطلب من المختص/);
+  assert.match(client, /<div className="category-product-actions"><a href=\{whatsappLink\(product\)\} target="_blank" rel="noreferrer">اعرف السعر والتوفر<\/a><\/div>/);
   assert.doesNotMatch(client, /فتح صفحة التفاصيل/);
   assert.match(home, /homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);
-  assert.match(home, /<div className="home-category-mobile-products"><HomeProductSlider groups=\{mobileGroups\}/);
+  assert.match(home, /<HomeProductSlider key=\{`\$\{categoryId\}-\$\{homeProductGroupSize\}`\} groups=\{productGroups\} groupSize=\{homeProductGroupSize\}/);
   assert.match(home, /function HomeProductSlider/);
   assert.match(home, /const sliderRef = useRef<HTMLDivElement \| null>\(null\)/);
   assert.match(home, /const \[activeGroup, setActiveGroup\] = useState\(0\)/);
+  assert.match(home, /useSyncExternalStore\([\s\S]*?subscribeToHomeSliderViewport[\s\S]*?getHomeSliderViewportSnapshot[\s\S]*?getHomeSliderServerSnapshot/);
+  assert.match(home, /addEventListener\("change", onStoreChange\)/);
+  assert.match(home, /removeEventListener\("change", onStoreChange\)/);
+  assert.match(home, /window\.addEventListener\("resize", onStoreChange\)/);
+  assert.match(home, /window\.removeEventListener\("resize", onStoreChange\)/);
   assert.match(styles, /\.home-category-sections \{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(styles, /\.home-category-section \{ min-width:0; \}/);
   assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
@@ -57,13 +62,16 @@ test("the public home renders only three independent category rows without the l
   assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
   assert.match(home, /product\.category === categoryId/);
   assert.match(home, /HOME_DESKTOP_GROUP_SIZE = 8/);
-  assert.match(home, /<HomeProductSlider groups=\{desktopGroups\}/);
+  assert.match(home, /HOME_MOBILE_GROUP_SIZE = 6/);
+  assert.match(home, /data-product-id=\{product\.id\}/);
+  assert.match(home, /data-product-group-size=\{groupSize\}/);
+  assert.doesNotMatch(home, /home-category-(?:desktop|mobile)-products|desktopGroups|mobileGroups/);
   assert.doesNotMatch(home, /homeProductGroupIndices|changeHomeProductGroup/);
   assert.match(
     home,
     /<a href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}>الكل<\/a>/,
   );
-  assert.doesNotMatch(home, /categories-view|أقسامنا التجارية|PRINTER_CATEGORIES|productGroups|openPrinterFilter/);
+  assert.doesNotMatch(home, /categories-view|أقسامنا التجارية|PRINTER_CATEGORIES|openPrinterFilter/);
   assert.doesNotMatch(home, /سيتم إضافة منتجات|قريبًا/);
   assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
   assert.match(styles, /\.home-page \.container \{ width:min\(1440px,calc\(100% - 48px\)\); \}/);

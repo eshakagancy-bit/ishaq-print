@@ -1,6 +1,12 @@
 export const DEFAULT_SUPABASE_STORAGE_BUCKET = "site-media";
 export const MEDIA_PROXY_PATH_PREFIX = "/api/media/";
 
+const optimizedLocalMedia: Readonly<Record<string, string>> = {
+  "/hero/technology-solutions.png": "/hero/technology-solutions.webp",
+  "/products/wf-c5390.png": "/products/wf-c5390.webp",
+  "/products/wf-c879r.png": "/products/wf-c879r.webp",
+};
+
 const controlOrSeparator = /[\/\\\u0000-\u001f\u007f]/;
 
 function hasUnsafePathValue(value: string) {
@@ -116,6 +122,7 @@ export function supabasePublicMediaStoragePath(
 }
 
 export function normalizeMediaUrl(value: string, bucket = DEFAULT_SUPABASE_STORAGE_BUCKET) {
+  if (optimizedLocalMedia[value]) return optimizedLocalMedia[value];
   const storagePath = supabasePublicMediaStoragePath(value, bucket);
   return storagePath ? mediaUrlFromStoragePath(storagePath) : value;
 }

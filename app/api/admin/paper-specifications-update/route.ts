@@ -20,10 +20,11 @@ export async function GET() {
   }
 }
 
-export async function POST() {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+export async function POST(request: Request) {
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
+    if ((await request.text()).trim()) return Response.json({ error: "هذا الطلب لا يقبل بيانات" }, { status: 400 });
     return Response.json(await applyPaperSpecificationsUpdate());
   } catch (error) {
     return Response.json(

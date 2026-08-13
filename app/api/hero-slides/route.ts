@@ -8,11 +8,11 @@ export async function GET() {
   try {
     const data = await getHeroData(true);
     return Response.json(data, { headers: { "cache-control": "no-store" } });
-  } catch (error) {
+  } catch {
     return Response.json({
       slides: defaultHeroSlides,
       settings: defaultHeroSettings,
-      error: error instanceof Error ? error.message : "تعذر تحميل شرائح البانر",
+      error: "تعذر تحميل شرائح البانر",
     }, { headers: { "cache-control": "no-store" } });
   }
 }

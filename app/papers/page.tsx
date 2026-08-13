@@ -3,6 +3,13 @@ import { getSiteData } from "../../lib/site-database";
 import CategoryProductsClient from "../category-products-client";
 import { isPublicCategoryEnabled } from "../public-categories";
 import { starterProducts } from "../site-defaults";
+import { publicMetadata } from "../seo";
+
+export const metadata = publicMetadata({
+  title: "الأوراق | وكالة إسحاق العالمية",
+  description: "تصفح الأوراق المتخصصة المتاحة لدى وكالة إسحاق العالمية لمختلف احتياجات الطباعة.",
+  path: "/papers",
+});
 
 export const dynamic = "force-dynamic";
 export default async function PapersPage() {

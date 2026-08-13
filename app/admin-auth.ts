@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
+import { ADMIN_SESSION_MAX_AGE_SECONDS, createSignedAdminSessionToken, validateAdminSessionToken } from "./admin-session";
 
 export const ADMIN_COOKIE = "eshak_admin_session";
 export const ADMIN_UNAUTHORIZED_MESSAGE = "غير مصرح لك بتنفيذ هذه العملية";
+export { ADMIN_SESSION_MAX_AGE_SECONDS };
 
 function localAuthDisabled() {
   return process.env.NODE_ENV !== "production"
@@ -25,20 +27,6 @@ function constantTimeEqual(left: string, right: string) {
   return difference === 0;
 }
 
-async function sessionToken(password: string) {
-  const secret = configuredSessionSecret();
-  if (!secret) return "";
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`eshak-admin:${password}`));
-  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 export async function passwordIsValid(candidate: string) {
   const password = configuredPassword();
   if (!password || password.length < 8) return false;
@@ -51,16 +39,31 @@ export async function isAdminSession() {
   if (!password) return false;
   const cookieStore = await cookies();
   const actual = cookieStore.get(ADMIN_COOKIE)?.value ?? "";
-  const expected = await sessionToken(password);
-  return Boolean(actual && expected && constantTimeEqual(actual, expected));
+  return validateAdminSessionToken(actual, configuredSessionSecret());
 }
 
-export async function createAdminSessionToken() {
+export async function createAdminSessionToken(now = Date.now()) {
   const password = configuredPassword();
   if (!password) throw new Error("ADMIN_PASSWORD is not configured");
-  return sessionToken(password);
+  return createSignedAdminSessionToken(configuredSessionSecret(), now);
 }
 
-export async function requireAdminApi() {
+export function hasTrustedAdminOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  try {
+    const originUrl = new URL(origin);
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const host = forwardedHost || request.headers.get("host") || new URL(request.url).host;
+    const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+    const protocol = forwardedProtocol || new URL(request.url).protocol.replace(":", "");
+    return originUrl.host === host && originUrl.protocol === `${protocol}:`;
+  } catch {
+    return false;
+  }
+}
+
+export async function requireAdminApi(request?: Request) {
+  if (request && !hasTrustedAdminOrigin(request)) return false;
   return isAdminSession();
 }

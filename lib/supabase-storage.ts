@@ -5,6 +5,8 @@ import {
   mediaUrlFromStoragePath,
   supabasePublicMediaStoragePath,
 } from "./media-url";
+import type { SupportedImageMimeType } from "./image-file-validation";
+import { imageStoragePath } from "./image-storage-path";
 
 const defaultBucket = "site-media";
 
@@ -39,19 +41,17 @@ function getStorageContext(): StorageContext {
   };
 }
 
-export async function uploadImage(file: File, folder: string) {
+export async function uploadImage(file: File, folder: string, verifiedMimeType: SupportedImageMimeType) {
   const { bucket } = getStorageContext();
   const client = getSupabaseAdmin();
-  const safeFolder = folder.replace(/[^a-z0-9-]/gi, "").slice(0, 40) || "general";
-  const extension = file.type.split("/")[1]?.replace("jpeg", "jpg") || "bin";
-  const path = `${safeFolder}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const path = imageStoragePath(folder, verifiedMimeType);
 
   const { error } = await client.storage.from(bucket).upload(path, await file.arrayBuffer(), {
     cacheControl: "31536000",
-    contentType: file.type,
+    contentType: verifiedMimeType,
     upsert: false,
   });
-  if (error) throw new Error(`تعذر رفع الصورة إلى Supabase: ${error.message}`);
+  if (error) throw new Error("تعذر رفع الصورة إلى مساحة التخزين");
 
   return { path, url: mediaUrlFromStoragePath(path) };
 }
@@ -73,6 +73,6 @@ export async function deleteImageByPublicUrl(publicUrl: string) {
   if (!path) return false;
 
   const { error } = await client.storage.from(bucket).remove([path]);
-  if (error) throw new Error(`تعذر حذف الصورة من Supabase: ${error.message}`);
+  if (error) throw new Error("تعذر حذف الصورة من مساحة التخزين");
   return true;
 }

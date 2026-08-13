@@ -15,13 +15,14 @@ test("printers, inks and papers share one quick-view modal with category-specifi
   assert.match(home, /`\/printers\/\$\{getPrinterSlug\(selected\)\}`/);
   assert.match(home, /`\/inks\/\$\{getInkSlug\(selected\)\}`/);
   assert.match(home, /`\/papers\/\$\{getPaperSlug\(selected\)\}`/);
-  assert.match(modal, /rows\.length > 0/);
-  assert.match(modal, /<InkImageCarousel images=\{images\.length \? images : \[""\]\}/);
+  assert.match(modal, /const summaryRows = rows\.slice\(0, 5\)/);
+  assert.match(modal, /summaryRows\.length > 0/);
+  assert.match(modal, /<InkImageCarousel images=\{availableImages\}/);
   assert.match(modal, /event\.key === "Escape"/);
   assert.match(modal, /className="modal-backdrop" onMouseDown=\{onClose\}/);
 });
 
-test("ink quick view includes every populated structured field", async () => {
+test("ink specification builder keeps every populated field for full details", async () => {
   const specifications = await read("app/ink-specifications.ts");
   for (const key of ["brand", "ink-type", "color-count", "capacities", "compatible-printers", "features", "uses"]) {
     assert.match(specifications, new RegExp(`key: "${key}"`));

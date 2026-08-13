@@ -18,7 +18,7 @@ test("the categories route renders only centrally enabled category cards", async
   assert.match(page, /data\.settings\.categoryImages\[category\]/);
   assert.match(page, /products\[0\]\?\.images\?\.\[0\]/);
   assert.match(page, /className="categories-index-card" data-category=\{item\.category\} href=\{item\.href\}/);
-  assert.match(page, /title: "الفئات \| وكالة إسحاق"/);
+  assert.match(page, /title: "الفئات \| وكالة إسحاق العالمية"/);
   assert.doesNotMatch(page, /CategoryProductsClient|category-products-list|visibleProducts\.map/);
   assert.match(home, /<Link href="\/categories" onClick=\{\(\) => setMenuOpen\(false\)\}>الفئات<\/Link>/);
   assert.match(home, /section === "categories" \? <Link key=\{section\} href="\/categories">/);

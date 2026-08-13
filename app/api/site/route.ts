@@ -11,6 +11,8 @@ import {
 import { normalizePaperSpecifications } from "../../paper-specifications";
 import { getInkProductNameError, normalizeInkSpecifications } from "../../ink-specifications";
 import { normalizePrinterPageContent } from "../../printer-page-content";
+import { validationResponse } from "../admin-validation";
+import { validateDeletePayload, validateProductPayload, validateSettingsPayload } from "./validation";
 import {
   defaultSiteSettings,
   categoryImageDefinitions,
@@ -149,29 +151,31 @@ export async function GET() {
       settings: normalizeSettings(data.settings),
       products: data.products,
     }, { headers: { "cache-control": "no-store" } });
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "تعذر تحميل بيانات الموقع" }, { status: 500 });
+  } catch {
+    return Response.json({ error: "تعذر تحميل بيانات الموقع" }, { status: 500 });
   }
 }
 
 export async function PUT(request: Request) {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
-    const payload = await request.json() as { settings?: unknown };
+    const payload = validateSettingsPayload(await request.json());
     const settings = normalizeSettings(payload.settings);
     const savedSettings = await saveSiteSettings(settings);
     return Response.json({ ok: true, settings: savedSettings });
   } catch (error) {
+    const invalid = validationResponse(error);
+    if (invalid) return invalid;
     return Response.json({ error: error instanceof Error ? error.message : "تعذر حفظ التعديلات" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
-    const payload = await request.json() as { product?: unknown };
+    const payload = validateProductPayload(await request.json());
     const product = normalizeProduct(payload.product, 0);
     if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
     if (product.category === "inks") {
@@ -181,15 +185,17 @@ export async function POST(request: Request) {
     const savedProduct = await createProduct(product);
     return Response.json({ ok: true, product: savedProduct }, { status: 201 });
   } catch (error) {
+    const invalid = validationResponse(error);
+    if (invalid) return invalid;
     return Response.json({ error: error instanceof Error ? error.message : "تعذر إضافة المنتج" }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
-    const payload = await request.json() as { product?: unknown };
+    const payload = validateProductPayload(await request.json());
     const product = normalizeProduct(payload.product, 0);
     if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
     if (product.category === "inks") {
@@ -199,22 +205,23 @@ export async function PATCH(request: Request) {
     const savedProduct = await updateProduct(product);
     return Response.json({ ok: true, product: savedProduct });
   } catch (error) {
+    const invalid = validationResponse(error);
+    if (invalid) return invalid;
     return Response.json({ error: error instanceof Error ? error.message : "تعذر حفظ المنتج" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: Request) {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
-    const payload = await request.json() as { id?: unknown };
-    const id = Number(payload.id);
-    if (!Number.isSafeInteger(id) || id <= 0) {
-      return Response.json({ error: "معرّف المنتج غير صالح" }, { status: 400 });
-    }
+    const payload = validateDeletePayload(await request.json());
+    const id = payload.id as number;
     const deletedProduct = await removeProduct(id);
     return Response.json({ ok: true, product: deletedProduct });
   } catch (error) {
+    const invalid = validationResponse(error);
+    if (invalid) return invalid;
     return Response.json({ error: error instanceof Error ? error.message : "تعذر حذف المنتج" }, { status: 500 });
   }
 }

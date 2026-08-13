@@ -334,6 +334,9 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const confirmAdminNavigation = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     if (hasUnsavedChanges && !window.confirm(UNSAVED_CHANGES_MESSAGE)) event.preventDefault();
   };
+  const confirmAdminLogout = (event: FormEvent<HTMLFormElement>) => {
+    if (hasUnsavedChanges && !window.confirm(UNSAVED_CHANGES_MESSAGE)) event.preventDefault();
+  };
 
   const queueMediaRemoval = (url: string) => {
     const normalizedUrl = normalizeMediaUrl(url);
@@ -762,8 +765,8 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     }
   };
 
-  return <main dir="rtl" className="real-admin-page">
-    <header className="real-admin-header"><div><span>لوحة إدارة الموقع</span><h1>إدارة موقع وكالة إسحاق العالمية</h1><p>مرحبًا، {userName}</p></div><div className="real-admin-header-actions"><Link href="/" onClick={confirmAdminNavigation}>عرض الموقع</Link><a href={signOutPath} onClick={confirmAdminNavigation}>تسجيل الخروج</a></div></header>
+  return <main id="main-content" tabIndex={-1} dir="rtl" className="real-admin-page">
+    <header className="real-admin-header"><div><span>لوحة إدارة الموقع</span><h1>إدارة موقع وكالة إسحاق العالمية</h1><p>مرحبًا، {userName}</p></div><div className="real-admin-header-actions"><Link href="/" onClick={confirmAdminNavigation}>عرض الموقع</Link><form action={signOutPath} method="post" onSubmit={confirmAdminLogout}><button type="submit">تسجيل الخروج</button></form></div></header>
     <div className="real-admin-toolbar"><nav aria-label="أقسام لوحة التحكم">
       <button className={activeTab === "page" ? "active" : ""} onClick={() => setActiveTab("page")}>بيانات الصفحة</button>
       <button className={activeTab === "ads" ? "active" : ""} onClick={() => setActiveTab("ads")}>الإعلانات والصور</button>

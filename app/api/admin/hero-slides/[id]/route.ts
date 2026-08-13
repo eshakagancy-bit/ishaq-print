@@ -12,11 +12,12 @@ function parseId(value: string) {
 }
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const { id: idParam } = await context.params;
-    const slide = await updateHeroSlide(parseId(idParam), normalizeHeroSlideInput(await request.json()));
+    const id = parseId(idParam);
+    const slide = await updateHeroSlide(id, normalizeHeroSlideInput(await request.json(), id));
     if (!slide) return Response.json({ error: "الشريحة غير موجودة" }, { status: 404 });
     return Response.json({ ok: true, slide });
   } catch (error) {
@@ -24,8 +25,8 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   }
 }
 
-export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  if (!await requireAdminApi()) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
     const { id: idParam } = await context.params;

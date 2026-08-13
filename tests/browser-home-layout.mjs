@@ -49,10 +49,10 @@ async function inspectViewport(width, height) {
   const metrics = await evaluate(`(() => {
     const container = document.querySelector('.products-section>.container').getBoundingClientRect();
     const search = document.querySelector('.search-panel').getBoundingClientRect();
-    const desktop = document.querySelector('.home-category-desktop-grid');
-    const mobile = document.querySelector('.home-category-mobile-products');
-    const activeGrid = innerWidth <= 760 ? mobile.querySelector('.product-group') : desktop;
-    const cards = [...activeGrid.querySelectorAll('.product-card')].map((card) => card.getBoundingClientRect());
+    const slider = document.querySelector('.home-category-section .product-grid');
+    const activeGroup = slider.querySelector('.product-group');
+    const cards = [...activeGroup.querySelectorAll('.product-card')].map((card) => card.getBoundingClientRect());
+    const productIds = [...document.querySelectorAll('.home-category-section .product-card')].map((card) => card.dataset.productId);
     const uniqueRows = [...new Set(cards.map((card) => Math.round(card.top)))];
     const uniqueColumns = [...new Set(cards.map((card) => Math.round(card.left)))];
     return {
@@ -64,9 +64,12 @@ async function inspectViewport(width, height) {
       cardWidth: Math.round(cards[0]?.width || 0),
       rows: uniqueRows.length,
       columns: uniqueColumns.length,
-      desktopVisible: getComputedStyle(desktop.parentElement).display !== 'none',
-      mobileVisible: getComputedStyle(mobile).display !== 'none',
-      mobileSnap: getComputedStyle(mobile).scrollSnapType,
+      productCardCount: productIds.length,
+      uniqueProductCount: new Set(productIds).size,
+      duplicateResponsiveWrappers: document.querySelectorAll('.home-category-desktop-products,.home-category-mobile-products').length,
+      configuredGroupSize: Number(slider.dataset.productGroupSize),
+      groupSizes: [...slider.querySelectorAll(':scope > .product-group')].map((group) => group.querySelectorAll(':scope > .product-card').length),
+      mobileSnap: getComputedStyle(slider).scrollSnapType,
       documentOverflow: document.documentElement.scrollWidth > innerWidth,
     };
   })()`);
@@ -77,18 +80,20 @@ async function inspectViewport(width, height) {
   }
   assert.equal(metrics.documentOverflow, false, `${width}: horizontal document overflow`);
   assert.equal(metrics.searchAligned, true, `${width}: search and products are not aligned`);
+  assert.equal(metrics.productCardCount, metrics.uniqueProductCount, `${width}: product cards must appear once in the DOM`);
+  assert.equal(metrics.duplicateResponsiveWrappers, 0, `${width}: legacy responsive slider copies must not exist`);
   if (width > 760) {
     assert.equal(metrics.containerWidth, Math.min(metrics.layoutViewport - 48, 1440));
     assert.equal(metrics.columns, 4);
     assert.ok(metrics.rows <= 2);
-    assert.equal(metrics.desktopVisible, true);
-    assert.equal(metrics.mobileVisible, false);
+    assert.equal(metrics.configuredGroupSize, 8);
+    assert.ok(metrics.groupSizes.every((count) => count <= 8));
   } else {
     assert.equal(metrics.containerWidth, metrics.layoutViewport - 28);
     assert.equal(metrics.columns, 3);
     assert.ok(metrics.rows <= 2);
-    assert.equal(metrics.desktopVisible, false);
-    assert.equal(metrics.mobileVisible, true);
+    assert.equal(metrics.configuredGroupSize, 6);
+    assert.ok(metrics.groupSizes.every((count) => count <= 6));
     assert.match(metrics.mobileSnap, /x/);
   }
   assert.deepEqual(consoleErrors, []);

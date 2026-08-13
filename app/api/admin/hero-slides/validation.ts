@@ -1,5 +1,13 @@
-import { defaultHeroSettings, type HeroSettings } from "../../../site-defaults";
+import type { HeroSettings } from "../../../site-defaults";
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "../../../../lib/media-url";
+import {
+  AdminValidationError,
+  optionalString,
+  requiredString,
+  safeWebOrLocalUrl,
+  strictBoolean,
+  strictObject,
+} from "../../admin-validation";
 
 export type HeroSlideInput = {
   title: string;
@@ -16,83 +24,78 @@ export type HeroSlideInput = {
   isActive: boolean;
 };
 
-function text(value: unknown, max: number) {
-  return String(value ?? "").trim().slice(0, max);
+const slideKeys = ["id", "title", "subtitle", "description", "badgeText", "badge_text", "imageUrl", "image_url", "imageAlt", "image_alt", "primaryButtonText", "primary_button_text", "primaryButtonUrl", "primary_button_url", "secondaryButtonText", "secondary_button_text", "secondaryButtonUrl", "secondary_button_url", "displayOrder", "display_order", "isActive", "is_active"];
+const settingsKeys = ["autoplayEnabled", "autoplayDelay", "autoplayDelaySeconds", "showArrows", "showDots", "pauseOnHover"];
+
+function aliased(input: Record<string, unknown>, camel: string, snake: string) {
+  if (input[camel] !== undefined && input[snake] !== undefined) throw new AdminValidationError(`لا ترسل الحقلين ${camel} و${snake} معًا`);
+  return input[camel] ?? input[snake];
 }
 
-function booleanValue(value: unknown, fallback: boolean) {
-  if (typeof value === "boolean") return value;
-  if (value === "true" || value === 1 || value === "1") return true;
-  if (value === "false" || value === 0 || value === "0") return false;
-  return fallback;
+function validHeroLink(value: string, label: string) {
+  if (!value || value === "whatsapp" || value.startsWith("#")) return;
+  safeWebOrLocalUrl(value, label, 1000);
 }
 
-function validLink(value: string) {
-  if (!value) return true;
-  if (value === "whatsapp") return true;
-  if (value.startsWith("#") || value.startsWith("/")) return true;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
+export function normalizeHeroSlideInput(value: unknown, expectedId?: number | "create"): HeroSlideInput {
+  const input = strictObject(value, slideKeys, "بيانات الشريحة");
+  if (input.id !== undefined) {
+    if (!Number.isSafeInteger(input.id) || Number(input.id) < 0) throw new AdminValidationError("معرّف الشريحة غير صالح");
+    if (expectedId === "create" && input.id !== 0) throw new AdminValidationError("لا يمكن تعيين معرّف شريحة جديدة");
+    if (typeof expectedId === "number" && input.id !== expectedId) throw new AdminValidationError("معرّف الشريحة لا يطابق المسار");
   }
-}
 
-function validImage(value: string) {
-  if (!value) return false;
-  if (value.startsWith("/")) return true;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
-}
+  const title = requiredString(input.title, "عنوان الشريحة", 180);
+  const description = requiredString(input.description, "وصف الشريحة", 900);
+  const imageUrlValue = aliased(input, "imageUrl", "image_url");
+  const imageUrl = requiredString(imageUrlValue, "صورة الشريحة", 1000);
+  safeWebOrLocalUrl(imageUrl, "صورة الشريحة", 1000, false);
 
-export function normalizeHeroSlideInput(value: unknown): HeroSlideInput {
-  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const slide = {
-    title: text(input.title, 180),
-    subtitle: text(input.subtitle, 120),
-    description: text(input.description, 900),
-    badgeText: text(input.badgeText ?? input.badge_text, 120),
-    imageUrl: normalizeMediaUrl(
-      text(input.imageUrl ?? input.image_url, 1000),
-      process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
-    ),
-    imageAlt: text(input.imageAlt ?? input.image_alt, 220),
-    primaryButtonText: text(input.primaryButtonText ?? input.primary_button_text, 120),
-    primaryButtonUrl: text(input.primaryButtonUrl ?? input.primary_button_url, 1000),
-    secondaryButtonText: text(input.secondaryButtonText ?? input.secondary_button_text, 120),
-    secondaryButtonUrl: text(input.secondaryButtonUrl ?? input.secondary_button_url, 1000),
-    displayOrder: Number.isFinite(Number(input.displayOrder ?? input.display_order)) ? Math.trunc(Number(input.displayOrder ?? input.display_order)) : 0,
-    isActive: booleanValue(input.isActive ?? input.is_active, true),
+  const stringFields = [
+    ["subtitle", "subtitle", 120], ["badgeText", "badge_text", 120], ["imageAlt", "image_alt", 220],
+    ["primaryButtonText", "primary_button_text", 120], ["primaryButtonUrl", "primary_button_url", 1000],
+    ["secondaryButtonText", "secondary_button_text", 120], ["secondaryButtonUrl", "secondary_button_url", 1000],
+  ] as const;
+  const strings = Object.fromEntries(stringFields.map(([camel, snake, max]) => {
+    const field = aliased(input, camel, snake);
+    optionalString(field, camel, max);
+    return [camel, typeof field === "string" ? field.trim() : ""];
+  })) as Record<string, string>;
+  validHeroLink(strings.primaryButtonUrl, "رابط الزر الأول");
+  validHeroLink(strings.secondaryButtonUrl, "رابط الزر الثاني");
+
+  const displayOrder = aliased(input, "displayOrder", "display_order");
+  if (!Number.isSafeInteger(displayOrder) || Number(displayOrder) < 0) throw new AdminValidationError("ترتيب الشريحة غير صالح");
+  const isActive = aliased(input, "isActive", "is_active");
+  strictBoolean(isActive, "حالة الشريحة");
+
+  return {
+    title,
+    subtitle: strings.subtitle,
+    description,
+    badgeText: strings.badgeText,
+    imageUrl: normalizeMediaUrl(imageUrl, process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET),
+    imageAlt: strings.imageAlt,
+    primaryButtonText: strings.primaryButtonText,
+    primaryButtonUrl: strings.primaryButtonUrl,
+    secondaryButtonText: strings.secondaryButtonText,
+    secondaryButtonUrl: strings.secondaryButtonUrl,
+    displayOrder: displayOrder as number,
+    isActive: isActive as boolean,
   };
-
-  if (!slide.title) throw new Error("عنوان الشريحة مطلوب");
-  if (!slide.description) throw new Error("وصف الشريحة مطلوب");
-  if (!validImage(slide.imageUrl)) throw new Error("رابط الصورة غير صالح");
-  if (!validLink(slide.primaryButtonUrl)) throw new Error("رابط الزر الأول غير صالح");
-  if (!validLink(slide.secondaryButtonUrl)) throw new Error("رابط الزر الثاني غير صالح");
-
-  return slide;
 }
 
 export function normalizeHeroSettingsInput(value: unknown): HeroSettings {
-  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const delaySeconds = Number(input.autoplayDelaySeconds);
-  const delay = Number.isFinite(Number(input.autoplayDelay))
-    ? Number(input.autoplayDelay)
-    : Number.isFinite(delaySeconds)
-      ? delaySeconds * 1000
-      : defaultHeroSettings.autoplayDelay;
-
+  const input = strictObject(value, settingsKeys, "إعدادات البانر");
+  ["autoplayEnabled", "showArrows", "showDots", "pauseOnHover"].forEach((key) => strictBoolean(input[key], key));
+  if (input.autoplayDelay !== undefined && input.autoplayDelaySeconds !== undefined) throw new AdminValidationError("استخدم وحدة واحدة فقط لمدة التشغيل التلقائي");
+  const delay = input.autoplayDelay !== undefined ? input.autoplayDelay : Number(input.autoplayDelaySeconds) * 1000;
+  if (typeof delay !== "number" || !Number.isSafeInteger(delay) || delay < 1000 || delay > 30000) throw new AdminValidationError("مدة التشغيل التلقائي غير صالحة");
   return {
-    autoplayEnabled: booleanValue(input.autoplayEnabled, defaultHeroSettings.autoplayEnabled),
-    autoplayDelay: Math.min(30000, Math.max(1000, Math.trunc(delay))),
-    showArrows: booleanValue(input.showArrows, defaultHeroSettings.showArrows),
-    showDots: booleanValue(input.showDots, defaultHeroSettings.showDots),
-    pauseOnHover: booleanValue(input.pauseOnHover, defaultHeroSettings.pauseOnHover),
+    autoplayEnabled: input.autoplayEnabled as boolean,
+    autoplayDelay: delay,
+    showArrows: input.showArrows as boolean,
+    showDots: input.showDots as boolean,
+    pauseOnHover: input.pauseOnHover as boolean,
   };
 }

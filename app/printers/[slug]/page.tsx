@@ -9,6 +9,7 @@ import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../
 import { getPrinterSlug } from "../product-slug";
 import ProductGallery from "../../product-gallery";
 import { isPublicCategoryEnabled } from "../../public-categories";
+import { publicMetadata } from "../../seo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,10 +49,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const { product } = await getPrinter(slug);
   if (!product) return {};
-  return {
-    title: `${product.name} | مجموعة إسحاق العالمية`,
+  return publicMetadata({
+    title: `${product.name} | وكالة إسحاق العالمية`,
     description: product.description || `تفاصيل ومواصفات ${product.name}`,
-  };
+    path: `/printers/${slug}`,
+    image: product.image || undefined,
+  });
 }
 
 export default async function PrinterDetailsPage({ params }: PageProps) {
@@ -71,12 +74,12 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
   const showPurchaseBenefits = Boolean(purchaseBenefits.title || purchaseBenefits.description || visiblePurchaseBenefitItems.length);
 
   return (
-    <main className="printer-details-page">
+    <main id="main-content" tabIndex={-1} className="printer-details-page">
       <header className="printer-details-header">
         <div className="container">
           <Link href="/#products" className="printer-back-link">العودة إلى الطابعات</Link>
           <Link href="/" aria-label="الصفحة الرئيسية">
-            <Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} priority />
+            <Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" />
           </Link>
         </div>
       </header>
@@ -92,7 +95,6 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
             <h1>{product.name}</h1>
             {product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}
             <div className="printer-meta">
-              <span><small>حالة التوفر</small><b>تُؤكّد عند الطلب</b></span>
               {getPrinterCategoryLabel(product.printerCategory) && <span><small>الفئة</small><b>{getPrinterCategoryLabel(product.printerCategory)}</b></span>}
             </div>
             {keyInformation.length > 0 && <dl className="printer-key-info">{keyInformation.map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}

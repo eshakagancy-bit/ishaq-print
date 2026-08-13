@@ -22,9 +22,19 @@ test("printer filters use the stored taxonomy only on the vertical printers page
     "LQ (طابعات المستندات والفواتير)",
   ]) assert.match(client, new RegExp(label.replace(/[()]/g, "\\$&")));
   assert.match(client, /printerFilterLabels\[item\.value\]/);
+  assert.match(client, /Boolean\(trimmedQuery\) && hasActivePrinterFilter && visibleProducts\.length === 0/);
+  assert.match(client, /لا توجد نتائج لـ «\$\{trimmedQuery\}» ضمن فلتر \$\{printerFilterLabels\[printerFilter\]\}/);
+  assert.match(client, /onClick=\{clearPrinterFilters\}>مسح الفلاتر/);
+  assert.match(client, /const clearPrinterFilters = \(\) => setPrinterFilter\(ALL_PRINTERS_FILTER\.value\)/);
+  assert.match(client, /onClick=\{showAllProducts\}>عرض كل المنتجات/);
+  assert.match(client, /const showAllProducts = \(\) => \{\s*setPrinterFilter\(ALL_PRINTERS_FILTER\.value\);\s*setQuery\(""\);\s*\}/);
+  assert.match(client, /filteredSearchHasNoResults \? [\s\S]* : <div className="empty-state"><b>\{query \? "لا توجد نتائج مطابقة"/);
   assert.match(client, /لا توجد طابعات في هذا التصنيف حاليًا/);
   assert.match(categories, /value: "workforce"[\s\S]*value: "ecotank"[\s\S]*value: "ecotank-6-color"[\s\S]*value: "lq"/);
-  assert.match(styles, /\.printer-category-filters \{[^}]*max-width:100%;[^}]*display:flex;[^}]*overflow-x:auto;/);
+  assert.match(styles, /\.printer-category-filters \{[^}]*width:100%;[^}]*max-width:100%;[^}]*min-width:0;[^}]*display:flex;[^}]*flex-wrap:wrap;[^}]*overflow-x:visible;/);
+  assert.match(styles, /\.printer-category-filters button span,\.printer-category-filters button small \{[^}]*flex:0 0 auto;[^}]*white-space:nowrap;/);
+  assert.match(styles, /@media \(max-width:1000px\)[\s\S]*?\.printer-category-filters \{[^}]*flex-wrap:nowrap;[^}]*overflow-x:auto;[^}]*overscroll-behavior-inline:contain;[^}]*touch-action:pan-x;[^}]*-webkit-overflow-scrolling:touch;/);
+  assert.match(styles, /\.printer-category-filters button\.active \{[^}]*background:var\(--navy\);[^}]*color:#fff;/);
   assert.match(styles, /\.category-products-list \{ display:flex; flex-direction:column;/);
   assert.doesNotMatch(home, /printer-category-filters/);
 });

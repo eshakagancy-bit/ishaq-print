@@ -8,6 +8,7 @@ import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../
 import { getInkSlug } from "../product-slug";
 import ProductGallery from "../../product-gallery";
 import { isPublicCategoryEnabled } from "../../public-categories";
+import { publicMetadata } from "../../seo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +28,14 @@ function whatsappLink(product: StoredProduct) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const product = await getInk((await params).slug);
-  return product ? { title: `${product.name} | وكالة إسحاق العالمية`, description: product.description } : {};
+  const { slug } = await params;
+  const product = await getInk(slug);
+  return product ? publicMetadata({
+    title: `${product.name} | وكالة إسحاق العالمية`,
+    description: product.description || `تفاصيل ومواصفات ${product.name}`,
+    path: `/inks/${slug}`,
+    image: product.images?.[0] || product.image || undefined,
+  }) : {};
 }
 
 export default async function InkDetailsPage({ params }: PageProps) {
@@ -37,8 +44,8 @@ export default async function InkDetailsPage({ params }: PageProps) {
   const rows = buildInkSpecificationRows(product);
   const specifications = product.inkSpecifications;
 
-  return <main className="printer-details-page">
-    <header className="printer-details-header"><div className="container"><Link href="/#products" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} priority /></Link></div></header>
+  return <main id="main-content" tabIndex={-1} className="printer-details-page">
+    <header className="printer-details-header"><div className="container"><Link href="/#products" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>←</span><Link href="/#products">الأحبار</Link><span>←</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">

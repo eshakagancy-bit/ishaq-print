@@ -168,6 +168,11 @@ const availabilityLabels: Record<Exclude<PaperAvailability, null>, string> = {
   onRequest: "حسب الطلب",
 };
 
+export function getPaperAvailabilityLabel(product: PaperDisplayInput) {
+  const availability = product.paperSpecifications?.availability;
+  return availability ? availabilityLabels[availability] : null;
+}
+
 export function getPaperCardSpecificationTags(product: PaperDisplayInput) {
   const specifications = product.paperSpecifications;
   if (!specifications) {

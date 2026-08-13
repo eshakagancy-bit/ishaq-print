@@ -123,8 +123,8 @@ test("customer card stays concise and quick view renders only prepared specifica
   assert.equal(card.includes("product.features.map"), false);
   assert.match(home, /rows=\{selectedSpecificationRows\}/);
   assert.match(quickView, /product-modal-shell/);
-  assert.match(quickView, /price\?\.trim\(\) && <div className="modal-price"/);
-  assert.match(home, /"اطلب عرض سعر عبر واتساب"/);
+  assert.match(quickView, /productPriceLabel\(price\)/);
+  assert.match(home, /whatsappLabel="اعرف السعر والتوفر"/);
   assert.match(quickView, /badge\?\.trim\(\)/);
   assert.match(quickView, /aria-labelledby=\{titleId\}/);
   assert.match(quickView, /element\.inert = true/);
