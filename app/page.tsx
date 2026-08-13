@@ -1,4 +1,5 @@
 import { getHeroData, getHomeData } from "../lib/site-database";
+import { applyDefaultHeroCategoriesCta } from "./hero-cta";
 import HomeClient from "./home-client";
 import { isPublicCategoryEnabled, isPublicCategoryUrl } from "./public-categories";
 import {
@@ -24,7 +25,7 @@ export default async function Home() {
   ]);
   const publicHeroSlides = heroData.slides.filter((slide) =>
     isPublicCategoryUrl(slide.primaryButtonUrl) && isPublicCategoryUrl(slide.secondaryButtonUrl)
-  );
+  ).map((slide) => applyDefaultHeroCategoriesCta(slide, defaultHeroSlides));
   const fallbackHeroSlides = defaultHeroSlides.filter((slide) =>
     isPublicCategoryUrl(slide.primaryButtonUrl) && isPublicCategoryUrl(slide.secondaryButtonUrl)
   );
