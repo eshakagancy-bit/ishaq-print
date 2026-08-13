@@ -16,7 +16,7 @@ test("paper availability is the only commercial availability source", async () =
   ]);
   assert.match(paperSpecifications, /export function getPaperAvailabilityLabel/);
   assert.match(paperSpecifications, /availability \? availabilityLabels\[availability\] : null/);
-  assert.match(home, /product\.category === "papers" \? getPaperAvailabilityLabel\(product\) : null/);
+  assert.match(home, /selected\.category === "papers" \? getPaperAvailabilityLabel\(selected\) : null/);
   assert.match(category, /category === "papers" && getPaperAvailabilityLabel\(product\)/);
   assert.match(quickView, /availabilityLabel\?\.trim\(\)/);
   assert.match(paperDetails, /getPaperAvailabilityLabel\(product\)/);
@@ -32,6 +32,8 @@ test("existing badges remain data-driven and no unsupported claims are generated
   ]);
   for (const source of [home, category, quickView]) assert.match(source, /product\.badge|badge\?\.trim/);
   assert.doesNotMatch(`${home}\n${category}\n${quickView}`, /bestseller|isNew|featured\s*\?|warranty/);
-  assert.match(home, />اعرف السعر والتوفر</);
+  const cardStart = home.indexOf("const renderProductCard");
+  const card = home.slice(cardStart, home.indexOf("return (", cardStart));
+  assert.doesNotMatch(card, />اعرف السعر والتوفر</);
   assert.match(category, />اعرف السعر والتوفر</);
 });

@@ -60,8 +60,8 @@ test("the public home renders only three independent category rows without the l
   ]);
   assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
   assert.match(home, /product\.category === categoryId/);
-  assert.match(home, /HOME_DESKTOP_GROUP_SIZE = 8/);
-  assert.match(home, /HOME_MOBILE_GROUP_SIZE = 6/);
+  assert.match(home, /HOME_DESKTOP_GROUP_SIZE = 10/);
+  assert.match(home, /HOME_MOBILE_GROUP_SIZE = 2/);
   assert.match(home, /data-product-id=\{product\.id\}/);
   assert.match(home, /data-product-group-size=\{groupSize\}/);
   assert.doesNotMatch(home, /home-category-(?:desktop|mobile)-products|desktopGroups|mobileGroups/);
@@ -74,8 +74,8 @@ test("the public home renders only three independent category rows without the l
   assert.doesNotMatch(home, /سيتم إضافة منتجات|قريبًا/);
   assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
   assert.match(styles, /\.home-page \.container,[^\n]*\.printer-details-page \.container \{ width:min\(1280px,calc\(100% - 48px\)\); \}/);
-  assert.match(styles, /\.product-group \{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
-  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.product-group \{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
+  assert.match(styles, /\.product-group \{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
+  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.product-group \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);[^}]*grid-template-rows:1fr;/);
   assert.match(styles, /scroll-snap-align:start/);
 });
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("every public product list card has one unified commercial CTA", async () => {
+test("collection cards keep one commercial CTA while homepage tiles stay lightweight", async () => {
   const [home, categoryClient] = await Promise.all([
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/category-products-client.tsx", import.meta.url), "utf8"),
@@ -11,9 +11,10 @@ test("every public product list card has one unified commercial CTA", async () =
   const homeCard = home.match(/<div className="product-body">[\s\S]*?<\/article>/)?.[0] ?? "";
   const categoryCard = categoryClient.match(/<article className="category-product-row"[\s\S]*?<\/article>/)?.[0] ?? "";
 
-  assert.match(homeCard, /<div className="product-footer">[\s\S]*?<a href=\{specialistWaLink\(product\.category, product\)\}[^>]*>اعرف السعر والتوفر<\/a><\/div>/);
+  assert.doesNotMatch(homeCard, /product-footer|اعرف السعر والتوفر|target="_blank"/);
+  assert.match(homeCard, /product-category-line/);
   assert.match(categoryCard, /<div className="category-product-actions"><a href=\{whatsappLink\(product\)\}[^>]*>اعرف السعر والتوفر<\/a><\/div>/);
-  assert.equal((homeCard.match(/target="_blank"/g) ?? []).length, 1);
+  assert.equal((homeCard.match(/target="_blank"/g) ?? []).length, 0);
   assert.equal((categoryCard.match(/target="_blank"/g) ?? []).length, 1);
   assert.doesNotMatch(homeCard, />اطلب من المختص<\/a>/);
   assert.doesNotMatch(categoryCard, />اطلب من المختص<\/a>/);

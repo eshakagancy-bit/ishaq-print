@@ -25,6 +25,13 @@ export const ALL_PRINTERS_FILTER = {
 export type PrinterCategory = typeof PRINTER_CATEGORIES[number]["value"];
 export type PrinterCategoryFilter = typeof ALL_PRINTERS_FILTER["value"] | PrinterCategory;
 
+export const HOME_PRINTER_LABELS: Record<PrinterCategory, string> = {
+  workforce: "WorkForce (طابعات الأعمال الشاقة)",
+  ecotank: "EcoTank (الطابعات المكتبية)",
+  "ecotank-6-color": "EcoTank 6 Color (طابعات التصوير الفوتوغرافي)",
+  lq: "LQ (طابعات الفواتير والسندات)",
+};
+
 export function isPrinterCategory(value: unknown): value is PrinterCategory {
   return typeof value === "string" && PRINTER_CATEGORIES.some((category) => category.value === value);
 }

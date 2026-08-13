@@ -119,7 +119,8 @@ test("customer card stays concise and quick view renders only prepared specifica
   assert.match(card, /getProductDisplayName\(product\)/);
   assert.doesNotMatch(card, /product\.description/);
   assert.doesNotMatch(card, /cardTags/);
-  assert.match(card, /product\.price/);
+  assert.doesNotMatch(card, /product\.price|productPriceLabel|product-footer/);
+  assert.match(card, /product-category-line/);
   assert.equal(card.includes("product.features.map"), false);
   assert.match(home, /rows=\{selectedSpecificationRows\}/);
   assert.match(quickView, /product-modal-shell/);

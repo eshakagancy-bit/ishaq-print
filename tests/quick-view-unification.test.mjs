@@ -29,7 +29,7 @@ test("ink specification builder keeps every populated field for full details", a
   }
 });
 
-test("all product cards open quick view without direct paper or ink navigation", async () => {
+test("homepage product cards keep quick view while the main tile opens product details", async () => {
   const [home, categories, modal] = await Promise.all([
     read("app/home-client.tsx"),
     read("app/category-products-client.tsx"),
@@ -37,7 +37,8 @@ test("all product cards open quick view without direct paper or ink navigation",
   ]);
   assert.doesNotMatch(home, /window\.location\.href = `\/papers\/\$\{getPaperSlug\(product\)\}`/);
   assert.doesNotMatch(home, /window\.location\.href = `\/inks\/\$\{getInkSlug\(product\)\}`/);
-  assert.match(home, /className="product-card"[\s\S]*?onClick=\{\(event\) => \{ if \(!\(event\.target as HTMLElement\)\.closest\("button,a"\)\) openQuickView\(product, event\.currentTarget\); \}\}/);
+  assert.match(home, /className="product-card-link" href=\{detailsHref\}/);
+  assert.match(home, /className="quick-view" onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}/);
   assert.match(categories, /className="category-product-row"[\s\S]*?openQuickView\(product, event\.currentTarget\)/);
   assert.doesNotMatch(categories, /<Link href=\{`\/\$\{category\}\/\$\{slug\}`\}/);
   assert.doesNotMatch(categories, /فتح صفحة التفاصيل/);

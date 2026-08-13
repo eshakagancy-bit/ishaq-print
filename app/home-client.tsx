@@ -7,6 +7,7 @@ import { normalizeMediaUrl } from "../lib/media-url";
 import { isOpenInAden } from "./business-hours";
 import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
 import {
+  HOME_PRINTER_LABELS,
   resolvePrinterCategory,
   type PrinterCategory,
 } from "./printer-categories";
@@ -20,7 +21,6 @@ import {
   type PaperSpecifications,
 } from "./paper-specifications";
 import { buildInkSpecificationRows, type InkSpecifications } from "./ink-specifications";
-import { productPriceLabel } from "./product-commerce";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
@@ -181,8 +181,8 @@ const categories = allCategories.filter((category) => isPublicCategoryEnabled(ca
 type CategoryId = typeof categories[number]["id"];
 
 const homeCategoryOrder: PublicEnabledCategory[] = ["printers", "inks", "papers"];
-const HOME_DESKTOP_GROUP_SIZE = 8;
-const HOME_MOBILE_GROUP_SIZE = 6;
+const HOME_DESKTOP_GROUP_SIZE = 10;
+const HOME_MOBILE_GROUP_SIZE = 2;
 const HOME_MOBILE_SLIDER_QUERY = "(max-width: 760px)";
 
 function subscribeToHomeSliderViewport(onStoreChange: () => void) {
@@ -295,6 +295,13 @@ function getProductDetailsHref(product: Product) {
   if (product.category === "inks") return `/inks/${getInkSlug(product)}`;
   if (product.category === "papers") return `/papers/${getPaperSlug(product)}`;
   return `/printers/${getPrinterSlug(product)}`;
+}
+
+function getHomeProductCategoryLine(product: Product) {
+  if (product.category === "printers" && product.printerCategory) {
+    return HOME_PRINTER_LABELS[product.printerCategory] ?? product.type;
+  }
+  return product.type;
 }
 
 const categoryContacts: Record<CategoryId, string> = {
@@ -764,11 +771,12 @@ export default function HomeClient({
     : [];
 
   const renderProductCard = (product: Product) => {
-    const availabilityLabel = product.category === "papers" ? getPaperAvailabilityLabel(product) : null;
     const detailsHref = getProductDetailsHref(product);
-    return <article className="product-card" data-category={product.category} data-product-id={product.id} key={product.id} onClick={(event) => { if (!(event.target as HTMLElement).closest("button,a")) openQuickView(product, event.currentTarget); }}>
-      <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button><Link className="product-image-link" href={detailsHref} aria-label={`عرض صفحة ${getProductDisplayName(product)}`}>{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} variant="home-static" /> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</Link><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${getProductDisplayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
-      <div className="product-body">{product.family && <span className="product-family">{product.family}</span>}<h3><Link href={detailsHref}>{getProductDisplayName(product)}</Link></h3>{availabilityLabel && <span className="product-availability" data-availability>{availabilityLabel}</span>}<div className="product-footer"><div className="price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div><a href={specialistWaLink(product.category, product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a></div></div>
+    const categoryLine = getHomeProductCategoryLine(product);
+    return <article className="product-card" data-category={product.category} data-product-id={product.id} key={product.id}>
+      <Link className="product-card-link" href={detailsHref} aria-label={`عرض صفحة ${getProductDisplayName(product)}`} />
+      <div className="product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button><div className="product-image-link">{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} variant="home-static" /> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</div><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${getProductDisplayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
+      <div className="product-body">{product.family && <span className="product-family">{product.family}</span>}<h3>{getProductDisplayName(product)}</h3>{categoryLine && <span className="product-category-line" dir="auto">{categoryLine}</span>}</div>
     </article>;
   };
 
@@ -888,7 +896,7 @@ export default function HomeClient({
           const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
           if (normalizedQuery && categoryProducts.length === 0) return null;
           const productGroups = chunkProducts(categoryProducts, homeProductGroupSize).map((group) => group.map(renderProductCard));
-          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><div><span>اكتشف منتجاتنا</span><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2></div><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider key={`${categoryId}-${homeProductGroupSize}`} groups={productGroups} groupSize={homeProductGroupSize} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider key={`${categoryId}-${homeProductGroupSize}`} groups={productGroups} groupSize={homeProductGroupSize} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
         })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
       </div></section>
 

@@ -14,10 +14,27 @@ test("homepage follows the image-led storefront journey", async () => {
   assert.ok(hero >= 0 && hero < categories && categories < products && products < search && search < trust);
   assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
   assert.match(home, /className="storefront-category-card"/);
-  assert.match(home, /className="product-image-link" href=\{detailsHref\}/);
+  assert.match(home, /className="product-card-link" href=\{detailsHref\}/);
   assert.doesNotMatch(home.slice(home.indexOf("const renderProductCard"), home.indexOf("return (", home.indexOf("const renderProductCard"))), /cardTags|product\.description/);
   assert.match(styles, /\.storefront-category-grid \{ display:grid; grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.match(styles, /\.hero-slider \{ height:clamp\(520px,42vw,610px\); min-height:520px/);
+});
+
+test("homepage product tiles use factual category lines instead of price and commercial footer", async () => {
+  const [home, styles] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css")]);
+  const start = home.indexOf("const renderProductCard");
+  const card = home.slice(start, home.indexOf("return (", start));
+
+  assert.match(card, /className="product-card-link" href=\{detailsHref\}/);
+  assert.match(card, /\? "heart active" : "heart"/);
+  assert.match(card, /className="quick-view"/);
+  assert.match(card, /className="product-category-line"/);
+  assert.match(home, /HOME_PRINTER_LABELS\[product\.printerCategory\]/);
+  assert.match(await read("app/printer-categories.ts"), /LQ \(طابعات الفواتير والسندات\)/);
+  assert.match(home, /return product\.type/);
+  assert.doesNotMatch(card, /productPriceLabel|className="price"|className="product-footer"|اعرف السعر والتوفر/);
+  assert.match(styles, /\.product-card-link \{ position:absolute; z-index:2; inset:0;/);
+  assert.match(styles, /\.product-category-line \{[^}]*color:var\(--store-cyan-dark\)/);
 });
 
 test("homepage categories are three circular links without legacy card details", async () => {

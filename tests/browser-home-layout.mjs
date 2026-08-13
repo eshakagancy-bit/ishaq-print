@@ -84,16 +84,16 @@ async function inspectViewport(width, height) {
   assert.equal(metrics.duplicateResponsiveWrappers, 0, `${width}: legacy responsive slider copies must not exist`);
   if (width > 760) {
     assert.equal(metrics.containerWidth, Math.min(metrics.layoutViewport - 48, 1280));
-    assert.equal(metrics.columns, 4);
+    assert.equal(metrics.columns, 5);
     assert.ok(metrics.rows <= 2);
-    assert.equal(metrics.configuredGroupSize, 8);
-    assert.ok(metrics.groupSizes.every((count) => count <= 8));
+    assert.equal(metrics.configuredGroupSize, 10);
+    assert.ok(metrics.groupSizes.every((count) => count <= 10));
   } else {
     assert.equal(metrics.containerWidth, metrics.layoutViewport - 28);
-    assert.equal(metrics.columns, 3);
-    assert.ok(metrics.rows <= 2);
-    assert.equal(metrics.configuredGroupSize, 6);
-    assert.ok(metrics.groupSizes.every((count) => count <= 6));
+    assert.equal(metrics.columns, 2);
+    assert.equal(metrics.rows, 1);
+    assert.equal(metrics.configuredGroupSize, 2);
+    assert.ok(metrics.groupSizes.every((count) => count <= 2));
     assert.match(metrics.mobileSnap, /x/);
   }
   assert.deepEqual(consoleErrors, []);

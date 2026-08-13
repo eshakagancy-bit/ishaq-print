@@ -19,6 +19,6 @@ test("availability is not invented and the commercial CTA remains unchanged", ()
   assert.doesNotMatch(home, />متوفر</);
   assert.doesNotMatch(category, />متوفر</);
   assert.match(category, />اعرف السعر والتوفر</);
-  assert.match(home, />اعرف السعر والتوفر</);
+  assert.match(home, /whatsappLabel="اعرف السعر والتوفر"/);
   assert.match(read("app/paper-specifications.ts"), /specifications\.availability \? \{ key: "availability", label: "التوفر"/);
 });
