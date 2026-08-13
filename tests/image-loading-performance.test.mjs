@@ -19,7 +19,7 @@ test("product cards reserve image space, use responsive sizes, and remain lazy",
     read("app/ink-image-carousel.tsx"),
   ]);
   assert.match(home, /width=\{modal \? 700 : 560\}[\s\S]*?height=\{modal \? 600 : 440\}[\s\S]*?sizes=\{modal \? PRODUCT_MODAL_IMAGE_SIZES : PRODUCT_CARD_IMAGE_SIZES\}[\s\S]*?loading=\{modal \? "eager" : "lazy"\}/);
-  assert.match(categories, /width=\{420\} height=\{320\} sizes="\(max-width: 700px\) 92vw, 280px"/);
+  assert.match(categories, /width=\{420\} height=\{320\} sizes="\(max-width: 700px\) 46vw, \(max-width: 1100px\) 30vw, 280px"/);
   assert.match(carousel, /loading=\{variant === "quick" \? "eager" : "lazy"\}/);
   assert.doesNotMatch(`${home}\n${categories}`, /home-category-(?:desktop|mobile)-products/);
 });

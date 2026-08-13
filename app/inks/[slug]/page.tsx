@@ -9,6 +9,8 @@ import { getInkSlug } from "../product-slug";
 import ProductGallery from "../../product-gallery";
 import { isPublicCategoryEnabled } from "../../public-categories";
 import { publicMetadata } from "../../seo";
+import { productPriceLabel } from "../../product-commerce";
+import ProductFavoriteButton from "../../product-favorite-button";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,12 +47,12 @@ export default async function InkDetailsPage({ params }: PageProps) {
   const specifications = product.inkSpecifications;
 
   return <main id="main-content" tabIndex={-1} className="printer-details-page">
-    <header className="printer-details-header"><div className="container"><Link href="/#products" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link></div></header>
+    <header className="printer-details-header"><div className="container"><Link href="/inks" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link></div></header>
     <section className="printer-hero"><div className="container">
-      <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>←</span><Link href="/#products">الأحبار</Link><span>←</span><b>{product.name}</b></nav>
+      <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/inks">الأحبار</Link><span>/</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">
       <ProductGallery images={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} alt={product.name} />
-      <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اطلب من المختص</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">WhatsApp</a><Link className="printer-page-back" href="/#products">العودة إلى المنتجات</Link></div></div>
+      <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><Link className="printer-page-back" href="/inks">العودة إلى المنتجات</Link></div></div>
     </div></div></section>
     <div className="container printer-sections">
       <nav className="product-section-nav" aria-label="أقسام تفاصيل المنتج">{product.description && <a href="#description">الوصف</a>}{rows.length > 0 && <a href="#specifications">المواصفات</a>}{specifications?.features.length ? <a href="#features">المميزات</a> : null}{specifications?.uses.length ? <a href="#uses">الاستخدامات</a> : null}</nav>

@@ -82,7 +82,7 @@ async function runViewport(name, width, height, mobile) {
     const shell = document.querySelector('.product-modal-shell').getBoundingClientRect();
     const image = document.querySelector('.modal-image').getBoundingClientRect();
     const close = document.querySelector('.modal-close').getBoundingClientRect();
-    return { top:shell.top,bottom:shell.bottom,imageHeight:image.height,closeLeft:close.left,closeTop:close.top,hasQuote:[...document.querySelectorAll('.modal-content a')].some((a)=>a.textContent.includes('عرض سعر')) };
+    return { top:shell.top,bottom:shell.bottom,imageHeight:image.height,closeLeft:close.left,closeTop:close.top,hasQuote:[...document.querySelectorAll('.modal-content a')].some((a)=>a.textContent.includes('السعر والتوفر')) };
   })()`);
   assert.ok(modal.top >= 0 && modal.bottom <= height + 1, `${name}: modal outside viewport`);
   assert.ok(modal.closeLeft >= 10 && modal.closeTop >= 10, `${name}: close button touches edge`);

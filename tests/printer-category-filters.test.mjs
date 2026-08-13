@@ -11,7 +11,7 @@ test("printer filters use the stored taxonomy only on the vertical printers page
   ]);
 
   assert.match(client, /useState<PrinterCategoryFilter>\(ALL_PRINTERS_FILTER\.value\)/);
-  assert.match(client, /category === "printers" && <div className="printer-category-filters"/);
+  assert.match(client, /category === "printers" && <><div className=\{filtersOpen/);
   assert.match(client, /resolvePrinterCategory\(product\.printerCategory, product\.name\) === printerFilter/);
   assert.match(client, /\[ALL_PRINTERS_FILTER, \.\.\.PRINTER_CATEGORIES\]\.map/);
   for (const label of [
@@ -35,6 +35,6 @@ test("printer filters use the stored taxonomy only on the vertical printers page
   assert.match(styles, /\.printer-category-filters button span,\.printer-category-filters button small \{[^}]*flex:0 0 auto;[^}]*white-space:nowrap;/);
   assert.match(styles, /@media \(max-width:1000px\)[\s\S]*?\.printer-category-filters \{[^}]*flex-wrap:nowrap;[^}]*overflow-x:auto;[^}]*overscroll-behavior-inline:contain;[^}]*touch-action:pan-x;[^}]*-webkit-overflow-scrolling:touch;/);
   assert.match(styles, /\.printer-category-filters button\.active \{[^}]*background:var\(--navy\);[^}]*color:#fff;/);
-  assert.match(styles, /\.category-products-list \{ display:flex; flex-direction:column;/);
+  assert.match(styles, /\.category-products-list \{ display:grid; grid-template-columns:repeat\(auto-fill,minmax\(230px,1fr\)\)/);
   assert.doesNotMatch(home, /printer-category-filters/);
 });

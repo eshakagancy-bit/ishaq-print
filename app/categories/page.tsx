@@ -27,9 +27,10 @@ export default async function CategoriesPage() {
   });
 
   return <main id="main-content" tabIndex={-1} className="categories-index-page" dir="rtl">
-    <header className="categories-index-header"><div className="container"><Link href="/">العودة إلى الرئيسية</Link><Image src={data.settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></div></header>
+    <header className="categories-index-header"><div className="container"><Link className="collection-brand" href="/"><Image src={data.settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><Link className="categories-contact" href="/#contact">استشارات ومبيعات</Link></div></header>
     <section className="container categories-index-content">
-      <div className="categories-index-title"><span>أقسام المنتجات</span><h1>الفئات</h1><p>اختر القسم الذي تريد تصفحه</p></div>
+      <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>الفئات</b></nav>
+      <div className="categories-index-title"><span>أقسام المنتجات</span><h1>تسوق حسب الفئة</h1><p>اختر القسم الذي تريد تصفحه</p></div>
       <div className="categories-index-grid">{categories.map((item) => <Link className="categories-index-card" data-category={item.category} href={item.href} key={item.category}>
         <div className="categories-index-image"><Image src={item.image || "/brand/eshak-logo.png"} alt={item.label} width={560} height={380} sizes="(max-width: 560px) calc(100vw - 56px), (max-width: 900px) 44vw, 360px" /></div>
         <div className="categories-index-card-content"><span>{item.count === 0 ? "لا توجد منتجات حاليًا" : `${item.count} ${item.count === 1 ? "منتج" : "منتجات"}`}</span><h2>{item.label}</h2><p>{item.description}</p><b>عرض المنتجات <i aria-hidden="true">←</i></b></div>

@@ -83,7 +83,7 @@ async function inspectViewport(width, height) {
   assert.equal(metrics.productCardCount, metrics.uniqueProductCount, `${width}: product cards must appear once in the DOM`);
   assert.equal(metrics.duplicateResponsiveWrappers, 0, `${width}: legacy responsive slider copies must not exist`);
   if (width > 760) {
-    assert.equal(metrics.containerWidth, Math.min(metrics.layoutViewport - 48, 1440));
+    assert.equal(metrics.containerWidth, Math.min(metrics.layoutViewport - 48, 1280));
     assert.equal(metrics.columns, 4);
     assert.ok(metrics.rows <= 2);
     assert.equal(metrics.configuredGroupSize, 8);

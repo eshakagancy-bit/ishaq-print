@@ -12,7 +12,7 @@ test("public desktop, mobile and footer navigation expose no admin link", () => 
   assert.doesNotMatch(home, /href=["'{`]\/admin/);
   assert.doesNotMatch(home, /لوحة التحكم/);
   assert.doesNotMatch(home, /admin-link|mobile-admin-nav/);
-  for (const href of ["/categories", "#maintenance", "#services", "#products", "#contact"]) {
+  for (const href of ["/categories", "/printers", "/inks", "/papers", "#contact"]) {
     assert.match(home, new RegExp(`href="${href}"`));
   }
   assert.match(home, /<footer>/);

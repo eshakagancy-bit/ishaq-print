@@ -13,8 +13,8 @@ test("every public product list card has one unified commercial CTA", async () =
 
   assert.match(homeCard, /<div className="product-footer">[\s\S]*?<a href=\{specialistWaLink\(product\.category, product\)\}[^>]*>اعرف السعر والتوفر<\/a><\/div>/);
   assert.match(categoryCard, /<div className="category-product-actions"><a href=\{whatsappLink\(product\)\}[^>]*>اعرف السعر والتوفر<\/a><\/div>/);
-  assert.equal((homeCard.match(/<a /g) ?? []).length, 1);
-  assert.equal((categoryCard.match(/<a /g) ?? []).length, 1);
+  assert.equal((homeCard.match(/target="_blank"/g) ?? []).length, 1);
+  assert.equal((categoryCard.match(/target="_blank"/g) ?? []).length, 1);
   assert.doesNotMatch(homeCard, />اطلب من المختص<\/a>/);
   assert.doesNotMatch(categoryCard, />اطلب من المختص<\/a>/);
 });
@@ -34,8 +34,8 @@ test("printers, papers and inks keep their specialist WhatsApp route and non-com
     assert.match(home, new RegExp(`${category}: "967778989866"`));
   }
   assert.match(categoryClient, /className=\{favorites\.includes\(product\.id\) \? "heart active" : "heart"\}/);
-  assert.match(categoryClient, />تفاصيل سريعة<\/button>/);
+  assert.match(categoryClient, />تفاصيل سريعة<\/span>/);
   assert.match(categoryClient, /detailsHref=\{`\/\$\{category\}\/\$\{productSlug\(selected\)\}`\}/);
   assert.match(home, /className=\{favorites\.includes\(product\.id\) \? "heart active" : "heart"\}/);
-  assert.match(home, />تفاصيل سريعة<\/button>/);
+  assert.match(home, />تفاصيل سريعة<\/span>/);
 });

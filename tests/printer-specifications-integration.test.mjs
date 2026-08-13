@@ -110,15 +110,15 @@ test("LQ phase-one data migration is transactional, exact and preserves protecte
 test("customer card stays concise and quick view renders only prepared specification rows", async () => {
   const home = await read("app/home-client.tsx");
   const quickView = await read("app/quick-view-modal.tsx");
-  const cardStart = home.indexOf("const cardTags = getProductCardSpecificationTags(product)");
+  const cardStart = home.indexOf("const renderProductCard = (product: Product)");
   const cardEnd = home.indexOf("</article>;", cardStart);
   const card = home.slice(cardStart, cardEnd);
   assert.match(card, /product\.image/);
   assert.match(card, /product\.badge/);
   assert.match(card, /product\.family/);
   assert.match(card, /getProductDisplayName\(product\)/);
-  assert.match(card, /product\.description/);
-  assert.match(card, /cardTags/);
+  assert.doesNotMatch(card, /product\.description/);
+  assert.doesNotMatch(card, /cardTags/);
   assert.match(card, /product\.price/);
   assert.equal(card.includes("product.features.map"), false);
   assert.match(home, /rows=\{selectedSpecificationRows\}/);

@@ -13,21 +13,20 @@ test("the three public category index routes use one vertical list and category-
   }
 });
 
-test("category index cards stay vertical and preserve their independent actions", async () => {
+test("category collection cards use the storefront grid and preserve independent actions", async () => {
   const [client, styles, home] = await Promise.all([
     readFile(new URL("../app/category-products-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(styles, /\.category-products-list \{ display:flex; flex-direction:column;/);
-  assert.match(styles, /\.category-product-row \{[^}]*grid-template-columns:280px minmax\(0,1fr\)/);
-  assert.match(styles, /\.category-product-row \{ grid-template-columns:1fr; \}/);
+  assert.match(styles, /\.category-products-list \{ display:grid; grid-template-columns:repeat\(auto-fill,minmax\(230px,1fr\)\)/);
+  assert.match(styles, /\.category-product-row \{[^}]*display:flex;[^}]*flex-direction:column/);
   assert.doesNotMatch(client, /product-grid|product-group/);
   assert.match(client, /onClick=\{\(\) => toggleFavorite\(product\.id\)\}/);
-  assert.match(client, /onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}>تفاصيل سريعة/);
+  assert.match(client, /className="quick-view" onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}/);
   assert.match(client, /<div className="category-product-actions"><a href=\{whatsappLink\(product\)\} target="_blank" rel="noreferrer">اعرف السعر والتوفر<\/a><\/div>/);
-  assert.doesNotMatch(client, /فتح صفحة التفاصيل/);
-  assert.match(home, /homeCategoryOrder = PUBLIC_ENABLED_CATEGORIES/);
+  assert.match(client, /className="product-image-link" href=\{detailsHref\}/);
+  assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);
   assert.match(home, /<HomeProductSlider key=\{`\$\{categoryId\}-\$\{homeProductGroupSize\}`\} groups=\{productGroups\} groupSize=\{homeProductGroupSize\}/);
   assert.match(home, /function HomeProductSlider/);
@@ -69,12 +68,12 @@ test("the public home renders only three independent category rows without the l
   assert.doesNotMatch(home, /homeProductGroupIndices|changeHomeProductGroup/);
   assert.match(
     home,
-    /<a href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}>الكل<\/a>/,
+    /<a href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}>عرض الكل/,
   );
   assert.doesNotMatch(home, /categories-view|أقسامنا التجارية|PRINTER_CATEGORIES|openPrinterFilter/);
   assert.doesNotMatch(home, /سيتم إضافة منتجات|قريبًا/);
   assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
-  assert.match(styles, /\.home-page \.container \{ width:min\(1440px,calc\(100% - 48px\)\); \}/);
+  assert.match(styles, /\.home-page \.container,[^\n]*\.printer-details-page \.container \{ width:min\(1280px,calc\(100% - 48px\)\); \}/);
   assert.match(styles, /\.product-group \{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
   assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.product-group \{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
   assert.match(styles, /scroll-snap-align:start/);
@@ -89,10 +88,8 @@ test("the printers page uses a compact two-column grid only on mobile", async ()
   assert.match(client, /className="category-products-page" data-category=\{category\} dir="rtl"/);
   assert.match(styles, /@media \(max-width:760px\)[\s\S]*?data-category="printers"[^}]*\.category-products-list \{[^}]*display:grid;[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);[^}]*gap:9px;/);
   assert.match(styles, /data-category="printers"[^}]*\.category-product-row \{[^}]*height:100%;[^}]*display:flex;[^}]*flex-direction:column;/);
-  assert.match(styles, /data-category="printers"[^}]*\.category-product-image \{[^}]*height:128px;[^}]*flex:0 0 128px;/);
-  assert.match(styles, /data-category="printers"[^}]*\.category-product-image img \{[^}]*width:90%;[^}]*height:90%;[^}]*object-fit:contain;[^}]*object-position:center;/);
-  assert.match(styles, /data-category="printers"[^}]*\.category-product-content h2 \{[^}]*overflow-wrap:anywhere;[^}]*font-size:12px;[^}]*-webkit-line-clamp:2;/);
-  assert.match(styles, /data-category="printers"[^}]*\.category-product-content>p \{[^}]*overflow:hidden;[^}]*font-size:8px;[^}]*-webkit-line-clamp:3;/);
-  assert.match(styles, /data-category="printers"[^}]*\.category-product-actions \{[^}]*grid-template-columns:1fr;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-image \{ height:150px; flex:0 0 150px;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-content \{ padding:10px;/);
+  assert.match(styles, /data-category="printers"[^}]*\.category-product-content h2 \{[^}]*font-size:11px;/);
   assert.doesNotMatch(styles, /@media \(min-width:[^)]+\)[\s\S]*?data-category="printers"[^}]*\.category-products-list/);
 });
