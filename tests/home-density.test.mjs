@@ -38,7 +38,9 @@ test("home remains one responsive product slider per category", () => {
 test("large vertical sections are compacted without being hidden", () => {
   assert.match(styles, /\.products-section \{ padding:20px 0 80px;/);
   assert.doesNotMatch(home, /className="feature-band"|className="feature-image"|className="feature-copy"/);
-  assert.match(styles, /\.services \{ padding:78px 0;/);
+  assert.match(styles, /\.services \{ padding:64px 0 68px;/);
+  assert.match(styles, /\.services-grid \{ display:grid; grid-template-columns:repeat\(4,minmax\(0,1fr\)\);/);
+  assert.match(styles, /@media \(max-width:430px\)[\s\S]*?\.services-grid \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\); \}/);
   assert.doesNotMatch(styles, /\.maintenance-hero|\.maintenance-grid/);
   assert.match(styles, /\.maintenance-page-hero \{[^}]*min-height:500px;/);
   assert.doesNotMatch(home, /className="contact-banner"|className="contact-actions"|دعنا نساعدك في اختيار الحل الأنسب/);

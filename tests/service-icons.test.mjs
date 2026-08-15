@@ -13,7 +13,8 @@ test("services use four unified decorative SVG icons without legacy glyphs", () 
     assert.match(services, new RegExp(`<ServiceIcon name="${name}"`));
   }
   assert.match(home, /<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">/);
-  assert.match(styles, /\.service-icon svg \{ width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1\.8; stroke-linecap:round; stroke-linejoin:round; \}/);
+  assert.match(styles, /\.service-icon svg \{ width:30px; height:30px; fill:none; stroke:currentColor; stroke-width:1\.6; stroke-linecap:round; stroke-linejoin:round; \}/);
+  assert.doesNotMatch(services, /<span>0[1-4]<\/span>/);
 });
 
 test("service copy and ordering remain unchanged", () => {
@@ -25,5 +26,5 @@ test("service copy and ordering remain unchanged", () => {
     previous = position;
   }
   assert.match(services, /لماذا وكالة إسحاق؟/);
-  assert.match(services, /خدمة متكاملة لقطاع الأعمال/);
+  assert.doesNotMatch(services, /خدمة متكاملة لقطاع الأعمال/);
 });

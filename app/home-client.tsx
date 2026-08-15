@@ -969,8 +969,8 @@ export default function HomeClient({
       </nav>
 
       <section className="services" id="services"><div className="container">
-        <div className="center-heading"><span className="section-kicker">لماذا وكالة إسحاق؟</span><h2>خدمة متكاملة لقطاع الأعمال</h2></div>
-        <div className="services-grid"><article><span>01</span><div className="service-icon"><ServiceIcon name="consultation" /></div><h3>استشارات قبل الشراء</h3><p>نقارن لك الخيارات ونحدد الأنسب حسب طبيعة عملك وميزانيتك.</p></article><article><span>02</span><div className="service-icon"><ServiceIcon name="setup" /></div><h3>تجهيز وتركيب</h3><p>تهيئة الجهاز ومساعدتك على بدء الاستخدام بصورة صحيحة.</p></article><article><span>03</span><div className="service-icon"><ServiceIcon name="maintenance" /></div><h3>صيانة ودعم فني</h3><p>فريق متخصص لمتابعة الأعطال والصيانة الدورية والمستلزمات.</p></article><article><span>04</span><div className="service-icon"><ServiceIcon name="delivery" /></div><h3>توصيل آمن وسريع</h3><p>تغليف وتجهيز مناسب مع توصيل داخل صنعاء وإلى المحافظات.</p></article></div>
+        <div className="center-heading"><h2>لماذا وكالة إسحاق؟</h2></div>
+        <div className="services-grid"><article><div className="service-icon"><ServiceIcon name="consultation" /></div><div className="service-copy"><h3>استشارات قبل الشراء</h3><p>نقارن لك الخيارات ونحدد الأنسب حسب طبيعة عملك وميزانيتك.</p></div></article><article><div className="service-icon"><ServiceIcon name="setup" /></div><div className="service-copy"><h3>تجهيز وتركيب</h3><p>تهيئة الجهاز ومساعدتك على بدء الاستخدام بصورة صحيحة.</p></div></article><article><div className="service-icon"><ServiceIcon name="maintenance" /></div><div className="service-copy"><h3>صيانة ودعم فني</h3><p>فريق متخصص لمتابعة الأعطال والصيانة الدورية والمستلزمات.</p></div></article><article><div className="service-icon"><ServiceIcon name="delivery" /></div><div className="service-copy"><h3>توصيل آمن وسريع</h3><p>تغليف وتجهيز مناسب مع توصيل داخل صنعاء وإلى المحافظات.</p></div></article></div>
       </div></section>
 
       </>}
