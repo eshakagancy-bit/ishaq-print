@@ -17,15 +17,16 @@ test("normalizes Yemen telephone and WhatsApp links without changing their messa
 });
 
 test("keeps customer service, maintenance, sales and specialist numbers in their existing roles", async () => {
-  const [home, defaults, categoryClient, printer, ink, paper] = await Promise.all([
+  const [home, defaults, maintenance, categoryClient, printer, ink, paper] = await Promise.all([
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/site-defaults.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/maintenance-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/category-products-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/printers/[slug]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/inks/[slug]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/papers/[slug]/page.tsx", import.meta.url), "utf8"),
   ]);
-  const combined = [home, defaults, categoryClient, printer, ink, paper].join("\n");
+  const combined = [home, defaults, maintenance, categoryClient, printer, ink, paper].join("\n");
 
   assert.doesNotMatch(combined, /about:invalid|href=""|wa\.me\/\+/);
   assert.doesNotMatch(home, /tel:\$\{settings\.salesPhone\}|tel:01472266/);
@@ -34,24 +35,27 @@ test("keeps customer service, maintenance, sales and specialist numbers in their
   assert.match(defaults, /generalWhatsapp: "967777000725"/);
   assert.match(home, /salesPhoneHref = yemenTelHref\(settings\.salesPhone, defaultSiteSettings\.salesPhone\)/);
   assert.match(home, /customerPhoneHref = yemenTelHref\(settings\.customerServicePhone, defaultSiteSettings\.customerServicePhone\)/);
-  assert.match(home, /الصيانة 1", phone: "967777103838"/);
-  assert.match(home, /الصيانة 2", phone: "967781103838"/);
-  assert.match(home, /maintenanceWaLink\(contact\.phone\)/);
+  assert.match(maintenance, /الصيانة 1", phone: "967777103838"/);
+  assert.match(maintenance, /الصيانة 2", phone: "967781103838"/);
+  assert.match(home, /maintenanceWhatsappHref\(contact\.phone\)/);
   assert.match(home, /yemenTelHref\(contact\.phone\)/);
   assert.match(combined, /967778989866/);
   assert.match(combined, /\?text=\$\{encodeURIComponent\(/);
 });
 
 test("labels every main contact channel without changing its linked role", async () => {
-  const home = await readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8");
+  const [home, maintenance] = await Promise.all([
+    readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/maintenance-data.ts", import.meta.url), "utf8"),
+  ]);
 
   assert.match(home, /href=\{customerPhoneHref\}[^>]*>خدمة العملاء: \{customerPhoneDisplay\}<\/a>/);
   assert.doesNotMatch(home, /className="nav-contact"/);
   assert.match(home, /href=\{generalWaLink\(settings\.generalWhatsapp\)\}[\s\S]*?<DrawerIcon name="headset"\/><span>استشارات ومبيعات<\/span><\/a>/);
   assert.match(home, /href=\{generalWaLink\(settings\.generalWhatsapp\)\}[^>]*>استشارات ومبيعات: \{generalWhatsappDisplay\}<\/a>/);
   assert.match(home, /href=\{salesPhoneHref\}>هاتف المبيعات: \{settings\.salesPhone\}<\/a>/);
-  assert.match(home, /label: "الصيانة 1", phone: "967777103838"/);
-  assert.match(home, /label: "الصيانة 2", phone: "967781103838"/);
-  assert.match(home, /href=\{maintenanceWaLink\(contact\.phone\)\}[^>]*aria-label=\{`واتساب \$\{contact\.label\}/);
+  assert.match(maintenance, /label: "الصيانة 1", phone: "967777103838"/);
+  assert.match(maintenance, /label: "الصيانة 2", phone: "967781103838"/);
+  assert.match(home, /href=\{maintenanceWhatsappHref\(contact\.phone\)\}[^>]*aria-label=\{`واتساب \$\{contact\.label\}/);
   assert.match(home, /href=\{yemenTelHref\(contact\.phone\)\}[^>]*aria-label=\{`اتصال هاتفي بـ \$\{contact\.label\}/);
 });

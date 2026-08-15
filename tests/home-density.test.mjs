@@ -16,9 +16,11 @@ test("home prioritizes category discovery and products before support controls",
 });
 
 test("home keeps every principal section and all category links", () => {
-  for (const section of ["products", "about", "services", "maintenance", "contact"]) {
+  for (const section of ["products", "about", "services", "contact"]) {
     assert.match(home, new RegExp(`id="${section}"`));
   }
+  assert.doesNotMatch(home, /className="maintenance-hero"|id="maintenance"/);
+  assert.match(home, /pageView === "maintenance"/);
   assert.match(home, /homeCategoryOrder\.map/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href/);
   assert.match(home, /<footer>/);
@@ -37,7 +39,8 @@ test("large vertical sections are compacted without being hidden", () => {
   assert.match(styles, /\.products-section \{ padding:20px 0 80px;/);
   assert.match(styles, /\.feature-band-inner \{[^}]*min-height:520px;/);
   assert.match(styles, /\.services \{ padding:78px 0;/);
-  assert.match(styles, /\.maintenance-grid \{[^}]*min-height:480px;[^}]*padding-block:56px;/);
+  assert.doesNotMatch(styles, /\.maintenance-hero|\.maintenance-grid/);
+  assert.match(styles, /\.maintenance-page-hero \{[^}]*min-height:500px;/);
   assert.match(styles, /\.contact-banner-inner \{ min-height:175px;/);
   assert.doesNotMatch(styles, /(?:products-section|feature-band-inner|services|maintenance-grid)[^}]*display:none/);
 });

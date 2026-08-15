@@ -40,6 +40,7 @@ import InkImageCarousel from "./ink-image-carousel";
 import QuickViewModal from "./quick-view-modal";
 import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, type PublicEnabledCategory } from "./public-categories";
 import { searchProducts, type ProductSearchScope } from "./global-product-search";
+import { maintenanceContacts, maintenanceServices, maintenanceWhatsappHref } from "./maintenance-data";
 
 const HERO_IMAGE_SIZES = "100vw";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -74,11 +75,12 @@ type HomeClientProps = {
   initialProducts: StoredProduct[];
   initialHeroSlides: HeroSlide[];
   initialHeroSettings: HeroSettings;
+  initialPage?: "home" | "maintenance";
 };
 
 type MobileNavSection = "home" | "categories" | "search" | "contact";
-type PageView = "home" | "categories";
-type DrawerIconName = "home" | "grid" | "heart" | "search" | "headset" | "phone" | "link" | "printer" | "ink" | "paper" | "whatsapp";
+type PageView = "home" | "categories" | "maintenance";
+type DrawerIconName = "home" | "grid" | "heart" | "search" | "headset" | "phone" | "link" | "printer" | "ink" | "paper" | "whatsapp" | "maintenance";
 
 function DrawerIcon({ name }: { name: DrawerIconName }) {
   const paths: Record<DrawerIconName, ReactNode> = {
@@ -93,6 +95,7 @@ function DrawerIcon({ name }: { name: DrawerIconName }) {
     ink: <><path d="M9 3h6v4H9zM8 7h8l2 4v10H6V11l2-4Z"/><path d="M9 14h6"/></>,
     paper: <><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></>,
     whatsapp: <><path d="M20.5 11.7a8.5 8.5 0 0 1-12.6 7.5L3 20.5l1.3-4.7A8.5 8.5 0 1 1 20.5 11.7Z"/><path d="M8.2 7.8c.4-.4.8-.2 1 .2l.9 2c.1.3 0 .6-.3.9l-.7.6c.7 1.5 1.8 2.6 3.4 3.4l.6-.8c.2-.3.6-.4.9-.2l1.9.9c.4.2.6.6.3 1-.5.8-1.4 1.3-2.3 1.2-3.8-.5-7-3.5-7.5-7.4-.1-.8.8-1.4 1.8-1.8Z"/></>,
+    maintenance: <><path d="M14.7 6.3a4 4 0 0 0-5-5L12 3.6 8.6 7 6.3 4.7a4 4 0 0 0 5 5L20 18.4a2.1 2.1 0 0 1-3 3l-8.7-8.7"/><path d="m5 15-2 2 4 4 2-2"/></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -306,11 +309,6 @@ const categoryContacts: Record<CategoryId, string> = {
   "advertising-machines": "967777000725",
 };
 
-const maintenanceContacts = [
-  { label: "الصيانة 1", phone: "967777103838", display: "777103838" },
-  { label: "الصيانة 2", phone: "967781103838", display: "781103838" },
-];
-
 const starterProducts: Product[] = defaultStarterProducts.map(normalizeInitialProduct);
 
 const whatsapp = "967777000725";
@@ -327,16 +325,12 @@ function specialistWaLink(categoryId: CategoryId, product?: Product) {
   return yemenWhatsappHref(categoryContacts[categoryId], text);
 }
 
-function maintenanceWaLink(phone: string) {
-  const text = "مرحبًا، أريد التواصل مع قسم الصيانة في وكالة إسحاق العالمية.";
-  return yemenWhatsappHref(phone, text);
-}
-
 export default function HomeClient({
   initialSettings,
   initialProducts,
   initialHeroSlides,
   initialHeroSettings,
+  initialPage = "home",
 }: HomeClientProps) {
   const [settings] = useState<SiteSettings>(() => {
     const nextSettings = { ...defaultSiteSettings, ...initialSettings };
@@ -369,7 +363,7 @@ export default function HomeClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<ProductSearchScope>("all");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("printers");
-  const [pageView, setPageView] = useState<PageView>("home");
+  const [pageView, setPageView] = useState<PageView>(initialPage);
   const [selected, setSelected] = useState<Product | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [favoritesReady, setFavoritesReady] = useState(false);
@@ -718,6 +712,7 @@ export default function HomeClient({
   }, [searchOpen]);
 
   const currentCategory = categories.find((category) => category.id === activeCategory) ?? categories[0];
+  const usesRouteNavigation = initialPage === "maintenance";
 
   const requestSectionScroll = (targetId: string) => {
     scrollRequestSequenceRef.current += 1;
@@ -826,7 +821,7 @@ export default function HomeClient({
 
   return (
     <main id="main-content" tabIndex={-1} dir="rtl" className="home-page">
-      <h1 className="seo-page-title">وكالة إسحاق العالمية للطابعات والأوراق والأحبار</h1>
+      {pageView === "home" && <h1 className="seo-page-title">وكالة إسحاق العالمية للطابعات والأوراق والأحبار</h1>}
       <div className="topbar">
         <div className="container topbar-inner">
           <span>📍 {settings.address}</span>
@@ -837,7 +832,9 @@ export default function HomeClient({
       <header className={headerCompact ? "header compact" : "header"}>
         <div className="container nav-wrap">
           <button ref={menuButtonRef} className="menu-btn" type="button" onClick={openSiteMenu} aria-label="فتح القائمة" aria-controls="site-menu-drawer" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
-          <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>
+          {usesRouteNavigation
+            ? <Link href="/" className="brand" aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></Link>
+            : <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>}
           <div className="header-left-actions">
             <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={openWishlist} aria-label={favorites.length ? `فتح قائمة الرغبات، ${favorites.length} منتجات` : "فتح قائمة الرغبات"} aria-controls="wishlist-drawer" aria-expanded={favoritesOpen} aria-haspopup="dialog"><DrawerIcon name="heart"/>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
             <button ref={searchButtonRef} type="button" className="header-search-button" onClick={openSearch} aria-label="فتح البحث" aria-controls="search-drawer" aria-expanded={searchOpen} aria-haspopup="dialog"><DrawerIcon name="search"/></button>
@@ -849,16 +846,19 @@ export default function HomeClient({
         <aside ref={menuDrawerRef} id="site-menu-drawer" className="site-menu-drawer" role="dialog" aria-modal={menuOpen ? "true" : undefined} aria-hidden={!menuOpen} inert={!menuOpen} aria-labelledby="site-menu-title">
           <div className="drawer-header">
             <button ref={menuCloseRef} type="button" className="drawer-close" autoFocus={menuOpen} onClick={() => setActiveHeaderDrawer("closed")} aria-label="إغلاق القائمة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
-            <a href="#home" className="drawer-brand" onClick={(event) => { event.preventDefault(); openHomeView(); }} aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={176} height={72} sizes="176px" /></a>
+            {usesRouteNavigation
+              ? <Link href="/" className="drawer-brand" onClick={() => setActiveHeaderDrawer("closed")} aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={176} height={72} sizes="176px" /></Link>
+              : <a href="#home" className="drawer-brand" onClick={(event) => { event.preventDefault(); openHomeView(); }} aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={176} height={72} sizes="176px" /></a>}
           </div>
           <h2 id="site-menu-title" className="drawer-title">القائمة الرئيسية</h2>
           <nav className="drawer-nav" aria-label="قائمة الموقع">
-            <a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}><DrawerIcon name="home"/><span>الرئيسية</span></a>
+            {usesRouteNavigation ? <Link href="/" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="home"/><span>الرئيسية</span></Link> : <a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}><DrawerIcon name="home"/><span>الرئيسية</span></a>}
             <Link href="/categories" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="grid"/><span>جميع المنتجات</span></Link>
             <button type="button" onClick={openWishlist}><DrawerIcon name="heart"/><span>قائمة الرغبات</span>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
             <button type="button" onClick={openSearch}><DrawerIcon name="search"/><span>البحث</span></button>
             <a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="headset"/><span>استشارات ومبيعات</span></a>
-            <a href="#contact" onClick={(event) => { event.preventDefault(); openHomeSection("contact"); }}><DrawerIcon name="phone"/><span>تواصل معنا</span></a>
+            <Link href="/maintenance" className={pageView === "maintenance" ? "active" : undefined} aria-current={pageView === "maintenance" ? "page" : undefined} onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="maintenance"/><span>الصيانة والدعم الفني</span></Link>
+            {usesRouteNavigation ? <Link href="/#contact" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="phone"/><span>تواصل معنا</span></Link> : <a href="#contact" onClick={(event) => { event.preventDefault(); openHomeSection("contact"); }}><DrawerIcon name="phone"/><span>تواصل معنا</span></a>}
             <button type="button" className="drawer-accordion-trigger" onClick={() => setImportantLinksOpen((current) => !current)} aria-expanded={importantLinksOpen} aria-controls="drawer-important-links"><DrawerIcon name="link"/><span>روابط مهمة</span><svg className="drawer-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>
           </nav>
           <div id="drawer-important-links" className={importantLinksOpen ? "drawer-important-links open" : "drawer-important-links"} hidden={!importantLinksOpen}>
@@ -979,37 +979,53 @@ export default function HomeClient({
         <div className="services-grid"><article><span>01</span><div className="service-icon"><ServiceIcon name="consultation" /></div><h3>استشارات قبل الشراء</h3><p>نقارن لك الخيارات ونحدد الأنسب حسب طبيعة عملك وميزانيتك.</p></article><article><span>02</span><div className="service-icon"><ServiceIcon name="setup" /></div><h3>تجهيز وتركيب</h3><p>تهيئة الجهاز ومساعدتك على بدء الاستخدام بصورة صحيحة.</p></article><article><span>03</span><div className="service-icon"><ServiceIcon name="maintenance" /></div><h3>صيانة ودعم فني</h3><p>فريق متخصص لمتابعة الأعطال والصيانة الدورية والمستلزمات.</p></article><article><span>04</span><div className="service-icon"><ServiceIcon name="delivery" /></div><h3>توصيل آمن وسريع</h3><p>تغليف وتجهيز مناسب مع توصيل داخل صنعاء وإلى المحافظات.</p></article></div>
       </div></section>
 
-      <section className="maintenance-hero" id="maintenance">
-        <div className="maintenance-orb maintenance-orb-one"></div><div className="maintenance-orb maintenance-orb-two"></div>
-        <div className="container maintenance-grid">
-          <div className="maintenance-copy">
-            <span className="maintenance-kicker">مركز الخدمة والدعم الفني</span>
-            <h2>{settings.maintenanceTitle}</h2>
-            <p>{settings.maintenanceDescription}</p>
-            <div className="maintenance-points"><span>✓ فحص الأعطال</span><span>✓ صيانة ودعم فني</span><span>✓ متابعة سريعة</span></div>
+      <section className="contact-banner" id="contact"><div className="container contact-banner-inner"><div><span>{settings.contactKicker}</span><h2>{settings.contactTitle}</h2><p className="contact-address">📍 {settings.address}</p></div><div className="contact-actions"><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">استشارات ومبيعات: {generalWhatsappDisplay}</a><a href={customerPhoneHref} className="outline" dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم نسخ الرقم ✓" : "نسخ الرقم"}</button></div></div></section>
+      </>}
+
+      {pageView === "maintenance" && <div className="maintenance-page">
+        <section className="maintenance-page-hero" aria-labelledby="maintenance-page-title">
+          <div className="maintenance-page-orb maintenance-page-orb-one"></div><div className="maintenance-page-orb maintenance-page-orb-two"></div>
+          <div className="container maintenance-page-hero-inner">
+            <nav className="maintenance-breadcrumb" aria-label="مسار التنقل"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><span aria-current="page">الصيانة والدعم الفني</span></nav>
+            <div className="maintenance-page-intro">
+              <span className="maintenance-page-kicker">مركز الخدمة والدعم الفني</span>
+              <h1 id="maintenance-page-title">الصيانة والدعم الفني</h1>
+              <p>{settings.maintenanceDescription}</p>
+              <a href="#maintenance-contact" className="maintenance-page-primary-link">تواصل مع قسم الصيانة <span aria-hidden="true">←</span></a>
+            </div>
           </div>
+        </section>
+
+        <section className="maintenance-services" aria-labelledby="maintenance-services-title"><div className="container">
+          <div className="maintenance-section-heading"><span>خدمات الصيانة</span><h2 id="maintenance-services-title">كيف يمكن لقسم الصيانة مساعدتك؟</h2></div>
+          <div className="maintenance-service-list">{maintenanceServices.map((service, index) => <article key={service.title}>
+            <span className="maintenance-service-number" aria-hidden="true">0{index + 1}</span>
+            <div className="maintenance-service-icon"><DrawerIcon name="maintenance"/></div>
+            <h3>{service.title}</h3><p>{service.description}</p>
+          </article>)}</div>
+        </div></section>
+
+        <section className="maintenance-contact-section" id="maintenance-contact" aria-labelledby="maintenance-contact-title"><div className="container maintenance-contact-layout">
+          <div className="maintenance-contact-intro"><span>قنوات التواصل المعتمدة</span><h2 id="maintenance-contact-title">{settings.maintenanceTitle}</h2><p>{settings.maintenanceDescription}</p></div>
           <div className="maintenance-contacts">
             {maintenanceContacts.map((contact) => <article className="maintenance-card" key={contact.phone}>
-              <div className="maintenance-card-head"><span className="maintenance-icon">☎</span><div><small>{contact.label}</small><strong dir="ltr">{contact.display}</strong></div></div>
+              <div className="maintenance-card-head"><span className="maintenance-icon"><DrawerIcon name="maintenance"/></span><div><small>{contact.label}</small><strong dir="ltr">{contact.display}</strong></div></div>
               <div className="maintenance-actions">
-                <a className="maintenance-whatsapp" href={maintenanceWaLink(contact.phone)} target="_blank" rel="noreferrer" aria-label={`واتساب ${contact.label} على الرقم ${contact.display}`}><span>●</span> واتساب</a>
-                <a className="maintenance-call" href={yemenTelHref(contact.phone)} aria-label={`اتصال هاتفي بـ ${contact.label} على الرقم ${contact.display}`}>اتصال هاتفي</a>
+                <a className="maintenance-whatsapp" href={maintenanceWhatsappHref(contact.phone)} target="_blank" rel="noreferrer" aria-label={`واتساب ${contact.label} على الرقم ${contact.display}`}><DrawerIcon name="whatsapp"/> واتساب</a>
+                <a className="maintenance-call" href={yemenTelHref(contact.phone)} aria-label={`اتصال هاتفي بـ ${contact.label} على الرقم ${contact.display}`}><DrawerIcon name="phone"/> اتصال هاتفي</a>
               </div>
             </article>)}
           </div>
-        </div>
-      </section>
-
-      <section className="contact-banner" id="contact"><div className="container contact-banner-inner"><div><span>{settings.contactKicker}</span><h2>{settings.contactTitle}</h2><p className="contact-address">📍 {settings.address}</p></div><div className="contact-actions"><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">استشارات ومبيعات: {generalWhatsappDisplay}</a><a href={customerPhoneHref} className="outline" dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم نسخ الرقم ✓" : "نسخ الرقم"}</button></div></div></section>
+        </div></section>
+      </div>}
 
       <footer><div className="container footer-grid storefront-footer-grid">
         <div className="footer-brand"><Image src={imageSrcOrFallback(settings.logoImage)} alt="وكالة إسحاق العالمية" width={210} height={90} sizes="190px" loading="lazy" /><p>حلول تقنية وتجارية وتجهيزات موثوقة للأفراد والشركات والمؤسسات في اليمن.</p></div>
         <div><h3>الفئات</h3><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link><Link href="/categories">جميع الفئات</Link></div>
-        <div><h3>روابط مهمة</h3><a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a><a href="#services">خدماتنا</a><a href="#maintenance">الصيانة</a><a href="#contact">تواصل معنا</a></div>
+        <div><h3>روابط مهمة</h3>{usesRouteNavigation ? <Link href="/">الرئيسية</Link> : <a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}>الرئيسية</a>}<Link href="/#services">خدماتنا</Link><Link href="/maintenance">الصيانة والدعم الفني</Link><Link href="/#contact">تواصل معنا</Link></div>
         <div><h3>تواصل معنا</h3><a href={customerPhoneHref} dir="ltr">خدمة العملاء: {customerPhoneDisplay}</a><button className="footer-copy-phone" type="button" onClick={copyCustomerPhone}>{customerPhoneCopied ? "تم النسخ ✓" : "نسخ الرقم"}</button><a href={salesPhoneHref}>هاتف المبيعات: {settings.salesPhone}</a><a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer">استشارات ومبيعات: {generalWhatsappDisplay}</a><p>{settings.address}</p></div>
         <div><h3>أوقات العمل</h3><p>{settings.workDays}</p><p>{settings.workHours}</p><span className={businessIsOpen ? "open-label" : "open-label closed"}>{businessIsOpen ? "● متاحون الآن" : "● مغلق الآن"}</span></div>
       </div><div className="container copyright"><span>© 2026 وكالة إسحاق العالمية. جميع الحقوق محفوظة.</span><span>EPSON وWorkForce علامتان تجاريتان مملوكتان لأصحابهما.</span></div></footer>
-      </>}
 
       {pageView === "home" && <a className="whatsapp-float" href={specialistWaLink(activeCategory)} target="_blank" rel="noreferrer" aria-label={`تواصل مع مختص قسم ${currentCategory.name}`}>مختص القسم <span>◉</span></a>}
       <nav className="mobile-bottom-nav" aria-label="التنقل السريع">
@@ -1018,13 +1034,12 @@ export default function HomeClient({
           ["categories", "الفئات"],
           ["search", "البحث"],
           ["contact", "تواصل معنا"],
-        ] as const).map(([section, label]) => section === "categories" ? <Link key={section} href="/categories"><MobileNavIcon section={section} /><span>{label}</span></Link> : <button
-          key={section}
-          type="button"
-          className={mobileNavSection === section ? "active" : ""}
-          aria-current={mobileNavSection === section ? "page" : undefined}
-          onClick={() => openMobileSection(section)}
-        ><MobileNavIcon section={section} /><span>{label}</span></button>)}
+        ] as const).map(([section, label]) => {
+          if (section === "categories") return <Link key={section} href="/categories"><MobileNavIcon section={section} /><span>{label}</span></Link>;
+          if (usesRouteNavigation && section === "home") return <Link key={section} href="/"><MobileNavIcon section={section} /><span>{label}</span></Link>;
+          if (usesRouteNavigation && section === "contact") return <Link key={section} href="/#contact"><MobileNavIcon section={section} /><span>{label}</span></Link>;
+          return <button key={section} type="button" className={mobileNavSection === section ? "active" : ""} aria-current={mobileNavSection === section ? "page" : undefined} onClick={() => openMobileSection(section)}><MobileNavIcon section={section} /><span>{label}</span></button>;
+        })}
       </nav>
       {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
     </main>

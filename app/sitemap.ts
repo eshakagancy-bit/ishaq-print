@@ -7,7 +7,7 @@ import { isPublicCategoryEnabled } from "./public-categories";
 import { SITE_URL } from "./seo";
 import { starterProducts } from "./site-defaults";
 
-const publicPages = ["", "/categories", "/printers", "/papers", "/inks"];
+const publicPages = ["", "/categories", "/printers", "/papers", "/inks", "/maintenance"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const data = await getSiteData().catch(() => ({ products: starterProducts }));

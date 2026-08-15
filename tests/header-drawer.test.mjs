@@ -13,7 +13,8 @@ test("storefront header exposes a real right-side navigation drawer", () => {
 });
 
 test("drawer contains only real Ishaq destinations and contact flows", () => {
-  for (const href of ["/categories", "/printers", "/inks", "/papers"]) assert.match(home, new RegExp(`href="${href}"`));
+  for (const href of ["/categories", "/printers", "/inks", "/papers", "/maintenance"]) assert.match(home, new RegExp(`href="${href}"`));
+  assert.match(home, /<DrawerIcon name="maintenance"\/><span>الصيانة والدعم الفني<\/span>/);
   assert.match(home, /قائمة الرغبات/);
   assert.match(home, /روابط مهمة/);
   assert.match(home, /href=\{customerPhoneHref\}/);

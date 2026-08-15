@@ -32,7 +32,7 @@ test("product metadata is dynamic and uses real product content", () => {
 
 test("sitemap contains public lists and products but never admin", () => {
   const sitemap = read("app/sitemap.ts");
-  for (const path of ["/categories", "/printers", "/papers", "/inks"]) assert.match(sitemap, new RegExp(path));
+  for (const path of ["/categories", "/printers", "/papers", "/inks", "/maintenance"]) assert.match(sitemap, new RegExp(path));
   assert.match(sitemap, /getPrinterSlug/);
   assert.match(sitemap, /getPaperSlug/);
   assert.match(sitemap, /getInkSlug/);
@@ -45,11 +45,13 @@ test("robots blocks admin and no commercial schema is invented", () => {
   assert.doesNotMatch(application, /AggregateRating|offers|priceCurrency|availability/);
 });
 
-test("tested public page shells expose exactly one intentional h1", () => {
+test("tested public page shells expose one intentional h1 per rendered route", () => {
   const home = read("app/home-client.tsx");
   const lists = read("app/category-products-client.tsx");
   const categories = read("app/categories/page.tsx");
-  assert.equal((home.match(/<h1\b/g) || []).length, 1);
+  assert.equal((home.match(/<h1\b/g) || []).length, 2);
+  assert.match(home, /pageView === "home" && <h1/);
+  assert.match(home, /pageView === "maintenance"[\s\S]*?<h1 id="maintenance-page-title"/);
   assert.equal((lists.match(/<h1\b/g) || []).length, 1);
   assert.equal((categories.match(/<h1\b/g) || []).length, 1);
 });
