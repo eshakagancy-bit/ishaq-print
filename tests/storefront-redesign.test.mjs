@@ -9,8 +9,9 @@ test("homepage follows the image-led storefront journey", async () => {
   const hero = home.indexOf('className="hero hero-slider"');
   const categories = home.indexOf('className="storefront-categories"');
   const products = home.indexOf('className="products-section"');
-  const trust = home.indexOf('className="feature-band"');
-  assert.ok(hero >= 0 && hero < categories && categories < products && products < trust);
+  const services = home.indexOf('className="services"');
+  assert.ok(hero >= 0 && hero < categories && categories < products && products < services);
+  assert.doesNotMatch(home, /className="feature-band"|من أول استشارة حتى تشغيل الطابعة|تواصل مع مختص الطابعات/);
   assert.doesNotMatch(home, /className="search-panel-wrap"|ابحث في جميع المنتجات/);
   assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
   assert.match(home, /className="storefront-category-card"/);

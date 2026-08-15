@@ -284,19 +284,6 @@ button { cursor:pointer; }
 .empty-actions { display:flex; justify-content:center; gap:9px; margin-top:20px; }
 .empty-state .outline-button { border:1px solid var(--cyan); background:#fff; color:var(--cyan-dark); }
 
-.feature-band { position:relative; overflow:hidden; background:var(--navy); color:#fff; }
-.feature-band-inner { display:grid; grid-template-columns:1fr 1fr; min-height:520px; align-items:center; gap:60px; }
-.feature-image { align-self:stretch; position:relative; display:grid; place-items:center; }
-.feature-image img { position:relative; z-index:2; width:92%; height:92%; object-fit:contain; filter:drop-shadow(0 35px 35px rgba(0,0,0,.28)); }
-.cyan-disc { position:absolute; width:430px; height:430px; border-radius:50%; background:var(--cyan); box-shadow:0 0 0 55px rgba(5,169,198,.06); }
-.feature-copy { padding:44px 0; }
-.feature-copy h2 { font-size:clamp(30px,4vw,49px); line-height:1.35; margin:15px 0; }
-.feature-copy>p { color:#b3c1ce; line-height:2; font-size:14px; }
-.feature-copy ul { list-style:none; padding:0; margin:22px 0; display:grid; gap:14px; }
-.feature-copy li { position:relative; padding-right:36px; display:grid; gap:4px; }
-.feature-copy li:before { content:"✓"; position:absolute; right:0; top:2px; width:23px; height:23px; border:1px solid var(--cyan); color:var(--cyan); display:grid; place-items:center; border-radius:50%; font-size:11px; }
-.feature-copy li b { font-size:13px; }
-.feature-copy li span { color:#91a3b3; font-size:11px; }
 
 .services { padding:78px 0; background:#f7fafb; }
 .admin-section { padding:90px 0; background:#fff; border-top:1px solid var(--line); }
@@ -537,7 +524,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .nav-links { gap:18px; } .nav-contact { display:none; }
   .category-grid { grid-template-columns:repeat(3,1fr); } .services-grid { grid-template-columns:repeat(2,1fr); }
   .maintenance-contact-layout { gap:40px; }
-  .feature-band-inner { gap:30px; } .admin-panel { grid-template-columns:1fr; } .footer-grid { grid-template-columns:1.3fr .7fr 1fr; } .footer-grid>div:last-child { display:none; }
+  .admin-panel { grid-template-columns:1fr; } .footer-grid { grid-template-columns:1.3fr .7fr 1fr; } .footer-grid>div:last-child { display:none; }
   .printer-hero-grid { gap:30px; } .similar-printers { grid-template-columns:repeat(2,1fr); }
 }
 @media (max-width:900px) {
@@ -550,7 +537,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .home-category-strip { display:block; overflow-x:auto; overscroll-behavior-inline:contain; scrollbar-width:none; touch-action:pan-x; -webkit-overflow-scrolling:touch; }
   .home-category-strip::-webkit-scrollbar { display:none; }
   .home-category-strip .category-strip-list { width:max-content; min-width:100%; justify-content:flex-start; padding-inline:14px; }
-  .home-page #home,.home-page #categories,.home-page #products,.home-page #contact,.home-page #about { scroll-margin-top:78px; }
+  .home-page #home,.home-page #categories,.home-page #products,.home-page #contact { scroll-margin-top:78px; }
   .mobile-bottom-nav { position:fixed; z-index:40; right:0; bottom:0; left:0; min-height:64px; padding:5px max(8px,env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); direction:rtl; border-top:1px solid #dfe8eb; background:rgba(255,255,255,.98); box-shadow:0 -8px 24px rgba(7,34,49,.08); }
   .mobile-bottom-nav button,.mobile-bottom-nav>a { min-width:0; min-height:54px; padding:4px 2px; border:0; border-radius:9px; background:transparent; color:#75818d; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font:inherit; font-size:9px; font-weight:700; touch-action:manipulation; }
   .mobile-bottom-nav button.active { color:var(--cyan-dark); background:#edf9fb; }
@@ -614,8 +601,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .category-products-page[data-category="printers"] .category-product-actions { display:grid; grid-template-columns:1fr; gap:5px; padding-top:7px; }
   .category-products-page[data-category="printers"] .category-product-actions a { min-width:0; min-height:30px; display:grid; place-items:center; padding:5px 3px; overflow-wrap:anywhere; text-align:center; font-size:7px; line-height:1.35; }
   .product-footer>a { min-height:32px; padding:5px 3px; display:grid; place-items:center; text-align:center; font-size:7px; line-height:1.25; }
-  .feature-band-inner { grid-template-columns:1fr; gap:0; } .feature-image { min-height:340px; order:2; } .feature-copy { padding:48px 0 8px; text-align:center; }
-  .feature-copy .eyebrow { justify-content:center; } .feature-copy li { text-align:right; }
   .admin-section { padding:70px 0; } .admin-head { display:block; } .admin-toggle { margin-top:18px; width:100%; } .admin-row { grid-template-columns:1fr; }
   .admin-form,.admin-list { padding:16px; } .admin-buttons button { width:100%; } .admin-list-item { grid-template-columns:48px 1fr; } .admin-list-item button { grid-column:1/-1; }
   .services { padding:56px 0; } .services-grid { grid-template-columns:1fr; }
@@ -966,8 +951,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .price { display:grid; gap:2px; } .price small { color:var(--muted); font-size:8px; } .price strong { color:var(--store-navy); font-size:11px; }
 .product-footer>a { min-height:38px; display:grid; place-items:center; border-radius:7px; background:var(--store-navy); color:#fff; font-size:9px; font-weight:900; }
 .product-footer>a:hover { background:var(--store-cyan-dark); }
-.feature-band { background:var(--store-surface); color:var(--store-navy); } .feature-band-inner { min-height:340px; gap:36px; }
-.feature-copy>p,.feature-copy li span { color:#5d6c78; } .feature-copy .eyebrow.dark { color:var(--store-cyan-dark); }
 .services { padding:48px 0; background:#fff; } .services-grid { gap:12px; } .services-grid article { min-height:160px; padding:18px 16px; border-radius:12px; background:var(--store-surface); }
 .contact-banner-inner { min-height:130px; }
 .storefront-footer-grid { grid-template-columns:1.25fr repeat(3,1fr); gap:42px; }

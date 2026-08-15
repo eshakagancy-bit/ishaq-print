@@ -403,7 +403,6 @@ export default function HomeClient({
   const salesPhoneHref = yemenTelHref(settings.salesPhone, defaultSiteSettings.salesPhone);
   const generalWhatsappPhone = normalizeYemenPhone(settings.generalWhatsapp, defaultSiteSettings.generalWhatsapp);
   const generalWhatsappDisplay = generalWhatsappPhone.replace(/^967/, "");
-  const featureImageSrc = safeImageSrc(settings.featureImage);
   const favoriteProducts = products.filter((product) => favorites.includes(product.id));
   const businessIsOpen = isOpenInAden(currentTime, settings);
   const normalizedSearchQuery = searchQuery.trim();
@@ -968,11 +967,6 @@ export default function HomeClient({
           })}
         </div>
       </nav>
-
-      <section className="feature-band" id="about"><div className="container feature-band-inner">
-        <div className="feature-image"><div className="cyan-disc"></div>{featureImageSrc && <Image src={featureImageSrc} alt="صورة البانر الدعائي" width={640} height={640} sizes="(max-width: 760px) 92vw, (max-width: 1200px) 46vw, 540px" loading="lazy" />}</div>
-        <div className="feature-copy"><span className="eyebrow dark">{settings.featureEyebrow}</span><h2>{settings.featureTitle}</h2><p>{settings.featureDescription}</p><ul><li><b>اختيار دقيق</b><span>ترشيح الموديل حسب احتياجك الفعلي.</span></li><li><b>توريد وتجهيز</b><span>تجهيز الطابعة وربطها ببيئة العمل.</span></li><li><b>دعم مستمر</b><span>مساندة فنية ومستلزمات تشغيل أصلية.</span></li></ul><a className="primary-btn" href={specialistWaLink("printers")} target="_blank" rel="noreferrer">تواصل مع مختص الطابعات <span>←</span></a></div>
-      </div></section>
 
       <section className="services" id="services"><div className="container">
         <div className="center-heading"><span className="section-kicker">لماذا وكالة إسحاق؟</span><h2>خدمة متكاملة لقطاع الأعمال</h2></div>
