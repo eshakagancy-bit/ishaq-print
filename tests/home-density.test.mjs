@@ -25,10 +25,12 @@ test("home keeps every principal section and all category links", () => {
 });
 
 test("home remains one responsive product slider per category", () => {
-  assert.match(home, /chunkProducts\(categoryProducts, homeProductGroupSize\)/);
+  assert.match(home, /const productCards = categoryProducts\.map\(renderProductCard\)/);
+  assert.match(home, /<HomeProductSlider products=\{productCards\}/);
+  assert.doesNotMatch(home, /chunkProducts|productGroups|product-group/);
   assert.doesNotMatch(home, /home-category-(?:desktop|mobile)-products/);
-  assert.match(styles, /\.home-category-sections \{[^}]*gap:32px;/);
-  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.home-category-sections \{ gap:24px; \}/);
+  assert.match(styles, /\.home-category-sections \{ gap:clamp\(52px,5vw,76px\); \}/);
+  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.home-category-sections \{ gap:44px; \}/);
 });
 
 test("large vertical sections are compacted without being hidden", () => {

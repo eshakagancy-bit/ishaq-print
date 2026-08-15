@@ -28,29 +28,25 @@ test("category collection cards use the storefront grid and preserve independent
   assert.match(client, /className="product-image-link" href=\{detailsHref\}/);
   assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);
-  assert.match(home, /<HomeProductSlider key=\{`\$\{categoryId\}-\$\{homeProductGroupSize\}`\} groups=\{productGroups\} groupSize=\{homeProductGroupSize\}/);
+  assert.match(home, /<HomeProductSlider products=\{productCards\} label=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label\} \/>/);
   assert.match(home, /function HomeProductSlider/);
   assert.match(home, /const sliderRef = useRef<HTMLDivElement \| null>\(null\)/);
-  assert.match(home, /const \[activeGroup, setActiveGroup\] = useState\(0\)/);
-  assert.match(home, /useSyncExternalStore\([\s\S]*?subscribeToHomeSliderViewport[\s\S]*?getHomeSliderViewportSnapshot[\s\S]*?getHomeSliderServerSnapshot/);
-  assert.match(home, /addEventListener\("change", onStoreChange\)/);
-  assert.match(home, /removeEventListener\("change", onStoreChange\)/);
-  assert.match(home, /window\.addEventListener\("resize", onStoreChange\)/);
-  assert.match(home, /window\.removeEventListener\("resize", onStoreChange\)/);
+  assert.match(home, /const dragState = useRef/);
+  assert.match(home, /event\.currentTarget\.setPointerCapture\(event\.pointerId\)/);
+  assert.match(home, /event\.currentTarget\.scrollLeft = dragState\.current\.startScrollLeft - distance/);
   assert.match(styles, /\.home-category-sections \{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(styles, /\.home-category-section \{ min-width:0; \}/);
-  assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
-  assert.match(styles, /\.home-category-products \.product-card \{ width:auto; min-width:0; \}/);
+  assert.match(styles, /\.home-category-products \{[\s\S]*?display:flex;[\s\S]*?flex-wrap:nowrap;[\s\S]*?scroll-snap-type:x proximity;/);
+  assert.match(styles, /\.home-category-products \.product-card \{[\s\S]*?flex:0 0 clamp/);
 });
 
-test("home paper and ink cards use a portrait image area without changing printers", async () => {
+test("home printers, papers and inks share one fixed image-first card ratio", async () => {
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   const portraitCards = String.raw`\.home-category-section \.product-card:is\(\[data-category="papers"\],\[data-category="inks"\]\)`;
 
-  assert.match(styles, new RegExp(`${portraitCards} \\.product-image \\{[^}]*height:auto;[^}]*flex:0 0 auto;[^}]*aspect-ratio:4/5;`));
-  assert.match(styles, new RegExp(`${portraitCards} \\.product-image img \\{[^}]*width:94%;[^}]*height:94%;[^}]*object-fit:contain;[^}]*object-position:center;`));
-  assert.match(styles, /\.product-image \{ position:relative; height:220px; flex:0 0 220px;/);
-  assert.doesNotMatch(styles, /data-category="printers"[^}]*aspect-ratio/);
+  assert.match(styles, new RegExp(`\\.home-category-products \\.product-image,[\\s\\S]*?${portraitCards} \\.product-image \\{[\\s\\S]*?aspect-ratio:4/5;`));
+  assert.match(styles, /\.home-category-products \.product-image img,[\s\S]*?object-fit:contain;[\s\S]*?object-position:center;/);
+  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?aspect-ratio:1\/1\.05;/);
 });
 
 test("the public home renders only three independent category rows without the legacy storefront", async () => {
@@ -60,22 +56,19 @@ test("the public home renders only three independent category rows without the l
   ]);
   assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
   assert.match(home, /product\.category === categoryId/);
-  assert.match(home, /HOME_DESKTOP_GROUP_SIZE = 10/);
-  assert.match(home, /HOME_MOBILE_GROUP_SIZE = 2/);
   assert.match(home, /data-product-id=\{product\.id\}/);
-  assert.match(home, /data-product-group-size=\{groupSize\}/);
+  assert.match(home, /data-product-slider=\{label\}/);
   assert.doesNotMatch(home, /home-category-(?:desktop|mobile)-products|desktopGroups|mobileGroups/);
-  assert.doesNotMatch(home, /homeProductGroupIndices|changeHomeProductGroup/);
+  assert.doesNotMatch(home, /homeProductGroupIndices|changeHomeProductGroup|product-group-controls/);
   assert.match(
     home,
     /<a href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}>عرض الكل/,
   );
   assert.doesNotMatch(home, /categories-view|أقسامنا التجارية|PRINTER_CATEGORIES|openPrinterFilter/);
   assert.doesNotMatch(home, /سيتم إضافة منتجات|قريبًا/);
-  assert.match(styles, /\.product-grid \{ display:flex;[^}]*scroll-snap-type:x mandatory;/);
-  assert.match(styles, /\.home-page \.container,[^\n]*\.printer-details-page \.container \{ width:min\(1280px,calc\(100% - 48px\)\); \}/);
-  assert.match(styles, /\.product-group \{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\);[^}]*grid-template-rows:repeat\(2,auto\);/);
-  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.product-group \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\);[^}]*grid-template-rows:1fr;/);
+  assert.match(styles, /\.home-category-products \{[\s\S]*?flex-wrap:nowrap;[\s\S]*?overflow-x:auto;/);
+  assert.match(styles, /\.products-section>\.container \{ width:min\(1600px,calc\(100% - 48px\)\); \}/);
+  assert.doesNotMatch(styles, /\.product-group \{/);
   assert.match(styles, /scroll-snap-align:start/);
 });
 

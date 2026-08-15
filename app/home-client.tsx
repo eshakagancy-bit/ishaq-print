@@ -2,7 +2,7 @@
 
 import Image, { getImageProps } from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { normalizeMediaUrl } from "../lib/media-url";
 import { isOpenInAden } from "./business-hours";
 import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
@@ -96,43 +96,55 @@ function DrawerIcon({ name }: { name: DrawerIconName }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
-function HomeProductSlider({ groups, label, groupSize }: { groups: ReactNode[][]; label: string; groupSize: number }) {
+const PRODUCT_DRAG_THRESHOLD = 7;
+
+function HomeProductSlider({ products, label }: { products: ReactNode[]; label: string }) {
   const sliderRef = useRef<HTMLDivElement | null>(null);
-  const [activeGroup, setActiveGroup] = useState(0);
+  const dragState = useRef({ pointerId: -1, startX: 0, startScrollLeft: 0, dragged: false });
+  const [dragging, setDragging] = useState(false);
 
-  const updateActiveGroup = useCallback(() => {
-    const slider = sliderRef.current;
-    if (!slider) return;
-    const groupElements = Array.from(slider.querySelectorAll<HTMLElement>(":scope > .product-group"));
-    if (!groupElements.length) return;
-    const sliderStart = slider.getBoundingClientRect().right;
-    const nearestIndex = groupElements.reduce((nearest, group, index) => {
-      const currentDistance = Math.abs(sliderStart - group.getBoundingClientRect().right);
-      const nearestDistance = Math.abs(sliderStart - groupElements[nearest].getBoundingClientRect().right);
-      return currentDistance < nearestDistance ? index : nearest;
-    }, 0);
-    setActiveGroup(nearestIndex);
-  }, []);
-
-  const showGroup = (requestedIndex: number) => {
-    const slider = sliderRef.current;
-    if (!slider) return;
-    const nextIndex = Math.min(groups.length - 1, Math.max(0, requestedIndex));
-    const target = slider.querySelectorAll<HTMLElement>(":scope > .product-group")[nextIndex];
-    if (!target) return;
-    const distanceFromStart = slider.getBoundingClientRect().right - target.getBoundingClientRect().right;
-    slider.scrollTo({ left: slider.scrollLeft - distanceFromStart, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  const finishDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (dragState.current.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    dragState.current.pointerId = -1;
+    setDragging(false);
+    if (dragState.current.dragged) window.setTimeout(() => { dragState.current.dragged = false; }, 0);
   };
 
-  return <div className="home-product-slider">
-    {groups.length > 1 && <div className="product-group-controls">
-      <button type="button" disabled={activeGroup === 0} onClick={() => showGroup(activeGroup - 1)} aria-label={`المجموعة السابقة من ${label}`}>→</button>
-      <button type="button" disabled={activeGroup === groups.length - 1} onClick={() => showGroup(activeGroup + 1)} aria-label={`المجموعة التالية من ${label}`}>←</button>
-    </div>}
-    <div ref={sliderRef} className={`home-category-products product-grid${groups.length > 1 ? " has-more" : ""}`} onScroll={updateActiveGroup} data-product-slider={label} data-product-group-size={groupSize} role="region" aria-label={`سلايدر ${label}`}>
-      {groups.map((group, index) => <div className="product-group" key={`${label}-${index}`} inert={index !== activeGroup} aria-hidden={index !== activeGroup}>{group}</div>)}
-    </div>
-  </div>;
+  return <div
+    ref={sliderRef}
+    className={dragging ? "home-category-products is-dragging" : "home-category-products"}
+    data-product-slider={label}
+    role="region"
+    tabIndex={0}
+    aria-label={`منتجات ${label}، مرر أفقيًا لعرض المزيد`}
+    onPointerDown={(event) => {
+      if ((event.pointerType !== "mouse" && event.pointerType !== "pen") || event.button !== 0) return;
+      if ((event.target as HTMLElement).closest("button")) return;
+      dragState.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: event.currentTarget.scrollLeft, dragged: false };
+    }}
+    onPointerMove={(event) => {
+      if (dragState.current.pointerId !== event.pointerId) return;
+      const distance = event.clientX - dragState.current.startX;
+      if (!dragState.current.dragged) {
+        if (Math.abs(distance) < PRODUCT_DRAG_THRESHOLD) return;
+        dragState.current.dragged = true;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragging(true);
+      }
+      event.preventDefault();
+      event.currentTarget.scrollLeft = dragState.current.startScrollLeft - distance;
+    }}
+    onPointerUp={finishDrag}
+    onPointerCancel={finishDrag}
+    onClickCapture={(event) => {
+      if (!dragState.current.dragged) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragState.current.dragged = false;
+    }}
+    onDragStart={(event) => event.preventDefault()}
+  >{products}</div>;
 }
 
 const mobileNavTargets: Record<MobileNavSection, string> = {
@@ -181,40 +193,6 @@ const categories = allCategories.filter((category) => isPublicCategoryEnabled(ca
 type CategoryId = typeof categories[number]["id"];
 
 const homeCategoryOrder: PublicEnabledCategory[] = ["printers", "inks", "papers"];
-const HOME_DESKTOP_GROUP_SIZE = 10;
-const HOME_MOBILE_GROUP_SIZE = 2;
-const HOME_MOBILE_SLIDER_QUERY = "(max-width: 760px)";
-
-function subscribeToHomeSliderViewport(onStoreChange: () => void) {
-  const mediaQuery = window.matchMedia(HOME_MOBILE_SLIDER_QUERY);
-  mediaQuery.addEventListener("change", onStoreChange);
-  window.addEventListener("resize", onStoreChange);
-  return () => {
-    mediaQuery.removeEventListener("change", onStoreChange);
-    window.removeEventListener("resize", onStoreChange);
-  };
-}
-
-function getHomeSliderViewportSnapshot() {
-  return window.matchMedia(HOME_MOBILE_SLIDER_QUERY).matches;
-}
-
-function getHomeSliderServerSnapshot() {
-  return false;
-}
-
-function useMobileHomeSlider() {
-  return useSyncExternalStore(
-    subscribeToHomeSliderViewport,
-    getHomeSliderViewportSnapshot,
-    getHomeSliderServerSnapshot,
-  );
-}
-
-function chunkProducts<T>(items: T[], size: number) {
-  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size));
-}
-
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
 }
@@ -256,6 +234,7 @@ function ProductImage({ src, alt, modal = false }: { src: string; alt: string; m
     placeholder="blur"
     blurDataURL="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12'%3E%3Crect width='16' height='12' fill='%23eef4f6'/%3E%3C/svg%3E"
     onError={() => setResolvedSrc(DEFAULT_IMAGE_SRC)}
+    draggable={false}
   />;
 }
 
@@ -405,7 +384,6 @@ export default function HomeClient({
   const [heroPaused, setHeroPaused] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [quickViewTrigger, setQuickViewTrigger] = useState<HTMLElement | null>(null);
-  const mobileHomeSlider = useMobileHomeSlider();
   const categoryStripRef = useRef<HTMLElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuDrawerRef = useRef<HTMLElement | null>(null);
@@ -432,7 +410,6 @@ export default function HomeClient({
   const matchingProducts = normalizedQuery
     ? products.filter((product) => `${product.name} ${product.family} ${product.description}`.toLowerCase().includes(normalizedQuery))
     : products;
-  const homeProductGroupSize = mobileHomeSlider ? HOME_MOBILE_GROUP_SIZE : HOME_DESKTOP_GROUP_SIZE;
 
   const showHeroSlide = useCallback((requestedIndex: number) => {
     if (heroSlides.length < 2) return;
@@ -904,8 +881,8 @@ export default function HomeClient({
         <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
           const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
           if (normalizedQuery && categoryProducts.length === 0) return null;
-          const productGroups = chunkProducts(categoryProducts, homeProductGroupSize).map((group) => group.map(renderProductCard));
-          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider key={`${categoryId}-${homeProductGroupSize}`} groups={productGroups} groupSize={homeProductGroupSize} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
+          const productCards = categoryProducts.map(renderProductCard);
+          return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider products={productCards} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
         })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
       </div></section>
 

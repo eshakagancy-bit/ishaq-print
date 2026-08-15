@@ -28,8 +28,8 @@ test("navigation, filters, sliders and favorites expose state to assistive techn
   assert.match(home, /role="dialog" aria-modal=\{menuOpen \? "true" : undefined\} aria-hidden=\{!menuOpen\} inert=\{!menuOpen\}/);
   assert.match(home, /#site-menu-drawer \.drawer-close/);
   assert.match(home, /menuButton\?\.focus\(\)/);
-  assert.match(home, /role="region" aria-label=\{`سلايدر \$\{label\}`\}/);
-  assert.match(home, /inert=\{index !== activeGroup\} aria-hidden=\{index !== activeGroup\}/);
+  assert.match(home, /role="region"[\s\S]*?tabIndex=\{0\}[\s\S]*?aria-label=\{`منتجات \$\{label\}، مرر أفقيًا لعرض المزيد`\}/);
+  assert.doesNotMatch(home, /inert=\{index !== activeGroup\} aria-hidden=\{index !== activeGroup\}/);
   assert.match(home, /aria-pressed=\{favorites\.includes\(product\.id\)\}/);
   assert.match(category, /aria-pressed=\{printerFilter === item\.value\}/);
   assert.match(category, /aria-pressed=\{favorites\.includes\(product\.id\)\}/);
@@ -56,5 +56,5 @@ test("quick view and favorites dialogs manage focus and close from Escape", asyn
 test("hero autoplay and scripted scrolling respect reduced motion", async () => {
   const home = await read("app/home-client.tsx");
   const usesReducedMotion = home.match(/prefers-reduced-motion: reduce/g) ?? [];
-  assert.ok(usesReducedMotion.length >= 3);
+  assert.ok(usesReducedMotion.length >= 2);
 });

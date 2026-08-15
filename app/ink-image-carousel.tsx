@@ -56,6 +56,7 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
       placeholder="blur"
       blurDataURL="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12'%3E%3Crect width='16' height='12' fill='%23eef4f6'/%3E%3C/svg%3E"
       onError={() => setFailedImage(activeImage)}
+      draggable={false}
     />
     {multiple && !staticMode && <>
       <button type="button" className="ink-carousel-arrow previous" onClick={() => { show(activeIndex - 1); setPaused(true); }} aria-label="الصورة السابقة">‹</button>
