@@ -12,6 +12,7 @@ import { isPublicCategoryEnabled } from "../../public-categories";
 import { publicMetadata } from "../../seo";
 import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
+import StorefrontFooter from "../../storefront-footer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,7 +77,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
   const showPurchaseBenefits = Boolean(purchaseBenefits.title || purchaseBenefits.description || visiblePurchaseBenefitItems.length);
 
   return (
-    <main id="main-content" tabIndex={-1} className="printer-details-page">
+    <><main id="main-content" tabIndex={-1} className="printer-details-page">
       <header className="printer-details-header">
         <div className="container">
           <Link href="/printers" className="printer-back-link">العودة إلى الطابعات</Link>
@@ -130,6 +131,6 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
         {pageContent?.faq.some((item) => item.question) ? <section id="faq"><h2>الأسئلة الشائعة</h2><div className="printer-faq">{pageContent.faq.filter((item) => item.question).map((item, index) => <details key={`${item.question}-${index}`}><summary>{item.question}</summary>{item.answer && <p>{item.answer}</p>}</details>)}</div></section> : null}
         {similarProducts.length > 0 && <section id="similar-products"><h2>منتجات مشابهة</h2><div className="similar-printers">{similarProducts.map((printer) => <Link href={`/printers/${getPrinterSlug(printer)}`} key={printer.id}><Image src={printer.image || "/brand/eshak-logo.png"} alt={printer.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{printer.name}</b><span>{getPrinterCategoryLabel(printer.printerCategory)}</span></Link>)}</div></section>}
       </div>
-    </main>
+    </main><StorefrontFooter settings={settings} /></>
   );
 }

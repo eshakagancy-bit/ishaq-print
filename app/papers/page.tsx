@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getSiteData } from "../../lib/site-database";
 import CategoryProductsClient from "../category-products-client";
 import { isPublicCategoryEnabled } from "../public-categories";
-import { starterProducts } from "../site-defaults";
+import { defaultSiteSettings, starterProducts } from "../site-defaults";
 import { publicMetadata } from "../seo";
 
 export const metadata = publicMetadata({
@@ -14,6 +14,6 @@ export const metadata = publicMetadata({
 export const dynamic = "force-dynamic";
 export default async function PapersPage() {
   if (!isPublicCategoryEnabled("papers")) notFound();
-  const data = await getSiteData().catch(() => ({ products: starterProducts }));
-  return <CategoryProductsClient category="papers" products={data.products.filter((product) => product.category === "papers")} />;
+  const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
+  return <CategoryProductsClient category="papers" products={data.products.filter((product) => product.category === "papers")} settings={data.settings} />;
 }

@@ -11,6 +11,7 @@ import { isPublicCategoryEnabled } from "../../public-categories";
 import { publicMetadata } from "../../seo";
 import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
+import StorefrontFooter from "../../storefront-footer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,10 +19,10 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ slug: string }> };
 
 async function getPaperData(slug: string) {
-  if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [] };
+  if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [], settings: defaultSiteSettings };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   const papers = data.products.filter((item) => item.category === "papers");
-  return { product: papers.find((item) => getPaperSlug(item) === slug), papers };
+  return { product: papers.find((item) => getPaperSlug(item) === slug), papers, settings: data.settings };
 }
 
 function whatsappLink(product: StoredProduct) {
@@ -42,7 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PaperDetailsPage({ params }: PageProps) {
-  const { product, papers } = await getPaperData((await params).slug);
+  const { product, papers, settings } = await getPaperData((await params).slug);
   if (!product) notFound();
 
   const title = product.paperSpecifications?.nameEn?.trim() || product.name;
@@ -63,7 +64,7 @@ export default async function PaperDetailsPage({ params }: PageProps) {
     : product.paperSpecifications?.images?.length ? product.paperSpecifications.images : [product.image || "/brand/eshak-logo.png"];
   const availabilityLabel = getPaperAvailabilityLabel(product);
 
-  return <main id="main-content" tabIndex={-1} className="printer-details-page">
+  return <><main id="main-content" tabIndex={-1} className="printer-details-page">
     <header className="printer-details-header"><div className="container"><Link href="/papers" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/papers">الأوراق</Link><span>/</span><b>{title}</b></nav>
@@ -79,5 +80,5 @@ export default async function PaperDetailsPage({ params }: PageProps) {
       {content?.faq.some((item) => item.question) && <section id="faq"><h2>الأسئلة الشائعة</h2><div className="printer-faq">{content.faq.filter((item) => item.question).map((item, index) => <details key={`${item.question}-${index}`}><summary>{item.question}</summary>{item.answer && <p>{item.answer}</p>}</details>)}</div></section>}
       {similar.length > 0 && <section id="similar-products"><h2>منتجات ورقية مشابهة</h2><div className="similar-printers">{similar.map((item) => <Link href={`/papers/${getPaperSlug(item)}`} key={item.id}><Image src={item.images?.[0] || item.image || "/brand/eshak-logo.png"} alt={item.paperSpecifications?.nameEn || item.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{item.paperSpecifications?.nameEn || item.name}</b><span>{item.paperSpecifications?.paperType || item.type}</span></Link>)}</div></section>}
     </div>
-  </main>;
+  </main><StorefrontFooter settings={settings} /></>;
 }

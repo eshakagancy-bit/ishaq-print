@@ -31,12 +31,13 @@ test("preserves both maintenance phone and WhatsApp destinations exactly", () =>
 });
 
 test("maintenance page uses the shared storefront shell and accessible service structure", async () => {
-  const [home, styles] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css")]);
+  const [home, footer, styles] = await Promise.all([read("app/home-client.tsx"), read("app/storefront-footer.tsx"), read("app/globals.css")]);
   assert.match(home, /<header className=/);
   assert.match(home, /id="site-menu-drawer"/);
   assert.match(home, /id="wishlist-drawer"/);
   assert.match(home, /id="search-drawer"/);
-  assert.match(home, /<footer>/);
+  assert.match(home, /<StorefrontFooter/);
+  assert.match(footer, /<footer>/);
   assert.match(home, /<h1 id="maintenance-page-title">الصيانة والدعم الفني<\/h1>/);
   assert.match(home, /aria-labelledby="maintenance-services-title"/);
   assert.match(home, /aria-labelledby="maintenance-contact-title"/);

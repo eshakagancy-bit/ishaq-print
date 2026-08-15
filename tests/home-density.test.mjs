@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const home = readFileSync(new URL("../app/home-client.tsx", import.meta.url), "utf8");
+const footer = readFileSync(new URL("../app/storefront-footer.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 
 test("home prioritizes category discovery and products before support controls", () => {
@@ -23,7 +24,8 @@ test("home keeps every principal section and all category links", () => {
   assert.match(home, /pageView === "maintenance"/);
   assert.match(home, /homeCategoryOrder\.map/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href/);
-  assert.match(home, /<footer>/);
+  assert.match(home, /<StorefrontFooter/);
+  assert.match(footer, /<footer>/);
 });
 
 test("home remains one responsive product slider per category", () => {

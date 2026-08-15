@@ -993,12 +993,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .category-product-price small { color:var(--muted); font-size:8px; } .category-product-price strong { font-size:11px; }
 .category-product-actions { padding-top:10px; border:0; }
 .category-product-actions a { width:100%; min-height:40px; display:grid; place-items:center; border:0; border-radius:7px; background:var(--store-navy); color:#fff; font-size:9px; }
-.collection-footer { margin-top:auto; padding:34px 0; background:var(--store-navy); color:#d8e2e8; }
-.collection-footer .container { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:40px; }
-.collection-footer img { width:140px; height:58px; object-fit:contain; filter:brightness(0) invert(1); }
-.collection-footer p { max-width:420px; color:#aebdca; font-size:10px; }
-.collection-footer nav { display:flex; flex-wrap:wrap; gap:18px; font-size:10px; }
-.collection-contact { min-height:40px; display:flex; align-items:center; padding:0 15px; border:1px solid rgba(255,255,255,.3); border-radius:8px; font-size:10px; font-weight:800; }
 
 /* Categories and product details */
 .categories-index-page { background:#fff; } .categories-index-content { padding-block:38px 76px; }
@@ -1040,7 +1034,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .category-products-header .container,.categories-index-header .container { grid-template-columns:auto 1fr; min-height:68px; gap:16px; }
   .category-products-header nav,.categories-index-header nav { display:none; } .collection-header-actions,.categories-contact { justify-self:end; }
   .category-products-list { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; } .category-product-image { height:190px; flex-basis:190px; }
-  .collection-footer .container { grid-template-columns:1fr auto; } .collection-footer nav { display:none; }
   .printer-hero-grid { grid-template-columns:1fr; } .product-gallery-main { min-height:430px; }
 }
 @media (max-width:760px) {
@@ -1110,7 +1103,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .category-product-content,.category-products-page[data-category="printers"] .category-product-content { padding:10px; }
   .category-product-content h2,.category-products-page[data-category="printers"] .category-product-content h2 { min-height:40px; margin:5px 0 8px; font-size:11px; line-height:1.65; }
   .category-product-price strong { font-size:9px; } .category-product-actions a { min-height:35px; font-size:7px; }
-  .collection-footer .container { display:block; text-align:center; } .collection-footer img { margin-inline:auto; } .collection-contact { width:max-content; margin:18px auto 0; }
   .categories-index-grid { grid-template-columns:1fr; } .categories-index-image { height:240px; }
   .printer-details-header .container { min-height:66px; } .printer-details-header img { width:130px; height:56px; }
   .printer-hero { padding:18px 0 38px; } .product-gallery-main { min-height:340px; } .printer-summary { padding:12px 0 0; } .printer-summary h1 { font-size:30px; }

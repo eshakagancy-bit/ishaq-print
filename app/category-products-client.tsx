@@ -14,12 +14,13 @@ import {
 } from "./printer-categories";
 import { buildQuickViewSpecificationRows } from "./printer-specifications";
 import type { PublicEnabledCategory } from "./public-categories";
-import type { StoredProduct } from "./site-defaults";
+import type { SiteSettings, StoredProduct } from "./site-defaults";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import { getPrinterSlug } from "./printers/product-slug";
 import QuickViewModal from "./quick-view-modal";
 import { productPriceLabel } from "./product-commerce";
+import StorefrontFooter from "./storefront-footer";
 
 const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 type SortMode = "default" | "name-asc" | "name-desc";
@@ -47,7 +48,7 @@ function whatsappLink(product: StoredProduct) {
   return `https://wa.me/967778989866?text=${encodeURIComponent(`مرحبًا مجموعة إسحاق العالمية، أريد معرفة السعر والتوفر للمنتج: ${product.name}.`)}`;
 }
 
-export default function CategoryProductsClient({ category, products }: { category: PublicEnabledCategory; products: StoredProduct[] }) {
+export default function CategoryProductsClient({ category, products, settings }: { category: PublicEnabledCategory; products: StoredProduct[]; settings: SiteSettings }) {
   const [query, setQuery] = useState("");
   const [printerFilter, setPrinterFilter] = useState<PrinterCategoryFilter>(ALL_PRINTERS_FILTER.value);
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -136,7 +137,7 @@ export default function CategoryProductsClient({ category, products }: { categor
         </article>;
       })}</div> : filteredSearchHasNoResults ? <div className="empty-state"><b>{`لا توجد نتائج لـ «${trimmedQuery}» ضمن فلتر ${printerFilterLabels[printerFilter]}.`}</b><p>قد يكون الفلتر الحالي سبب عدم ظهور المنتج الذي تبحث عنه.</p><div className="empty-actions"><button type="button" onClick={clearPrinterFilters}>مسح الفلاتر</button><button type="button" className="outline-button" onClick={showAllProducts}>عرض كل المنتجات</button></div></div> : <div className="empty-state"><b>{query ? "لا توجد نتائج مطابقة" : category === "printers" && printerFilter !== ALL_PRINTERS_FILTER.value ? "لا توجد طابعات في هذا التصنيف حاليًا" : `لا توجد منتجات في ${categoryLabels[category]} حاليًا`}</b><p>{query ? "جرّب البحث باسم آخر." : "يمكنك العودة لاحقًا أو التواصل معنا لمعرفة المتوفر."}</p></div>}
     </section>
-    <footer className="collection-footer"><div className="container"><div><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={150} height={66} sizes="150px" /><p>حلول الطباعة ومستلزماتها للأفراد وقطاع الأعمال.</p></div><nav aria-label="روابط الفئات"><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link><Link href="/categories">جميع الفئات</Link></nav><Link className="collection-contact" href="/#contact">استشارات ومبيعات</Link></div></footer>
+    <StorefrontFooter settings={settings} />
     {selected && <QuickViewModal id={selected.id} title={displayName(selected)} categoryLabel={categoryLabels[category]} family={selected.family} badge={selected.badge} availabilityLabel={category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : selected.paperSpecifications?.images?.length ? selected.paperSpecifications.images : selected.inkSpecifications?.images?.length ? selected.inkSpecifications.images : [selected.image]} rows={selectedRows} detailsHref={`/${category}/${productSlug(selected)}`} whatsappHref={whatsappLink(selected)} whatsappLabel="اعرف السعر والتوفر" trigger={quickViewTrigger} onClose={closeQuickView} />}
   </main>;
 }
