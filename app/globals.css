@@ -374,6 +374,15 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .footer-grid { display:grid; grid-template-columns:1.5fr .7fr 1fr .9fr; gap:44px; padding-bottom:42px; }
 .footer-brand img { width:190px; height:95px; object-fit:contain; background:#fff; border-radius:8px; padding:4px; }
 .footer-brand p { max-width:320px; font-size:12px; line-height:2; color:#8392a2; }
+.footer-social { margin-top:22px; }
+.footer-grid .footer-social h3 { margin:8px 0 12px; }
+.footer-social-links { display:flex; flex-wrap:wrap; gap:10px; }
+.footer-social-links a { min-height:40px; padding:0 12px; display:inline-flex; align-items:center; gap:8px; border:1px solid #26394b; border-radius:7px; color:#c7d0d9; font-size:10px; font-weight:700; transition:border-color .2s,color .2s,background-color .2s; }
+.footer-social-links a:hover,.footer-social-links a:focus-visible { border-color:var(--cyan); background:rgba(5,169,198,.08); color:var(--cyan); }
+.footer-social-links a:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
+.footer-social-links svg { width:18px; height:18px; flex:0 0 18px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.footer-social-links svg path { fill:currentColor; stroke:none; }
+.footer-social-links .social-dot { fill:currentColor; stroke:none; }
 .footer-grid h3 { color:#fff; font-size:13px; margin:8px 0 22px; }
 .footer-grid>div:not(.footer-brand) { display:flex; flex-direction:column; align-items:flex-start; gap:12px; font-size:11px; }
 .footer-grid a:hover { color:var(--cyan); }
