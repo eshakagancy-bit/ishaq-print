@@ -2,7 +2,7 @@
 
 import Image, { getImageProps } from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { normalizeMediaUrl } from "../lib/media-url";
 import { isOpenInAden } from "./business-hours";
 import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
@@ -39,6 +39,7 @@ import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
 import QuickViewModal from "./quick-view-modal";
 import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, type PublicEnabledCategory } from "./public-categories";
+import { searchProducts, type ProductSearchScope } from "./global-product-search";
 
 const HERO_IMAGE_SIZES = "100vw";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -150,7 +151,7 @@ function HomeProductSlider({ products, label }: { products: ReactNode[]; label: 
 const mobileNavTargets: Record<MobileNavSection, string> = {
   home: "home",
   categories: "categories",
-  search: "general-search",
+  search: "home",
   contact: "contact",
 };
 
@@ -365,15 +366,17 @@ export default function HomeClient({
       name: normalizeProductBrandName(product.name),
     }));
   });
-  const [query, setQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchScope, setSearchScope] = useState<ProductSearchScope>("all");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("printers");
   const [pageView, setPageView] = useState<PageView>("home");
   const [selected, setSelected] = useState<Product | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
   const [favoritesReady, setFavoritesReady] = useState(false);
-  const [activeHeaderDrawer, setActiveHeaderDrawer] = useState<"closed" | "menu" | "wishlist">("closed");
+  const [activeHeaderDrawer, setActiveHeaderDrawer] = useState<"closed" | "menu" | "wishlist" | "search">("closed");
   const menuOpen = activeHeaderDrawer === "menu";
   const favoritesOpen = activeHeaderDrawer === "wishlist";
+  const searchOpen = activeHeaderDrawer === "search";
   const [importantLinksOpen, setImportantLinksOpen] = useState(false);
   const [headerCompact, setHeaderCompact] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
@@ -391,6 +394,9 @@ export default function HomeClient({
   const favoritesButtonRef = useRef<HTMLButtonElement | null>(null);
   const favoritesPanelRef = useRef<HTMLElement | null>(null);
   const favoritesCloseRef = useRef<HTMLButtonElement | null>(null);
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const searchPanelRef = useRef<HTMLElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const heroTouchStartX = useRef<number | null>(null);
   const activeHeroSlideRef = useRef(0);
   const heroTransitionTimerRef = useRef<number | null>(null);
@@ -406,10 +412,24 @@ export default function HomeClient({
   const featureImageSrc = safeImageSrc(settings.featureImage);
   const favoriteProducts = products.filter((product) => favorites.includes(product.id));
   const businessIsOpen = isOpenInAden(currentTime, settings);
-  const normalizedQuery = query.trim().toLowerCase();
-  const matchingProducts = normalizedQuery
-    ? products.filter((product) => `${product.name} ${product.family} ${product.description}`.toLowerCase().includes(normalizedQuery))
-    : products;
+  const normalizedSearchQuery = searchQuery.trim();
+  const matchingSearchProducts = useMemo(() => searchProducts(
+    products,
+    searchQuery,
+    searchScope,
+    (product) => [
+      product.name,
+      getProductDisplayName(product),
+      product.family,
+      product.type,
+      product.description,
+      getHomeProductBrandLine(product),
+      getHomeProductCategoryLine(product),
+      product.printerCategory,
+      product.inkSpecifications?.inkType,
+      product.paperSpecifications?.paperType,
+    ],
+  ), [products, searchQuery, searchScope]);
 
   const showHeroSlide = useCallback((requestedIndex: number) => {
     if (heroSlides.length < 2) return;
@@ -525,7 +545,7 @@ export default function HomeClient({
 
   useEffect(() => {
     if (pageView === "categories") return undefined;
-    const sectionIds: MobileNavSection[] = ["home", "search", "contact"];
+    const sectionIds: MobileNavSection[] = ["home", "contact"];
     let frame = 0;
     const updateActiveSection = () => {
       window.cancelAnimationFrame(frame);
@@ -581,9 +601,6 @@ export default function HomeClient({
           ? 0
           : window.scrollY + target.getBoundingClientRect().top - headerOffset - 8;
         window.scrollTo({ top: Math.max(0, targetTop), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-        if (scrollRequest.targetId === "general-search") {
-          target.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
-        }
       });
     });
     return () => {
@@ -660,6 +677,46 @@ export default function HomeClient({
     };
   }, [favoritesOpen, selected]);
 
+  useLayoutEffect(() => {
+    if (!searchOpen) return undefined;
+    const panel = searchPanelRef.current;
+    const searchButton = searchButtonRef.current;
+    const backgroundElements = [...document.querySelectorAll<HTMLElement>("main > :not(.menu-overlay)")];
+    const backgroundState = backgroundElements.map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute("aria-hidden") }));
+    backgroundElements.forEach((element) => { element.inert = true; element.setAttribute("aria-hidden", "true"); });
+    const bodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    const handleSearchKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setActiveHeaderDrawer("closed");
+        return;
+      }
+      if (event.key !== "Tab" || !panel) return;
+      const focusable = [...panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => element.tabIndex >= 0);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !panel.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", handleSearchKey);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleSearchKey);
+      document.body.style.overflow = bodyOverflow;
+      backgroundState.forEach(({ element, inert, ariaHidden }) => {
+        element.inert = inert;
+        if (ariaHidden === null) element.removeAttribute("aria-hidden"); else element.setAttribute("aria-hidden", ariaHidden);
+      });
+      window.requestAnimationFrame(() => {
+        if (!document.querySelector('[role="dialog"][aria-modal="true"]')) searchButton?.focus();
+      });
+    };
+  }, [searchOpen]);
+
   const currentCategory = categories.find((category) => category.id === activeCategory) ?? categories[0];
 
   const requestSectionScroll = (targetId: string) => {
@@ -671,21 +728,18 @@ export default function HomeClient({
     setPageView("home");
     setMobileNavSection("home");
     setActiveCategory(category);
-    setQuery("");
     requestSectionScroll(`home-category-${category}`);
   };
 
   const openAllCategories = () => {
     setPageView("home");
     setMobileNavSection("home");
-    setQuery("");
     requestSectionScroll("products");
   };
 
   const openHomeView = () => {
     setPageView("home");
     setMobileNavSection("home");
-    setQuery("");
     setActiveHeaderDrawer("closed");
     requestSectionScroll("home");
   };
@@ -701,14 +755,14 @@ export default function HomeClient({
       openHomeView();
       return;
     }
+    if (section === "search") {
+      setMobileNavSection("search");
+      setActiveHeaderDrawer("search");
+      return;
+    }
     setPageView("home");
     setMobileNavSection(section);
     requestSectionScroll(mobileNavTargets[section]);
-  };
-
-  const updateProductSearch = (value: string) => {
-    setQuery(value);
-    if (value) requestSectionScroll("products");
   };
 
   const openSiteMenu = () => {
@@ -720,6 +774,10 @@ export default function HomeClient({
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setActiveHeaderDrawer("wishlist");
     window.setTimeout(() => document.querySelector<HTMLElement>("#wishlist-drawer .drawer-close")?.focus(), 150);
+  };
+
+  const openSearch = () => {
+    setActiveHeaderDrawer("search");
   };
 
   const changeHeroSlide = (step: number) => {
@@ -780,7 +838,10 @@ export default function HomeClient({
         <div className="container nav-wrap">
           <button ref={menuButtonRef} className="menu-btn" type="button" onClick={openSiteMenu} aria-label="فتح القائمة" aria-controls="site-menu-drawer" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
           <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>
-          <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={openWishlist} aria-label={favorites.length ? `فتح قائمة الرغبات، ${favorites.length} منتجات` : "فتح قائمة الرغبات"} aria-controls="wishlist-drawer" aria-expanded={favoritesOpen} aria-haspopup="dialog"><DrawerIcon name="heart"/>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
+          <div className="header-left-actions">
+            <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={openWishlist} aria-label={favorites.length ? `فتح قائمة الرغبات، ${favorites.length} منتجات` : "فتح قائمة الرغبات"} aria-controls="wishlist-drawer" aria-expanded={favoritesOpen} aria-haspopup="dialog"><DrawerIcon name="heart"/>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
+            <button ref={searchButtonRef} type="button" className="header-search-button" onClick={openSearch} aria-label="فتح البحث" aria-controls="search-drawer" aria-expanded={searchOpen} aria-haspopup="dialog"><DrawerIcon name="search"/></button>
+          </div>
         </div>
       </header>
 
@@ -795,7 +856,7 @@ export default function HomeClient({
             <a href="#home" onClick={(event) => { event.preventDefault(); openHomeView(); }}><DrawerIcon name="home"/><span>الرئيسية</span></a>
             <Link href="/categories" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="grid"/><span>جميع المنتجات</span></Link>
             <button type="button" onClick={openWishlist}><DrawerIcon name="heart"/><span>قائمة الرغبات</span>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
-            <a href="#general-search" onClick={(event) => { event.preventDefault(); openHomeSection("general-search"); }}><DrawerIcon name="search"/><span>البحث</span></a>
+            <button type="button" onClick={openSearch}><DrawerIcon name="search"/><span>البحث</span></button>
             <a href={generalWaLink(settings.generalWhatsapp)} target="_blank" rel="noreferrer" onClick={() => setActiveHeaderDrawer("closed")}><DrawerIcon name="headset"/><span>استشارات ومبيعات</span></a>
             <a href="#contact" onClick={(event) => { event.preventDefault(); openHomeSection("contact"); }}><DrawerIcon name="phone"/><span>تواصل معنا</span></a>
             <button type="button" className="drawer-accordion-trigger" onClick={() => setImportantLinksOpen((current) => !current)} aria-expanded={importantLinksOpen} aria-controls="drawer-important-links"><DrawerIcon name="link"/><span>روابط مهمة</span><svg className="drawer-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>
@@ -815,6 +876,19 @@ export default function HomeClient({
           <div className="favorites-header"><div><h2 id="favorites-title">قائمة الرغبات</h2><span>{favorites.length} منتجات</span></div><button ref={favoritesCloseRef} type="button" className="drawer-close" autoFocus={favoritesOpen} onClick={() => setActiveHeaderDrawer("closed")} aria-label="إغلاق قائمة الرغبات"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
           {favoriteProducts.length ? <div className="favorites-list">{favoriteProducts.map((product) => <article key={product.id}><Image src={imageSrcOrFallback(product.image)} alt={getProductDisplayName(product)} width={110} height={90} sizes="76px" /><div><b>{getProductDisplayName(product)}</b><span>{product.family}</span><div className="favorite-actions"><Link href={getProductDetailsHref(product)} onClick={() => setActiveHeaderDrawer("closed")}>فتح المنتج</Link><button type="button" className="remove-favorite" onClick={() => toggleFavorite(product.id)}>إزالة</button></div></div></article>)}</div> : <div className="favorites-empty"><DrawerIcon name="heart"/><h3>لا توجد منتجات في قائمة الرغبات</h3><p>أضف المنتجات التي تهمك للرجوع إليها لاحقًا.</p><Link href="/categories" onClick={() => setActiveHeaderDrawer("closed")}>تسوق الآن</Link></div>}
           {favoriteProducts.length > 0 && <button type="button" className="clear-favorites" onClick={() => setFavorites([])}>مسح قائمة الرغبات</button>}
+        </aside>
+        <aside ref={searchPanelRef} id="search-drawer" className="search-drawer" role="dialog" aria-modal={searchOpen ? "true" : undefined} aria-hidden={!searchOpen} inert={!searchOpen} aria-labelledby="search-drawer-title">
+          <div className="search-drawer-header">
+            <button type="button" className="drawer-close" onClick={() => setActiveHeaderDrawer("closed")} aria-label="إغلاق البحث"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+            <h2 id="search-drawer-title">ابحث في موقعنا</h2>
+          </div>
+          <div className="search-drawer-controls">
+            <label className="search-scope-field" htmlFor="global-search-scope"><span>نطاق البحث</span><select id="global-search-scope" value={searchScope} onChange={(event) => setSearchScope(event.target.value as ProductSearchScope)}><option value="all">جميع الفئات</option><option value="printers">الطابعات</option><option value="inks">الأحبار</option><option value="papers">الأوراق</option></select></label>
+            <label className="global-search-field" htmlFor="global-search-input"><span className="sr-only">البحث عن منتج</span><input ref={searchInputRef} id="global-search-input" type="search" dir="auto" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="ابحث عن منتج..." autoComplete="off"/><DrawerIcon name="search"/>{searchQuery && <button type="button" onClick={() => setSearchQuery("")} aria-label="مسح البحث"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>}</label>
+          </div>
+          <div className="search-drawer-results" aria-live="polite">
+            {!normalizedSearchQuery ? <div className="search-drawer-state"><DrawerIcon name="search"/><p>ابدأ بالبحث عن منتج</p><span>ابحث بالاسم أو الموديل أو النوع.</span></div> : matchingSearchProducts.length ? <><p className="search-result-count">{matchingSearchProducts.length} {matchingSearchProducts.length === 1 ? "نتيجة" : "نتائج"}</p><div className="search-results-list">{matchingSearchProducts.map((product) => <Link key={`${product.category}-${product.id}`} href={getProductDetailsHref(product)} className="search-result-item" onClick={() => setActiveHeaderDrawer("closed")}><span className="search-result-image"><Image src={imageSrcOrFallback(product.image)} alt="" width={88} height={88} sizes="72px" draggable={false}/></span><span className="search-result-copy"><strong dir="auto">{getProductDisplayName(product)}</strong><small dir="auto">{getHomeProductCategoryLine(product)}</small></span><svg className="search-result-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></Link>)}</div></> : <div className="search-drawer-state no-results" role="status"><h3>لا توجد نتائج مطابقة</h3><p>جرّب كلمة بحث أخرى أو اختر فئة مختلفة.</p></div>}
+          </div>
         </aside>
       </div>
 
@@ -879,16 +953,10 @@ export default function HomeClient({
       {pageView === "home" && <>
       <section className="products-section" id="products"><div className="container">
         <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
-          const categoryProducts = matchingProducts.filter((product) => product.category === categoryId);
-          if (normalizedQuery && categoryProducts.length === 0) return null;
+          const categoryProducts = products.filter((product) => product.category === categoryId);
           const productCards = categoryProducts.map(renderProductCard);
           return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider products={productCards} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
-        })}</div>{normalizedQuery && matchingProducts.length === 0 && <div className="search-empty" role="status"><b>لا توجد منتجات مطابقة لبحثك</b><p>جرّب كتابة اسم أو تصنيف آخر.</p><button type="button" onClick={() => setQuery("")}>مسح البحث</button></div>}
-      </div></section>
-
-      <section className="search-panel-wrap"><div className="container search-panel">
-        <label className="search-field" id="general-search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => updateProductSearch(event.target.value)} placeholder="ابحث في جميع المنتجات..." aria-label="البحث في المنتجات المعروضة" />{query && <button type="button" className="search-clear" onClick={() => setQuery("")} aria-label="مسح البحث">×</button>}</label>
-        <div className="quick-points"><span>✓ أسعار منافسة</span><span>✓ منتجات موثوقة</span><span>✓ دعم فني متخصص</span></div>
+        })}</div>
       </div></section>
 
       <nav ref={categoryStripRef} className="category-strip home-category-strip storefront-quick-categories" aria-label="أقسام المنتجات">

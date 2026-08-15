@@ -31,10 +31,10 @@ test("drawer supports every close path and modal focus behavior", () => {
   assert.match(home, /#site-menu-drawer \.drawer-close/);
 });
 
-test("minimal header and wishlist use one mutually exclusive drawer state", () => {
+test("minimal header, wishlist and search use one mutually exclusive drawer state", () => {
   assert.doesNotMatch(home, /<nav className="nav-links"/);
   assert.doesNotMatch(home, /className="nav-contact"/);
-  assert.match(home, /useState<"closed" \| "menu" \| "wishlist">\("closed"\)/);
+  assert.match(home, /useState<"closed" \| "menu" \| "wishlist" \| "search">\("closed"\)/);
   assert.match(home, /id="wishlist-drawer" className="favorites-panel wishlist-drawer"/);
   assert.match(styles, /\.wishlist-drawer \{[^}]*left:0;[^}]*transform:translateX\(-100%\)/);
   assert.match(styles, /\.menu-overlay\.wishlist-open \.wishlist-drawer \{ transform:translateX\(0\)/);

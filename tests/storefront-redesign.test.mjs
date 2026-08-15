@@ -9,9 +9,9 @@ test("homepage follows the image-led storefront journey", async () => {
   const hero = home.indexOf('className="hero hero-slider"');
   const categories = home.indexOf('className="storefront-categories"');
   const products = home.indexOf('className="products-section"');
-  const search = home.indexOf('className="search-panel-wrap"');
   const trust = home.indexOf('className="feature-band"');
-  assert.ok(hero >= 0 && hero < categories && categories < products && products < search && search < trust);
+  assert.ok(hero >= 0 && hero < categories && categories < products && products < trust);
+  assert.doesNotMatch(home, /className="search-panel-wrap"|ابحث في جميع المنتجات/);
   assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
   assert.match(home, /className="storefront-category-card"/);
   assert.match(home, /className="product-card-link" href=\{detailsHref\}/);
