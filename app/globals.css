@@ -368,14 +368,6 @@ button { cursor:pointer; }
 .maintenance-call { border:1px solid var(--store-navy); background:#fff; color:var(--store-navy); }
 .maintenance-actions a:hover { transform:translateY(-1px); filter:brightness(.98); }
 
-.contact-banner { background:var(--cyan); color:#fff; }
-.contact-banner-inner { min-height:175px; display:flex; align-items:center; justify-content:space-between; gap:30px; }
-.contact-banner span { font-size:12px; font-weight:700; opacity:.84; }
-.contact-banner h2 { margin:10px 0 0; font-size:clamp(25px,3.5vw,39px); }
-.contact-address { margin-top:14px; font-size:11px; opacity:.9; }
-.contact-actions { display:flex; gap:10px; flex-wrap:wrap; }
-.contact-actions a,.contact-actions button { padding:14px 20px; border:0; border-radius:7px; background:#fff; color:var(--cyan-dark); font-size:12px; font-weight:900; }
-.contact-actions a.outline { border:1px solid rgba(255,255,255,.7); background:transparent; color:#fff; }
 
 footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .footer-grid { display:grid; grid-template-columns:1.5fr .7fr 1fr .9fr; gap:44px; padding-bottom:42px; }
@@ -616,7 +608,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .maintenance-contact-intro { text-align:center; }
   .maintenance-contact-intro p { margin-inline:auto; }
   .maintenance-contacts { width:min(560px,100%); margin-inline:auto; text-align:right; }
-  .contact-banner-inner { padding:36px 0; display:block; text-align:center; } .contact-actions { justify-content:center; margin-top:20px; flex-wrap:wrap; }
   .footer-grid { grid-template-columns:1fr 1fr; gap:35px; } .footer-brand { grid-column:1/-1; }
   .copyright { padding:20px 0; display:grid; gap:8px; text-align:center; }
   .modal-backdrop { align-items:center; padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left)); }
@@ -952,7 +943,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .product-footer>a { min-height:38px; display:grid; place-items:center; border-radius:7px; background:var(--store-navy); color:#fff; font-size:9px; font-weight:900; }
 .product-footer>a:hover { background:var(--store-cyan-dark); }
 .services { padding:48px 0; background:#fff; } .services-grid { gap:12px; } .services-grid article { min-height:160px; padding:18px 16px; border-radius:12px; background:var(--store-surface); }
-.contact-banner-inner { min-height:130px; }
 .storefront-footer-grid { grid-template-columns:1.25fr repeat(3,1fr); gap:42px; }
 
 /* Collection pages */

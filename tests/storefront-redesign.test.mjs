@@ -12,6 +12,7 @@ test("homepage follows the image-led storefront journey", async () => {
   const services = home.indexOf('className="services"');
   assert.ok(hero >= 0 && hero < categories && categories < products && products < services);
   assert.doesNotMatch(home, /className="feature-band"|من أول استشارة حتى تشغيل الطابعة|تواصل مع مختص الطابعات/);
+  assert.doesNotMatch(home, /className="contact-banner"|دعنا نساعدك في اختيار الحل الأنسب/);
   assert.doesNotMatch(home, /className="search-panel-wrap"|ابحث في جميع المنتجات/);
   assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
   assert.match(home, /className="storefront-category-card"/);
