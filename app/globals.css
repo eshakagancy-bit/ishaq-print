@@ -963,7 +963,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .category-products-header nav,.categories-index-header nav { display:flex; justify-content:center; gap:26px; }
 .category-products-header nav a,.categories-index-header nav a { color:var(--store-navy); font-size:12px; font-weight:700; }
 .collection-header-actions { display:flex; align-items:center; gap:8px; }
-.collection-header-actions>a,.categories-contact { min-height:38px; display:flex; align-items:center; gap:6px; padding:0 12px; border:1px solid var(--store-line); border-radius:8px; color:var(--store-navy)!important; }
+.collection-header-actions>a,.collection-header-actions>button,.categories-contact { min-height:38px; display:flex; align-items:center; gap:6px; padding:0 12px; border:1px solid var(--store-line); border-radius:8px; background:#fff; color:var(--store-navy)!important; font:inherit; cursor:pointer; }
 .collection-header-actions b { min-width:18px; height:18px; display:grid; place-items:center; border-radius:50%; background:var(--store-cyan); color:#fff; font-size:8px; }
 .category-products-content { width:min(1280px,calc(100% - 48px)); padding:38px 0 80px; }
 .collection-breadcrumb { display:flex; align-items:center; gap:8px; margin-bottom:24px; color:#7b8792; font-size:11px; }
@@ -1087,7 +1087,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .storefront-footer-grid { grid-template-columns:1fr 1fr; }
   .category-products-header .container,.categories-index-header .container { width:calc(100% - 24px); }
   .category-products-header .collection-brand img,.categories-index-header .collection-brand img { width:126px; height:54px; }
-  .collection-header-actions>a:first-child { display:none; } .collection-header-actions>a,.categories-contact { min-height:36px; padding:0 9px; font-size:9px; }
+  .collection-header-actions>a:first-child { display:none; } .collection-header-actions>a,.collection-header-actions>button,.categories-contact { min-height:36px; padding:0 9px; font-size:9px; }
   .category-products-content { width:calc(100% - 24px); padding:24px 0 58px; }
   .category-products-title h1 { font-size:32px; } .collection-toolbar { align-items:stretch; }
   .collection-sort { align-items:stretch; flex-direction:column; gap:4px; } .collection-sort select { min-width:150px; }

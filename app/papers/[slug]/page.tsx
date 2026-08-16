@@ -12,6 +12,7 @@ import { publicMetadata } from "../../seo";
 import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
+import PublicSearchControl from "../../global-search-drawer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,10 +20,10 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ slug: string }> };
 
 async function getPaperData(slug: string) {
-  if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [], settings: defaultSiteSettings };
+  if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [], products: [], settings: defaultSiteSettings };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   const papers = data.products.filter((item) => item.category === "papers");
-  return { product: papers.find((item) => getPaperSlug(item) === slug), papers, settings: data.settings };
+  return { product: papers.find((item) => getPaperSlug(item) === slug), papers, products: data.products, settings: data.settings };
 }
 
 function whatsappLink(product: StoredProduct) {
@@ -43,7 +44,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PaperDetailsPage({ params }: PageProps) {
-  const { product, papers, settings } = await getPaperData((await params).slug);
+  const { product, papers, products, settings } = await getPaperData((await params).slug);
   if (!product) notFound();
 
   const title = product.paperSpecifications?.nameEn?.trim() || product.name;
@@ -65,7 +66,7 @@ export default async function PaperDetailsPage({ params }: PageProps) {
   const availabilityLabel = getPaperAvailabilityLabel(product);
 
   return <><main id="main-content" tabIndex={-1} className="printer-details-page">
-    <header className="printer-details-header"><div className="container"><Link href="/papers" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link></div></header>
+    <header className="printer-details-header"><div className="container"><Link href="/papers" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><PublicSearchControl products={products} variant="icon"/></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/papers">الأوراق</Link><span>/</span><b>{title}</b></nav>
       <div className="printer-hero-grid"><ProductGallery images={images} alt={title} /><div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}{availabilityLabel && <span className="product-availability" data-availability>{availabilityLabel}</span>}<span className="product-family">الأوراق</span><h1 dir="ltr">{title}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.filter((row) => row.key !== "availability").slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><Link className="printer-page-back" href="/papers">العودة إلى قسم الأوراق</Link></div></div></div>

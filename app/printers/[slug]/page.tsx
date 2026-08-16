@@ -13,6 +13,7 @@ import { publicMetadata } from "../../seo";
 import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
+import PublicSearchControl from "../../global-search-drawer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,19 +25,21 @@ type PageProps = {
 };
 
 async function getPrinters() {
-  if (!isPublicCategoryEnabled("printers")) return { printers: [], settings: defaultSiteSettings };
+  if (!isPublicCategoryEnabled("printers")) return { printers: [], products: [], settings: defaultSiteSettings };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   return {
     printers: data.products.filter((product) => product.category === "printers"),
+    products: data.products,
     settings: data.settings,
   };
 }
 
 async function getPrinter(slug: string) {
-  const { printers, settings } = await getPrinters();
+  const { printers, products, settings } = await getPrinters();
   return {
     product: printers.find((printer) => getPrinterSlug(printer) === slug),
     printers,
+    products,
     settings,
   };
 }
@@ -62,7 +65,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PrinterDetailsPage({ params }: PageProps) {
   const { slug } = await params;
-  const { product, printers, settings } = await getPrinter(slug);
+  const { product, printers, products, settings } = await getPrinter(slug);
   if (!product) notFound();
 
   const specificationRows = buildQuickViewSpecificationRows(product);
@@ -84,6 +87,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
           <Link href="/" aria-label="الصفحة الرئيسية">
             <Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" />
           </Link>
+          <PublicSearchControl products={products} variant="icon"/>
         </div>
       </header>
 

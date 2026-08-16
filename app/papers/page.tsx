@@ -15,5 +15,5 @@ export const dynamic = "force-dynamic";
 export default async function PapersPage() {
   if (!isPublicCategoryEnabled("papers")) notFound();
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
-  return <CategoryProductsClient category="papers" products={data.products.filter((product) => product.category === "papers")} settings={data.settings} />;
+  return <CategoryProductsClient category="papers" products={data.products.filter((product) => product.category === "papers")} allProducts={data.products} settings={data.settings} />;
 }

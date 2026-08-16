@@ -15,5 +15,5 @@ export const dynamic = "force-dynamic";
 export default async function InksPage() {
   if (!isPublicCategoryEnabled("inks")) notFound();
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
-  return <CategoryProductsClient category="inks" products={data.products.filter((product) => product.category === "inks")} settings={data.settings} />;
+  return <CategoryProductsClient category="inks" products={data.products.filter((product) => product.category === "inks")} allProducts={data.products} settings={data.settings} />;
 }

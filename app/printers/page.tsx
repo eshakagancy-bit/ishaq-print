@@ -15,5 +15,5 @@ export const dynamic = "force-dynamic";
 export default async function PrintersPage() {
   if (!isPublicCategoryEnabled("printers")) notFound();
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
-  return <CategoryProductsClient category="printers" products={data.products.filter((product) => product.category === "printers")} settings={data.settings} />;
+  return <CategoryProductsClient category="printers" products={data.products.filter((product) => product.category === "printers")} allProducts={data.products} settings={data.settings} />;
 }

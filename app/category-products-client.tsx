@@ -22,6 +22,7 @@ import { getPrinterSlug } from "./printers/product-slug";
 import QuickViewModal from "./quick-view-modal";
 import { productPriceLabel } from "./product-commerce";
 import StorefrontFooter from "./storefront-footer";
+import PublicSearchControl from "./global-search-drawer";
 
 const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 type SortMode = "default" | "name-asc" | "name-desc";
@@ -49,7 +50,7 @@ function whatsappLink(product: StoredProduct) {
   return `https://wa.me/967778989866?text=${encodeURIComponent(`مرحبًا مجموعة إسحاق العالمية، أريد معرفة السعر والتوفر للمنتج: ${product.name}.`)}`;
 }
 
-export default function CategoryProductsClient({ category, products, settings }: { category: PublicEnabledCategory; products: StoredProduct[]; settings: SiteSettings }) {
+export default function CategoryProductsClient({ category, products, allProducts, settings }: { category: PublicEnabledCategory; products: StoredProduct[]; allProducts: StoredProduct[]; settings: SiteSettings }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [printerFilter, setPrinterFilter] = useState<PrinterCategoryFilter>(ALL_PRINTERS_FILTER.value);
@@ -118,7 +119,7 @@ export default function CategoryProductsClient({ category, products, settings }:
     : [];
 
   return <main id="main-content" tabIndex={-1} className="category-products-page" data-category={category} dir="rtl">
-    <header className="category-products-header"><div className="container"><Link className="collection-brand" href="/" aria-label="وكالة إسحاق العالمية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/categories">الفئات</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><Link href="/#general-search" aria-label="البحث">بحث</Link><Link href="/?favorites=1" aria-label={`المفضلة، ${favorites.length} منتجات`}>المفضلة <b>{favorites.length}</b></Link></div></div></header>
+    <header className="category-products-header"><div className="container"><Link className="collection-brand" href="/" aria-label="وكالة إسحاق العالمية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/categories">الفئات</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><PublicSearchControl products={allProducts}/><Link href="/?favorites=1" aria-label={`المفضلة، ${favorites.length} منتجات`}>المفضلة <b>{favorites.length}</b></Link></div></div></header>
     <section className="container category-products-content">
       <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>{categoryLabels[category]}</b></nav>
       <div className="category-products-title"><div><span>مجموعة المنتجات</span><h1>{categoryLabels[category]}</h1></div><p>{products.length} {products.length === 1 ? "منتج" : "منتجات"}</p></div>

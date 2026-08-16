@@ -12,6 +12,7 @@ import { publicMetadata } from "../../seo";
 import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
+import PublicSearchControl from "../../global-search-drawer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,10 +20,10 @@ export const dynamic = "force-dynamic";
 type PageProps = { params: Promise<{ slug: string }> };
 
 async function getInkData(slug: string) {
-  if (!isPublicCategoryEnabled("inks")) return { product: undefined, settings: defaultSiteSettings };
+  if (!isPublicCategoryEnabled("inks")) return { product: undefined, products: [], settings: defaultSiteSettings };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   const inks = data.products.filter((product) => product.category === "inks");
-  return { product: inks.find((product) => getInkSlug(product) === slug), settings: data.settings };
+  return { product: inks.find((product) => getInkSlug(product) === slug), products: data.products, settings: data.settings };
 }
 
 function whatsappLink(product: StoredProduct) {
@@ -42,13 +43,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function InkDetailsPage({ params }: PageProps) {
-  const { product, settings } = await getInkData((await params).slug);
+  const { product, products, settings } = await getInkData((await params).slug);
   if (!product) notFound();
   const rows = buildInkSpecificationRows(product);
   const specifications = product.inkSpecifications;
 
   return <><main id="main-content" tabIndex={-1} className="printer-details-page">
-    <header className="printer-details-header"><div className="container"><Link href="/inks" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link></div></header>
+    <header className="printer-details-header"><div className="container"><Link href="/inks" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><PublicSearchControl products={products} variant="icon"/></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/inks">الأحبار</Link><span>/</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">
