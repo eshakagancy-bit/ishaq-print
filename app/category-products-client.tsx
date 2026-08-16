@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildInkSpecificationRows } from "./ink-specifications";
 import InkImageCarousel from "./ink-image-carousel";
@@ -49,6 +50,7 @@ function whatsappLink(product: StoredProduct) {
 }
 
 export default function CategoryProductsClient({ category, products, settings }: { category: PublicEnabledCategory; products: StoredProduct[]; settings: SiteSettings }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [printerFilter, setPrinterFilter] = useState<PrinterCategoryFilter>(ALL_PRINTERS_FILTER.value);
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -131,7 +133,7 @@ export default function CategoryProductsClient({ category, products, settings }:
       {sortedProducts.length ? <div className="category-products-list">{sortedProducts.map((product) => {
         const images = product.images?.length ? product.images : [product.image];
         const detailsHref = `/${category}/${productSlug(product)}`;
-        return <article className="category-product-row" key={product.id} onClick={(event) => { if (!(event.target as HTMLElement).closest("button,a")) openQuickView(product, event.currentTarget); }}>
+        return <article className="category-product-row" key={product.id} role="link" tabIndex={0} aria-label={`فتح تفاصيل ${displayName(product)}`} onClick={(event) => { if (!(event.target as HTMLElement).closest("button,a")) router.push(detailsHref); }} onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === "Enter") router.push(detailsHref); }}>
           <div className="category-product-image">{product.badge?.trim() && <span className="product-badge">{product.badge}</span>}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button>{product.category === "inks" ? <InkImageCarousel images={images} alt={displayName(product)} /> : <Link className="product-image-link" href={detailsHref}><Image src={product.image || "/brand/eshak-logo.png"} alt={displayName(product)} width={420} height={320} sizes="(max-width: 700px) 46vw, (max-width: 1100px) 30vw, 280px" /></Link>}<button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${displayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
           <div className="category-product-content">{product.family && <span className="product-family">{product.family}</span>}<h2><Link href={detailsHref}>{displayName(product)}</Link></h2>{category === "papers" && getPaperAvailabilityLabel(product) && <span className="product-availability" data-availability>{getPaperAvailabilityLabel(product)}</span>}<div className="category-product-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div><div className="category-product-actions"><a href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a></div></div>
         </article>;

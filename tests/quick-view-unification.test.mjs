@@ -29,7 +29,7 @@ test("ink specification builder keeps every populated field for full details", a
   }
 });
 
-test("homepage product cards keep quick view while the main tile opens product details", async () => {
+test("product cards keep quick view isolated while their main surfaces open product details", async () => {
   const [home, categories, modal] = await Promise.all([
     read("app/home-client.tsx"),
     read("app/category-products-client.tsx"),
@@ -39,7 +39,13 @@ test("homepage product cards keep quick view while the main tile opens product d
   assert.doesNotMatch(home, /window\.location\.href = `\/inks\/\$\{getInkSlug\(product\)\}`/);
   assert.match(home, /className="product-card-link" href=\{detailsHref\}/);
   assert.match(home, /className="quick-view" onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}/);
-  assert.match(categories, /className="category-product-row"[\s\S]*?openQuickView\(product, event\.currentTarget\)/);
+  assert.match(categories, /className="category-product-row"[\s\S]*?role="link"[\s\S]*?tabIndex=\{0\}/);
+  assert.match(categories, /if \(!\(event\.target as HTMLElement\)\.closest\("button,a"\)\) router\.push\(detailsHref\)/);
+  assert.match(categories, /event\.target === event\.currentTarget && event\.key === "Enter"[\s\S]*?router\.push\(detailsHref\)/);
+  assert.match(categories, /<Link className="product-image-link" href=\{detailsHref\}>/);
+  assert.match(categories, /<h2><Link href=\{detailsHref\}>/);
+  assert.match(categories, /className="quick-view" onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}/);
+  assert.doesNotMatch(categories, /onClick=\{[^}]*openQuickView\(product, event\.currentTarget\)[^}]*\}[^>]*>\s*<div className="category-product-image"/);
   assert.doesNotMatch(categories, /<Link href=\{`\/\$\{category\}\/\$\{slug\}`\}/);
   assert.doesNotMatch(categories, /فتح صفحة التفاصيل/);
   assert.match(modal, /className="secondary-btn modal-more-details" href=\{detailsHref\}/);
