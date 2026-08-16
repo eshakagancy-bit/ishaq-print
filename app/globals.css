@@ -753,26 +753,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .home-order-actions button { width:31px; height:31px; border:1px solid #cddde1; border-radius:6px; background:#fff; color:var(--cyan-dark); font-size:16px; font-weight:900; }
 .home-order-actions button:disabled { cursor:not-allowed; opacity:.3; }
 .home-order-empty { margin:10px; padding:18px 10px; border:1px dashed var(--line); border-radius:8px; color:var(--muted); text-align:center; font-size:10px; }
-.paper-update-tool { width:min(1180px,calc(100% - 40px)); margin:0 auto 16px; }
-.paper-update-head { display:flex; align-items:start; justify-content:space-between; gap:18px; }
-.paper-update-head h2 { margin:0 0 7px; }
-.paper-update-head p { margin:0; color:#667085; font-size:11px; line-height:1.8; }
-.paper-update-head button,.paper-update-execute { border:0; border-radius:8px; padding:11px 16px; background:var(--cyan); color:#fff; font-size:11px; font-weight:900; cursor:pointer; }
-.paper-update-head button:disabled,.paper-update-execute:disabled { cursor:not-allowed; opacity:.55; }
-.paper-update-preview { margin-top:16px; display:grid; gap:13px; }
-.paper-update-counts { display:flex; flex-wrap:wrap; gap:8px; }
-.paper-update-counts span { padding:7px 10px; border-radius:7px; background:#f2f6f7; color:#475467; font-size:10px; }
-.paper-update-counts .positive { background:#ecfdf3; color:#027a48; }
-.paper-update-counts .negative { background:#fff1f0; color:#b42318; }
-.paper-update-products { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
-.paper-update-products article { padding:11px; border:1px solid #dce9ec; border-radius:9px; background:#fff; }
-.paper-update-products article.missing { border-color:#fecdca; background:#fff8f7; }
-.paper-update-products article>div { display:flex; justify-content:space-between; gap:8px; }
-.paper-update-products article b { font-size:10px; }
-.paper-update-products article span { color:#667085; font-size:9px; white-space:nowrap; }
-.paper-update-products ul { margin:8px 0 0; padding-right:16px; color:#475467; font-size:9px; line-height:1.8; }
-.paper-update-execute { justify-self:start; }
-.paper-update-result { margin-top:14px; padding:12px; border:1px solid #abefc6; border-radius:9px; background:#ecfdf3; color:#027a48; display:grid; gap:5px; font-size:10px; }
 .admin-two-columns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .ink-images-editor { display:grid; gap:13px; padding:16px; border:1px solid #cce6eb; border-radius:11px; }
 .ink-images-editor legend { padding-inline:8px; color:var(--cyan-dark); font-weight:900; }
@@ -819,10 +799,9 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 @media (max-width:760px) {
   .real-admin-header { display:block; padding:28px 18px; } .real-admin-header-actions { margin-top:18px; }
   .real-admin-toolbar { display:block; width:calc(100% - 28px); } .real-admin-toolbar nav { display:grid; grid-template-columns:1fr 1fr 1fr; } .save-all-button { width:100%; margin-top:10px; }
-  .admin-live-status,.real-admin-grid,.product-admin-layout,.hero-admin-layout,.paper-update-tool,.category-images-manager,.home-order-manager { width:calc(100% - 28px); } .real-admin-grid,.product-admin-layout,.hero-admin-layout { grid-template-columns:1fr; }
+  .admin-live-status,.real-admin-grid,.product-admin-layout,.hero-admin-layout,.category-images-manager,.home-order-manager { width:calc(100% - 28px); } .real-admin-grid,.product-admin-layout,.hero-admin-layout { grid-template-columns:1fr; }
   .home-order-heading { display:grid; } .home-order-heading button { width:100%; } .home-order-categories { grid-template-columns:1fr; } .home-order-category ol { max-height:460px; }
   .category-images-admin-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .paper-update-head { display:grid; } .paper-update-head button { width:100%; } .paper-update-products { grid-template-columns:1fr; }
   .admin-two-columns,.admin-three-columns,.admin-options-grid,.admin-tristate-grid { grid-template-columns:1fr; } .ink-admin-images { grid-template-columns:repeat(2,minmax(0,1fr)); } .products-manager article { grid-template-columns:52px 1fr; } .products-manager article button { grid-row:2; }
   .hero-slides-row { grid-template-columns:70px 1fr; }
   .hero-slides-header { display:none; }

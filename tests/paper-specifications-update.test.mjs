@@ -72,7 +72,7 @@ test("all eight target specifications render non-empty cards and details", () =>
   }
 });
 
-test("temporary admin route stays authenticated and database writes specifications only", async () => {
+test("temporary admin route stays authenticated and database writes specifications only while its admin tool stays hidden", async () => {
   const [route, database, admin, home, paperSpecifications] = await Promise.all([
     readFile(new URL("../app/api/admin/paper-specifications-update/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/site-database.ts", import.meta.url), "utf8"),
@@ -87,8 +87,8 @@ test("temporary admin route stays authenticated and database writes specificatio
   assert.match(database, /\.eq\("name", target\.name\)/);
   assert.match(database, /\.eq\("category", "papers"\)/);
   assert.match(database, /pendingCount !== 0/);
-  assert.match(admin, /تحديث مواصفات الأوراق الحالية/);
-  assert.match(admin, /عرض المعاينة/);
+  assert.doesNotMatch(admin, /تحديث مواصفات الأوراق الحالية/);
+  assert.doesNotMatch(admin, /paper-update-tool|paperUpdatePreview|previewPaperSpecificationsUpdate/);
   assert.match(home, /product\.paperSpecifications\?\.nameEn\?\.trim\(\) \|\| product\.name/);
   assert.doesNotMatch(home, /product\.paperSpecifications\?\.nameAr\?\.trim\(\) \|\| product\.name/);
   assert.match(paperSpecifications, /key: "name-ar", label: "الاسم العربي"/);

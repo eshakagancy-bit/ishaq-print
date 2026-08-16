@@ -119,21 +119,6 @@ const emptyHeroSlide: HeroSlide = {
 
 const UNSAVED_CHANGES_MESSAGE = "توجد تعديلات لم يتم حفظها. هل تريد مغادرة الصفحة؟";
 type DirtyScope = "site" | "product-form" | "hero-form" | "hero-settings" | "home-order";
-type PaperUpdatePreview = {
-  matchedCount: number;
-  expectedCount: number;
-  pendingCount: number;
-  ready: boolean;
-  names: string[];
-  products: Array<{ name: string; found: boolean; alreadyCurrent: boolean; changes: string[] }>;
-};
-type PaperUpdateResult = {
-  success: boolean;
-  matchedCount: number;
-  updatedCount: number;
-  names: string[];
-  preview: PaperUpdatePreview;
-};
 
 function normalizeAdminProducts(products: StoredProduct[]) {
   return products.map((product) => ({
@@ -155,10 +140,6 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   const [featuresText, setFeaturesText] = useState("");
   const [priceMode, setPriceMode] = useState<PriceMode>("quote");
   const [printerCategoryError, setPrinterCategoryError] = useState("");
-  const [paperUpdatePreview, setPaperUpdatePreview] = useState<PaperUpdatePreview | null>(null);
-  const [paperUpdateResult, setPaperUpdateResult] = useState<PaperUpdateResult | null>(null);
-  const [paperUpdateLoading, setPaperUpdateLoading] = useState(false);
-  const [paperUpdateError, setPaperUpdateError] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
   const [heroSettings, setHeroSettings] = useState<HeroSettings>(defaultHeroSettings);
@@ -591,53 +572,6 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     clearDirty("product-form");
   };
 
-  const previewPaperSpecificationsUpdate = async () => {
-    setPaperUpdateLoading(true);
-    setPaperUpdateError("");
-    setPaperUpdateResult(null);
-    try {
-      const response = await fetch("/api/admin/paper-specifications-update", { cache: "no-store" });
-      const data = await response.json() as { error?: string; preview?: PaperUpdatePreview };
-      if (!response.ok || !data.preview) throw new Error(data.error || "تعذر تحميل المعاينة");
-      setPaperUpdatePreview(data.preview);
-    } catch (error) {
-      setPaperUpdatePreview(null);
-      setPaperUpdateError(error instanceof Error ? error.message : "تعذر تحميل المعاينة");
-    } finally {
-      setPaperUpdateLoading(false);
-    }
-  };
-
-  const executePaperSpecificationsUpdate = async () => {
-    if (!paperUpdatePreview?.ready || !window.confirm("سيتم تحديث حقل المواصفات فقط للمنتجات الثمانية الظاهرة في المعاينة. هل تريد المتابعة؟")) return;
-    setPaperUpdateLoading(true);
-    setPaperUpdateError("");
-    try {
-      const response = await fetch("/api/admin/paper-specifications-update", { method: "POST" });
-      const data = await response.json() as PaperUpdateResult & { error?: string };
-      if (!response.ok || !data.success) throw new Error(data.error || "تعذر تنفيذ التحديث");
-      setPaperUpdateResult(data);
-      setPaperUpdatePreview(data.preview);
-
-      const siteResponse = await fetch("/api/site", { cache: "no-store" });
-      const siteData = await siteResponse.json() as { error?: string; products?: StoredProduct[] };
-      if (!siteResponse.ok) throw new Error(siteData.error || "تم التحديث لكن تعذر إعادة تحميل المنتجات");
-      if (Array.isArray(siteData.products)) {
-        setProducts(siteData.products.map((product) => ({
-          ...product,
-          image: normalizeMediaUrl(product.image),
-          printerCategory: product.category === "printers"
-            ? resolvePrinterCategory(product.printerCategory, product.name)
-            : undefined,
-        })));
-      }
-    } catch (error) {
-      setPaperUpdateError(error instanceof Error ? error.message : "تعذر تنفيذ التحديث");
-    } finally {
-      setPaperUpdateLoading(false);
-    }
-  };
-
   const saveHeroSlide = async (event: FormEvent) => {
     event.preventDefault();
     setHeroSaving(true);
@@ -907,19 +841,6 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     </section>}
 
     {activeTab === "products" && <>
-      <section className="real-admin-card paper-update-tool" aria-labelledby="paper-update-title">
-        <div className="paper-update-head"><div><h2 id="paper-update-title">تحديث مواصفات الأوراق الحالية</h2><p>إجراء مؤقت ومحمي يحدّث حقل المواصفات فقط للمنتجات الثمانية المطابقة بالاسم.</p></div><button type="button" onClick={previewPaperSpecificationsUpdate} disabled={paperUpdateLoading}>{paperUpdateLoading ? "جاري الفحص..." : "عرض المعاينة"}</button></div>
-        {paperUpdateError && <p className="admin-field-error" role="alert">{paperUpdateError}</p>}
-        {paperUpdatePreview && <div className="paper-update-preview">
-          <div className="paper-update-counts"><span>المتوقع: <b>{paperUpdatePreview.expectedCount}</b></span><span>المطابق: <b>{paperUpdatePreview.matchedCount}</b></span><span>بانتظار التحديث: <b>{paperUpdatePreview.pendingCount}</b></span><span className={paperUpdatePreview.ready ? "positive" : "negative"}>{paperUpdatePreview.ready ? "جاهز للتنفيذ" : "التنفيذ موقوف"}</span></div>
-          <div className="paper-update-products">{paperUpdatePreview.products.map((product) => <article key={product.name} className={product.found ? "" : "missing"}>
-            <div><b>{product.name}</b><span>{!product.found ? "غير موجود أو مكرر" : product.alreadyCurrent ? "محدّث مسبقًا" : "سيتم تحديث المواصفات"}</span></div>
-            <ul>{product.changes.map((change) => <li key={change}>{change}</li>)}</ul>
-          </article>)}</div>
-          <button className="paper-update-execute" type="button" disabled={!paperUpdatePreview.ready || paperUpdateLoading} onClick={executePaperSpecificationsUpdate}>{paperUpdateLoading ? "جاري التنفيذ..." : paperUpdatePreview.pendingCount ? "تنفيذ تحديث المواصفات" : "المواصفات محدثة بالفعل"}</button>
-        </div>}
-        {paperUpdateResult && <div className="paper-update-result" role="status"><b>Success</b><span>المنتجات المطابقة: {paperUpdateResult.matchedCount}</span><span>المنتجات المحدثة: {paperUpdateResult.updatedCount}</span><span>الأسماء: {paperUpdateResult.names.join("، ")}</span></div>}
-      </section>
       <section className="product-admin-layout">
       <form className="real-admin-card product-editor" onSubmit={saveProductDraft}><h2>{editingId ? "تعديل المنتج" : "إضافة منتج"}</h2>
         <label>القسم<select value={productForm.category} onChange={(e) => updateProductSection(e.target.value)}>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
