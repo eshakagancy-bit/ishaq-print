@@ -541,9 +541,26 @@ export async function getHeroData(activeOnly: boolean) {
 
 export async function createHeroSlide(input: Omit<HeroSlide, "id">) {
   const client = getSupabaseAdmin();
-  const result = await client.from("hero_slides").insert(heroSlideToRow(input)).select("*").single();
+  const row = heroSlideToRow(input);
+  const result = await client.from("hero_slides").insert(row).select("*").single();
+  if (!result.error) return heroSlideFromRow(result.data as HeroSlideRow);
+
+  // The initial slides are seeded with explicit identity values. Existing
+  // databases can therefore have a sequence that still points at an occupied
+  // id. Recover without changing any existing ids or requiring a migration.
+  if (result.error.code === "23505") {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const latest = await client.from("hero_slides").select("id").order("id", { ascending: false }).limit(1).maybeSingle();
+      databaseError("تعذر تحديد معرّف الشريحة الجديدة", latest.error);
+      const nextId = Number(latest.data?.id ?? 0) + 1;
+      const retry = await client.from("hero_slides").insert({ id: nextId, ...row }).select("*").single();
+      if (!retry.error) return heroSlideFromRow(retry.data as HeroSlideRow);
+      if (retry.error.code !== "23505") databaseError("تعذر إضافة الشريحة", retry.error);
+    }
+  }
+
   databaseError("تعذر إضافة الشريحة", result.error);
-  return heroSlideFromRow(result.data as HeroSlideRow);
+  throw new Error("تعذر إضافة الشريحة");
 }
 
 export async function updateHeroSlide(id: number, input: Omit<HeroSlide, "id">) {

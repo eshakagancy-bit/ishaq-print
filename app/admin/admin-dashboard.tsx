@@ -574,6 +574,14 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
   const saveHeroSlide = async (event: FormEvent) => {
     event.preventDefault();
+    if (uploadingImage) {
+      setStatus("انتظر حتى يكتمل رفع صورة البانر ثم احفظ الشريحة.");
+      return;
+    }
+    if (!heroForm.imageUrl.trim()) {
+      setStatus("اختر صورة للبانر وانتظر اكتمال رفعها قبل الحفظ.");
+      return;
+    }
     setHeroSaving(true);
     setStatus(editingHeroId ? "جاري حفظ تعديل الشريحة..." : "جاري إضافة الشريحة...");
     try {
@@ -802,12 +810,12 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         <label>العنوان الفرعي<input value={heroForm.subtitle} onChange={(e) => updateHeroForm({ subtitle: e.target.value })} /></label>
         <label>الوصف<textarea required value={heroForm.description} onChange={(e) => updateHeroForm({ description: e.target.value })} /></label>
         <label>النص الصغير<input value={heroForm.badgeText} onChange={(e) => updateHeroForm({ badgeText: e.target.value })} /></label>
-        <ImageField value={heroForm.imageUrl} onUpload={(event) => uploadImage(event, heroForm.imageUrl, (url) => updateHeroForm({ imageUrl: url }), "banners")} onRemove={() => removeImage(heroForm.imageUrl, () => updateHeroForm({ imageUrl: "" }))} label="الصورة" actionText={heroForm.imageUrl ? "استبدال الصورة" : "اختيار صورة"} />
+        <ImageField value={heroForm.imageUrl} onUpload={(event) => uploadImage(event, heroForm.imageUrl, (url) => updateHeroForm({ imageUrl: url }), "banners")} onRemove={() => removeImage(heroForm.imageUrl, () => updateHeroForm({ imageUrl: "" }))} label="الصورة" actionText={uploadingImage ? "جاري رفع صورة البانر..." : heroForm.imageUrl ? "استبدال الصورة" : "اختيار صورة"} disabled={uploadingImage || heroSaving} />
         <label>وصف الصورة<input value={heroForm.imageAlt} onChange={(e) => updateHeroForm({ imageAlt: e.target.value })} /></label>
         <div className="admin-two-columns"><label>نص الزر الأول<input value={heroForm.primaryButtonText} onChange={(e) => updateHeroForm({ primaryButtonText: e.target.value })} /></label><label>رابط الزر الأول<input dir="ltr" value={heroForm.primaryButtonUrl} onChange={(e) => updateHeroForm({ primaryButtonUrl: e.target.value })} /></label></div>
         <div className="admin-two-columns"><label>نص الزر الثاني<input value={heroForm.secondaryButtonText} onChange={(e) => updateHeroForm({ secondaryButtonText: e.target.value })} /></label><label>رابط الزر الثاني<input dir="ltr" value={heroForm.secondaryButtonUrl} onChange={(e) => updateHeroForm({ secondaryButtonUrl: e.target.value })} /></label></div>
         <div className="admin-two-columns"><label>ترتيب الشريحة<input type="number" value={heroForm.displayOrder} onChange={(e) => updateHeroForm({ displayOrder: Number(e.target.value) })} /></label><label>حالة الشريحة<select value={heroForm.isActive ? "visible" : "hidden"} onChange={(e) => updateHeroForm({ isActive: e.target.value === "visible" })}><option value="visible">ظاهرة</option><option value="hidden">مخفية</option></select></label></div>
-        <div className="product-editor-actions"><button type="submit" disabled={heroSaving}>{heroSaving ? "جاري الحفظ..." : editingHeroId ? "حفظ التعديل" : "إضافة الشريحة"}</button><button type="button" onClick={() => { setEditingHeroId(null); setHeroForm(emptyHeroSlide); clearDirty("hero-form"); }}>تفريغ</button></div>
+        <div className="product-editor-actions"><button type="submit" disabled={heroSaving || uploadingImage}>{uploadingImage ? "جاري رفع الصورة..." : heroSaving ? "جاري الحفظ..." : editingHeroId ? "حفظ التعديل" : "إضافة الشريحة"}</button><button type="button" disabled={heroSaving || uploadingImage} onClick={() => { setEditingHeroId(null); setHeroForm(emptyHeroSlide); clearDirty("hero-form"); }}>تفريغ</button></div>
       </form>
 
       <div className="real-admin-card hero-settings-card">
@@ -1262,8 +1270,8 @@ function InkImagesEditor({
   </fieldset>;
 }
 
-function ImageField({ value, onUpload, onRemove, label = "الصورة", actionText = "اختيار صورة من الجهاز" }: { value: string; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; label?: string; actionText?: string }) {
-  return <div className="real-image-control"><label className="real-image-field">{label}{value && <img src={normalizeMediaUrl(value)} alt="معاينة" />}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={onUpload} /><span>{actionText}</span></label>{value && <button type="button" className="media-remove-button" onClick={onRemove}>حذف الصورة</button>}</div>;
+function ImageField({ value, onUpload, onRemove, label = "الصورة", actionText = "اختيار صورة من الجهاز", disabled = false }: { value: string; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onRemove: () => void; label?: string; actionText?: string; disabled?: boolean }) {
+  return <div className="real-image-control"><label className="real-image-field">{label}{value && <img src={normalizeMediaUrl(value)} alt="معاينة" />}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={onUpload} disabled={disabled} /><span>{actionText}</span></label>{value && <button type="button" className="media-remove-button" onClick={onRemove} disabled={disabled}>حذف الصورة</button>}</div>;
 }
 
 function ImageEditor({ title, value, onUpload, onRemove }: { title: string; value: string; onUpload: (event: ChangeEvent<HTMLInputElement>) => void; onRemove: () => void }) {

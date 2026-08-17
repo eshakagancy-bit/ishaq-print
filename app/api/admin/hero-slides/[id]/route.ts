@@ -1,5 +1,6 @@
 import { removeHeroSlide, updateHeroSlide } from "../../../../../lib/site-database";
 import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../../../admin-auth";
+import { validationResponse } from "../../../admin-validation";
 import { normalizeHeroSlideInput } from "../validation";
 
 export const runtime = "nodejs";
@@ -21,7 +22,10 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     if (!slide) return Response.json({ error: "الشريحة غير موجودة" }, { status: 404 });
     return Response.json({ ok: true, slide });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "تعذر تعديل الشريحة" }, { status: 400 });
+    const invalid = validationResponse(error);
+    if (invalid) return invalid;
+    console.error("Hero slide update failed", error);
+    return Response.json({ error: "تعذر حفظ تعديل الشريحة. حاول مرة أخرى." }, { status: 500 });
   }
 }
 
@@ -34,6 +38,9 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
     if (!deleted) return Response.json({ error: "الشريحة غير موجودة" }, { status: 404 });
     return Response.json({ ok: true });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "تعذر حذف الشريحة" }, { status: 400 });
+    const invalid = validationResponse(error);
+    if (invalid) return invalid;
+    console.error("Hero slide delete failed", error);
+    return Response.json({ error: "تعذر حذف الشريحة. حاول مرة أخرى." }, { status: 500 });
   }
 }
