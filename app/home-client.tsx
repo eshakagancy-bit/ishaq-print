@@ -915,9 +915,6 @@ export default function HomeClient({
                   fetchPriority={index === 0 ? "high" : "auto"}
                 />
               )}
-              {index === activeHeroSlide && slide.primaryButtonText.trim() && slide.primaryButtonUrl.trim() && (
-                <Link className="hero-slide-cta" href={slide.primaryButtonUrl}>{slide.primaryButtonText}</Link>
-              )}
             </article>
           ))}
         </div>

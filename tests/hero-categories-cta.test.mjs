@@ -37,13 +37,24 @@ test("live technology slide falls back to the approved categories CTA only", () 
   assert.equal(applyDefaultHeroCategoriesCta(otherSlide, [baseSlide]), otherSlide);
 });
 
-test("hero renders one keyboard-focusable CTA only for the active slide", async () => {
-  const home = await readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8");
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(home, /index === activeHeroSlide && slide\.primaryButtonText\.trim\(\)/);
-  assert.match(home, /<Link className="hero-slide-cta" href=\{slide\.primaryButtonUrl\}>\{slide\.primaryButtonText\}<\/Link>/);
-  assert.equal(home.match(/className="hero-slide-cta"/g)?.length, 1);
+test("public hero does not render CTA buttons while preserving slider behavior and CTA data", async () => {
+  const [home, page, admin, defaults, styles] = await Promise.all([
+    readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/site-defaults.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(home, /hero-slide-cta/);
+  assert.doesNotMatch(styles, /\.hero-slide-cta/);
+  assert.doesNotMatch(home, /slide\.primaryButtonText|slide\.primaryButtonUrl|slide\.secondaryButtonText|slide\.secondaryButtonUrl/);
   assert.match(home, /heroSettings\.autoplayEnabled/);
   assert.match(home, /prefers-reduced-motion: reduce/);
+  assert.match(home, /heroSettings\.showArrows/);
+  assert.match(home, /heroSettings\.showDots/);
   assert.match(page, /applyDefaultHeroCategoriesCta\(slide, defaultHeroSlides\)/);
+  assert.match(admin, /heroForm\.primaryButtonText/);
+  assert.match(admin, /heroForm\.secondaryButtonText/);
+  assert.match(defaults, /primaryButtonText: string/);
+  assert.match(defaults, /secondaryButtonText: string/);
 });
