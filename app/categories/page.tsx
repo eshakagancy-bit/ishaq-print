@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import Image from "../storefront-image";
 import Link from "next/link";
 import { getSiteData } from "../../lib/site-database";
 import { PUBLIC_CATEGORY_DETAILS, PUBLIC_ENABLED_CATEGORIES } from "../public-categories";

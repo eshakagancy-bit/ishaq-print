@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "./storefront-image";
 import Link from "next/link";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { searchProducts, type ProductSearchScope } from "./global-product-search";

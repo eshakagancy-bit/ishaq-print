@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "./storefront-image";
 import { useEffect, useRef, useState } from "react";
 
 type InkImageCarouselProps = {

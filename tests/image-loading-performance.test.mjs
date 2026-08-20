@@ -38,9 +38,16 @@ test("detail gallery prioritizes only its above-fold primary image", async () =>
   assert.match(`${printer}\n${paper}\n${ink}`, /eshak-logo\.png[^\n>]*loading="eager" fetchPriority="low"/);
 });
 
-test("image sources remain restricted while the intentional direct-serving mode is preserved", async () => {
-  const config = await read("next.config.ts");
-  assert.match(config, /unoptimized:\s*true/);
+test("only preoptimized images bypass transformations while other formats retain Next optimization", async () => {
+  const [config, image, home] = await Promise.all([
+    read("next.config.ts"),
+    read("app/storefront-image.tsx"),
+    read("app/home-client.tsx"),
+  ]);
+  assert.doesNotMatch(config, /unoptimized:\s*true/);
   for (const path of ["/api/media/**", "/brand/**", "/hero/**", "/products/**"]) assert.ok(config.includes(path));
   assert.doesNotMatch(config, /remotePatterns/);
+  assert.match(image, /isPreoptimizedImageSource\(props\.src\)/);
+  assert.match(image, /unoptimized=\{Boolean\(unoptimized \|\| preoptimized\)\}/);
+  assert.match(home, /getImageProps\(\{[\s\S]*?unoptimized: isPreoptimizedImageSource\(src\)/);
 });

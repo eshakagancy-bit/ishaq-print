@@ -3,11 +3,27 @@ import test from "node:test";
 
 import {
   decodeMediaStoragePath,
+  isPreoptimizedImageSource,
   mediaUrlFromStoragePath,
   normalizeMediaUrl,
   safeMediaStoragePath,
   supabasePublicMediaStoragePath,
 } from "../lib/media-url.ts";
+
+test("detects only preoptimized WebP and AVIF sources", () => {
+  for (const source of [
+    "/products/printer.webp",
+    "/api/media/products/printer.WEBP?version=2",
+    "https://project-ref.supabase.co/storage/v1/object/public/site-media/banners/hero.avif#slide",
+  ]) assert.equal(isPreoptimizedImageSource(source), true, source);
+
+  for (const source of [
+    "/brand/eshak-logo.png",
+    "/products/printer.jpg",
+    "/api/media/products/animated.gif",
+    "/products/not-really.webp.png",
+  ]) assert.equal(isPreoptimizedImageSource(source), false, source);
+});
 
 test("normalizes legacy Supabase public media URLs", () => {
   assert.equal(

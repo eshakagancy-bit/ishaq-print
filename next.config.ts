@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: getSecurityHeaders() }];
   },
   images: {
-    unoptimized: true,
     localPatterns: [
       { pathname: "/api/media/**", search: "" },
       { pathname: "/brand/**", search: "" },

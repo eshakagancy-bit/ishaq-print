@@ -1,9 +1,9 @@
 "use client";
 
-import Image, { getImageProps } from "next/image";
+import { getImageProps } from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { normalizeMediaUrl } from "../lib/media-url";
+import { isPreoptimizedImageSource, normalizeMediaUrl } from "../lib/media-url";
 import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
 import {
   HOME_PRINTER_LABELS,
@@ -41,6 +41,7 @@ import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, type PublicEnabledCat
 import { searchProducts, type ProductSearchScope } from "./global-product-search";
 import { maintenanceContacts, maintenanceServices, maintenanceWhatsappHref } from "./maintenance-data";
 import StorefrontFooter from "./storefront-footer";
+import Image from "./storefront-image";
 
 const HERO_IMAGE_SIZES = "100vw";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -477,7 +478,13 @@ export default function HomeClient({
       preloadTimer = window.setTimeout(() => {
         const nextIndex = (activeHeroSlide + 1) % heroSlides.length;
         const src = imageSrcOrFallback(heroSlides[nextIndex]?.imageUrl, defaultHeroSlides[0].imageUrl);
-        const { props } = getImageProps({ src, alt: "", fill: true, sizes: HERO_IMAGE_SIZES });
+        const { props } = getImageProps({
+          src,
+          alt: "",
+          fill: true,
+          sizes: HERO_IMAGE_SIZES,
+          unoptimized: isPreoptimizedImageSource(src),
+        });
         const preloadImage = new window.Image();
         preloadImage.decoding = "async";
         preloadImage.fetchPriority = "low";

@@ -1,6 +1,14 @@
 export const DEFAULT_SUPABASE_STORAGE_BUCKET = "site-media";
 export const MEDIA_PROXY_PATH_PREFIX = "/api/media/";
 
+const PREOPTIMIZED_IMAGE_EXTENSION = /\.(?:avif|webp)$/i;
+
+export function isPreoptimizedImageSource(value: string) {
+  const pathEnd = value.search(/[?#]/);
+  const pathname = pathEnd === -1 ? value : value.slice(0, pathEnd);
+  return PREOPTIMIZED_IMAGE_EXTENSION.test(pathname);
+}
+
 const optimizedLocalMedia: Readonly<Record<string, string>> = {
   "/hero/technology-solutions.png": "/hero/technology-solutions.webp",
   "/products/wf-c5390.png": "/products/wf-c5390.webp",

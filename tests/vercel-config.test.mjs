@@ -24,9 +24,9 @@ test("uses native Next.js scripts for Vercel", async () => {
   }
 });
 
-test("serves Next.js images directly without Vercel Image Optimization", async () => {
+test("keeps Vercel Image Optimization available for images that still benefit from it", async () => {
   const nextConfig = await readFile(new URL("next.config.ts", root), "utf8");
-  assert.match(nextConfig, /images\s*:\s*\{[\s\S]*?unoptimized\s*:\s*true/);
+  assert.doesNotMatch(nextConfig, /unoptimized\s*:\s*true/);
   assert.match(nextConfig, /localPatterns\s*:/);
 });
 

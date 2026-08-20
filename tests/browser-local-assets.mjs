@@ -27,6 +27,7 @@ await new Promise((resolve, reject) => { socket.once("open", resolve); socket.on
 const pending = new Map();
 const consoleErrors = [];
 const imageResponses = new Map();
+const imageRequestUrls = [];
 let id = 0;
 socket.on("message", (raw) => {
   const message = JSON.parse(raw.toString());
@@ -35,6 +36,7 @@ socket.on("message", (raw) => {
   }
   if (message.method === "Network.responseReceived" && message.params.type === "Image") {
     const url = new URL(message.params.response.url);
+    imageRequestUrls.push(url.href);
     imageResponses.set(url.pathname, { status: message.params.response.status, mimeType: message.params.response.mimeType });
   }
   if (!message.id) return;
@@ -100,6 +102,21 @@ for (const [path, response] of imageResponses) {
     assert.equal(response.mimeType, "image/webp");
   }
 }
+const uniqueImageRequests = [...new Set(imageRequestUrls)].map((value) => new URL(value));
+const transformedSources = uniqueImageRequests
+  .filter((url) => url.pathname === "/_next/image")
+  .map((url) => url.searchParams.get("url"))
+  .filter(Boolean);
+const directlyServedPreoptimized = uniqueImageRequests
+  .filter((url) => url.pathname !== "/_next/image" && /\.(?:avif|webp)$/i.test(url.pathname))
+  .map((url) => url.pathname);
+assert.deepEqual(
+  transformedSources.filter((source) => /\.(?:avif|webp)(?:[?#]|$)/i.test(source)),
+  [],
+  "preoptimized images must never pass through /_next/image",
+);
+assert.ok(transformedSources.some((source) => /\.(?:jpe?g|png)(?:[?#]|$)/i.test(source)), "PNG or JPEG should retain Next optimization");
+assert.ok(directlyServedPreoptimized.some((path) => optimizedPaths.includes(path)), "preoptimized WebP must load directly");
 assert.deepEqual(consoleErrors, []);
-console.log(JSON.stringify({ desktop, mobile, optimizedNetworkResponses: Object.fromEntries([...imageResponses].filter(([path]) => optimizedPaths.includes(path))), consoleErrors }, null, 2));
+console.log(JSON.stringify({ desktop, mobile, directlyServedPreoptimized, transformedSources, optimizedNetworkResponses: Object.fromEntries([...imageResponses].filter(([path]) => optimizedPaths.includes(path))), consoleErrors }, null, 2));
 socket.close();
