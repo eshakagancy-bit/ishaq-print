@@ -11,7 +11,7 @@ test("hero image upload completes before a slide can be saved", async () => {
   assert.match(dashboard, /if \(uploadingImage\)[\s\S]*?return;/);
   assert.match(dashboard, /if \(!heroForm\.imageUrl\.trim\(\)\)[\s\S]*?return;/);
   assert.match(dashboard, /type="submit" disabled=\{heroSaving \|\| uploadingImage\}/);
-  assert.match(dashboard, /body: JSON\.stringify\(heroForm\)/);
+  assert.match(dashboard, /body: JSON\.stringify\(heroSlidePayload\(heroForm\)\)/);
 });
 
 test("hero uploads retain the supported image allowlist and show the uploaded thumbnail", async () => {

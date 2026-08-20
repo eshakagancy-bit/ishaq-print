@@ -117,6 +117,24 @@ const emptyHeroSlide: HeroSlide = {
   isActive: true,
 };
 
+function heroSlidePayload(slide: HeroSlide): HeroSlide {
+  return {
+    id: slide.id,
+    title: slide.title,
+    subtitle: slide.subtitle,
+    description: slide.description,
+    badgeText: slide.badgeText,
+    imageUrl: slide.imageUrl,
+    imageAlt: slide.imageAlt,
+    primaryButtonText: slide.primaryButtonText,
+    primaryButtonUrl: slide.primaryButtonUrl,
+    secondaryButtonText: slide.secondaryButtonText,
+    secondaryButtonUrl: slide.secondaryButtonUrl,
+    displayOrder: slide.displayOrder,
+    isActive: slide.isActive,
+  };
+}
+
 const UNSAVED_CHANGES_MESSAGE = "توجد تعديلات لم يتم حفظها. هل تريد مغادرة الصفحة؟";
 type DirtyScope = "site" | "product-form" | "hero-form" | "hero-settings" | "home-order";
 
@@ -588,7 +606,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       const response = await fetch(editingHeroId ? `/api/admin/hero-slides/${editingHeroId}` : "/api/admin/hero-slides", {
         method: editingHeroId ? "PUT" : "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(heroForm),
+        body: JSON.stringify(heroSlidePayload(heroForm)),
       });
       const data = await response.json() as { error?: string; slide?: HeroSlide };
       if (!response.ok) throw new Error(data.error || "تعذر حفظ الشريحة");

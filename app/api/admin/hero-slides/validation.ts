@@ -24,7 +24,7 @@ export type HeroSlideInput = {
   isActive: boolean;
 };
 
-const slideKeys = ["id", "title", "subtitle", "description", "badgeText", "badge_text", "imageUrl", "image_url", "imageAlt", "image_alt", "primaryButtonText", "primary_button_text", "primaryButtonUrl", "primary_button_url", "secondaryButtonText", "secondary_button_text", "secondaryButtonUrl", "secondary_button_url", "displayOrder", "display_order", "isActive", "is_active"];
+const slideKeys = ["id", "title", "subtitle", "subtitle2", "description", "badgeText", "badge_text", "imageUrl", "image_url", "imageAlt", "image_alt", "primaryButtonText", "primary_button_text", "primaryButtonUrl", "primary_button_url", "secondaryButtonText", "secondary_button_text", "secondaryButtonUrl", "secondary_button_url", "displayOrder", "display_order", "isActive", "is_active"];
 const settingsKeys = ["autoplayEnabled", "autoplayDelay", "autoplayDelaySeconds", "showArrows", "showDots", "pauseOnHover"];
 
 function aliased(input: Record<string, unknown>, camel: string, snake: string) {
@@ -52,7 +52,7 @@ export function normalizeHeroSlideInput(value: unknown, expectedId?: number | "c
   safeWebOrLocalUrl(imageUrl, "صورة الشريحة", 1000, false);
 
   const stringFields = [
-    ["subtitle", "subtitle", 120], ["badgeText", "badge_text", 120], ["imageAlt", "image_alt", 220],
+    ["subtitle", "subtitle2", 120], ["badgeText", "badge_text", 120], ["imageAlt", "image_alt", 220],
     ["primaryButtonText", "primary_button_text", 120], ["primaryButtonUrl", "primary_button_url", 1000],
     ["secondaryButtonText", "secondary_button_text", 120], ["secondaryButtonUrl", "secondary_button_url", 1000],
   ] as const;
