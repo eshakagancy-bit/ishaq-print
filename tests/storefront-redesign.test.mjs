@@ -19,7 +19,7 @@ test("homepage follows the image-led storefront journey", async () => {
   assert.match(home, /className="product-card-link" href=\{detailsHref\}/);
   assert.doesNotMatch(home.slice(home.indexOf("const renderProductCard"), home.indexOf("return (", home.indexOf("const renderProductCard"))), /cardTags|product\.description/);
   assert.match(styles, /\.storefront-category-grid \{ display:grid; grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(styles, /\.hero-slider \{ height:clamp\(520px,42vw,610px\); min-height:520px/);
+  assert.match(styles, /\.hero-slider \{ width:100%; height:auto; min-height:0; aspect-ratio:16\/9;/);
 });
 
 test("homepage product tiles use factual category lines instead of price and commercial footer", async () => {

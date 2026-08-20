@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const WebSocketClient = require("next/dist/compiled/ws");
 const appUrl = process.env.APP_URL || "http://127.0.0.1:3100";
 const cdpBase = process.env.CDP_BASE || "http://127.0.0.1:9780";
+const artifacts = new URL("../test-artifacts/", import.meta.url);
 const optimizedPaths = [
   "/hero/technology-solutions.webp",
   "/products/wf-c5390.webp",
@@ -76,25 +78,52 @@ const inspect = async (width, height) => {
     return {
       width: innerWidth,
       overflow: document.documentElement.scrollWidth > innerWidth,
+      cls: window.__heroCls || 0,
       heroVisible: Boolean(activeHero && activeHero.getBoundingClientRect().width > 0 && activeHero.getBoundingClientRect().height > 0 && activeHero.complete && activeHero.naturalWidth > 0),
+      hero: activeHero ? (() => {
+        const stage = activeHero.closest('.hero-slider').getBoundingClientRect();
+        return {
+          width: stage.width,
+          height: stage.height,
+          ratio: stage.width / stage.height,
+          expectedHeight: stage.width * 9 / 16,
+          objectFit: getComputedStyle(activeHero).objectFit,
+          naturalRatio: activeHero.naturalWidth / activeHero.naturalHeight,
+        };
+      })() : null,
       optimizedSources: relevant.map((image) => new URL(image.currentSrc).pathname),
       brokenRelevantImages: relevant.filter((image) => image.complete && image.naturalWidth === 0).length,
     };
   })()`);
   assert.equal(result.overflow, false, `${width}: no page overflow`);
+  assert.ok(result.cls <= 0.1, `${width}: CLS must remain within the good threshold`);
   assert.equal(result.heroVisible, true, `${width}: active Hero must render`);
+  assert.ok(Math.abs(result.hero.ratio - 16 / 9) < 0.01, `${width}: Hero stage must stay 16:9`);
+  assert.ok(Math.abs(result.hero.height - result.hero.expectedHeight) < 1, `${width}: Hero height must derive from viewport width`);
+  assert.equal(result.hero.objectFit, "contain", `${width}: Hero must not crop its image`);
   assert.equal(result.brokenRelevantImages, 0, `${width}: optimized images must render`);
   assert.equal(result.optimizedSources.some((path) => oldPaths.includes(path)), false, `${width}: old PNG must not be used`);
   assert.ok(result.optimizedSources.some((path) => optimizedPaths.includes(path)), `${width}: optimized image must be present`);
+  const screenshot = await send("Page.captureScreenshot", { format: "png", fromSurface: true });
+  await mkdir(artifacts, { recursive: true });
+  await writeFile(new URL(`hero-16-9-${width}x${height}.png`, artifacts), Buffer.from(screenshot.data, "base64"));
   return result;
 };
 
 await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Network.enable")]);
-const desktop = await inspect(1366, 768);
+await send("Page.addScriptToEvaluateOnNewDocument", { source: `
+  window.__heroCls = 0;
+  new PerformanceObserver((list) => {
+    for (const entry of list.getEntries()) if (!entry.hadRecentInput) window.__heroCls += entry.value;
+  }).observe({ type: "layout-shift", buffered: true });
+` });
+const desktop1366 = await inspect(1366, 768);
+const desktop1440 = await inspect(1440, 900);
+const desktop1920 = await inspect(1920, 1080);
 await navigate("/categories", 1366, 768);
 assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false, "categories must not overflow");
 assert.equal(await evaluate("[...document.images].filter((image) => image.complete && image.naturalWidth === 0).length"), 0, "categories must have no broken images");
-const mobile = await inspect(390, 844);
+const mobile390 = await inspect(390, 844);
 
 for (const [path, response] of imageResponses) {
   if (optimizedPaths.includes(path)) {
@@ -118,5 +147,5 @@ assert.deepEqual(
 assert.ok(transformedSources.some((source) => /\.(?:jpe?g|png)(?:[?#]|$)/i.test(source)), "PNG or JPEG should retain Next optimization");
 assert.ok(directlyServedPreoptimized.some((path) => optimizedPaths.includes(path)), "preoptimized WebP must load directly");
 assert.deepEqual(consoleErrors, []);
-console.log(JSON.stringify({ desktop, mobile, directlyServedPreoptimized, transformedSources, optimizedNetworkResponses: Object.fromEntries([...imageResponses].filter(([path]) => optimizedPaths.includes(path))), consoleErrors }, null, 2));
+console.log(JSON.stringify({ desktop1366, desktop1440, desktop1920, mobile390, directlyServedPreoptimized, transformedSources, optimizedNetworkResponses: Object.fromEntries([...imageResponses].filter(([path]) => optimizedPaths.includes(path))), consoleErrors }, null, 2));
 socket.close();
