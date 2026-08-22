@@ -14,6 +14,7 @@ import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
 import PublicSearchControl from "../../global-search-drawer";
+import ProductShare from "../../product-share";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -110,6 +111,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
               <a className="primary-btn" href={getWhatsappLink(product, "quote")} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a>
               <a className="secondary-btn" href={getWhatsappLink(product, "specialist")} target="_blank" rel="noreferrer">تواصل مع المختص</a>
               <ProductFavoriteButton productId={product.id} />
+              <ProductShare productName={product.name} productUrl={`/printers/${slug}`} />
               <Link className="printer-page-back" href="/printers">العودة إلى المنتجات</Link>
             </div>
           </div>

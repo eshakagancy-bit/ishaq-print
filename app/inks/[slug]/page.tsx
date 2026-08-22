@@ -13,6 +13,7 @@ import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
 import PublicSearchControl from "../../global-search-drawer";
+import ProductShare from "../../product-share";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +44,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function InkDetailsPage({ params }: PageProps) {
-  const { product, products, settings } = await getInkData((await params).slug);
+  const { slug } = await params;
+  const { product, products, settings } = await getInkData(slug);
   if (!product) notFound();
   const rows = buildInkSpecificationRows(product);
   const specifications = product.inkSpecifications;
@@ -54,7 +56,7 @@ export default async function InkDetailsPage({ params }: PageProps) {
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/inks">الأحبار</Link><span>/</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">
       <ProductGallery images={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} alt={product.name} />
-      <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><Link className="printer-page-back" href="/inks">العودة إلى المنتجات</Link></div></div>
+      <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={product.name} productUrl={`/inks/${slug}`} /><Link className="printer-page-back" href="/inks">العودة إلى المنتجات</Link></div></div>
     </div></div></section>
     <div className="container printer-sections">
       <nav className="product-section-nav" aria-label="أقسام تفاصيل المنتج">{product.description && <a href="#description">الوصف</a>}{rows.length > 0 && <a href="#specifications">المواصفات</a>}{specifications?.features.length ? <a href="#features">المميزات</a> : null}{specifications?.uses.length ? <a href="#uses">الاستخدامات</a> : null}</nav>
