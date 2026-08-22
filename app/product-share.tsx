@@ -6,6 +6,7 @@ import { buildWhatsAppShareUrl } from "./product-sharing";
 type ProductShareProps = {
   productName: string;
   productUrl: string;
+  referenceNumber?: string;
 };
 
 function copyWithFallback(value: string) {
@@ -27,7 +28,7 @@ function subscribeToOrigin() {
   return () => undefined;
 }
 
-export default function ProductShare({ productName, productUrl }: ProductShareProps) {
+export default function ProductShare({ productName, productUrl, referenceNumber }: ProductShareProps) {
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -98,7 +99,7 @@ export default function ProductShare({ productName, productUrl }: ProductSharePr
     </button>
     {open && <div id={menuId} className="product-share-menu" role="menu" aria-label="خيارات مشاركة المنتج">
       <a
-        href={buildWhatsAppShareUrl(productName, resolvedUrl)}
+        href={buildWhatsAppShareUrl(productName, resolvedUrl, referenceNumber)}
         target="_blank"
         rel="noopener noreferrer"
         role="menuitem"

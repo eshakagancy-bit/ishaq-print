@@ -74,6 +74,12 @@ import {
 } from "../printer-page-content";
 import { addProductToCollection, removeProductById, replaceProductById } from "../product-collection";
 import {
+  PRODUCT_REFERENCE_DUPLICATE_MESSAGE,
+  PRODUCT_REFERENCE_MAX_LENGTH,
+  hasDuplicateProductReference,
+  normalizeProductReferenceNumber,
+} from "../product-reference";
+import {
   HOME_PRODUCT_CATEGORIES,
   buildHomeProductOrder,
   homeProductsForCategory,
@@ -95,7 +101,7 @@ const homeOrderCategoryLabels: Record<HomeProductCategory, string> = {
 };
 
 const emptyProduct: StoredProduct = {
-  id: 0, name: "", family: "", image: "", images: undefined, category: "printers", type: "", size: "",
+  id: 0, referenceNumber: "", name: "", family: "", image: "", images: undefined, category: "printers", type: "", size: "",
   printerCategory: undefined, badge: "", price: "", description: "", features: [],
   specifications: undefined, printerPageContent: createEmptyPrinterPageContent(), paperSpecifications: undefined,
   inkSpecifications: undefined,
@@ -524,6 +530,11 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
   const saveProductDraft = async (event: FormEvent) => {
     event.preventDefault();
+    const referenceNumber = normalizeProductReferenceNumber(productForm.referenceNumber);
+    if (hasDuplicateProductReference(products, referenceNumber, editingId ?? undefined)) {
+      setStatus(PRODUCT_REFERENCE_DUPLICATE_MESSAGE);
+      return;
+    }
     if (productForm.category === "printers" && !isPrinterCategory(productForm.printerCategory)) {
       const message = "يرجى اختيار فئة الطابعة قبل إضافة المنتج.";
       setPrinterCategoryError(message);
@@ -547,6 +558,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     const next = {
       ...productForm,
       id: editingId ?? Date.now(),
+      referenceNumber,
       image: inkImages?.[0] ?? productForm.image,
       images: inkImages,
       inkSpecifications: productForm.category === "inks" && productForm.inkSpecifications
@@ -889,6 +901,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
           {PRINTER_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
         </select>{printerCategoryError && <span className="admin-field-error" id="printer-category-error" role="alert">{printerCategoryError}</span>}</label>}
         {productForm.category !== "papers" && <label>اسم المنتج<input required value={productForm.name} aria-invalid={productForm.category === "inks" && Boolean(getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []))} onChange={(e) => updateProductForm({ name: e.target.value })} />{productForm.category === "inks" && <><small>الصيغة المعتمدة: حبر + الاسم الفني + جميع السعات، مثل: حبر Pigment 500 مل / 1000 ML</small>{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []) && <span className="admin-field-error" role="alert">{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? [])}</span>}</>}</label>}
+        <label>الرقم المرجعي<input value={productForm.referenceNumber ?? ""} maxLength={PRODUCT_REFERENCE_MAX_LENGTH} dir="auto" placeholder="مثال: PR-001" onChange={(event) => updateProductForm({ referenceNumber: event.target.value })} /><small>اختياري، ويُكتب يدويًا ويجب ألا يتكرر بين المنتجات.</small></label>
         {productForm.category !== "papers" && productForm.category !== "inks" && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
         <datalist id="printer-family-options">{PRINTER_FAMILY_OPTIONS.map((family) => <option key={family} value={family} />)}</datalist></>}
         {productForm.category === "printers" && <PrinterSpecificationsEditor product={productForm} onChange={updateProductForm} />}
@@ -921,7 +934,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
           : <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />}
         <div className="product-editor-actions"><button type="submit" disabled={saving}>{saving ? "جاري الحفظ..." : editingId ? "حفظ التعديل" : "إضافة المنتج"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
-      <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
+      <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span>{product.referenceNumber && <small className="admin-product-reference" dir="auto">الرقم المرجعي: {product.referenceNumber}</small>}</div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
       </section>
     </>}
   </main>;

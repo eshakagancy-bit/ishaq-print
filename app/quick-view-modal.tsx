@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import InkImageCarousel from "./ink-image-carousel";
 import type { SpecificationDisplayRow } from "./printer-specifications";
 import { productPriceLabel } from "./product-commerce";
+import ProductReferenceDisplay from "./product-reference-display";
 
 type QuickViewModalProps = {
   id: number;
@@ -11,6 +12,7 @@ type QuickViewModalProps = {
   categoryLabel?: string;
   family?: string;
   badge?: string;
+  referenceNumber?: string;
   availabilityLabel?: string | null;
   description?: string;
   price?: string;
@@ -25,7 +27,7 @@ type QuickViewModalProps = {
 };
 
 export default function QuickViewModal({
-  id, title, categoryLabel, family, badge, availabilityLabel, description, price, images, rows,
+  id, title, categoryLabel, family, badge, referenceNumber, availabilityLabel, description, price, images, rows,
   detailsHref, whatsappHref, whatsappLabel, footerNote, trigger, onClose,
 }: QuickViewModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -82,6 +84,7 @@ export default function QuickViewModal({
           {categoryLabel?.trim() && <span className="modal-category">{categoryLabel}</span>}
           {family?.trim() && <span className="product-family">{family}</span>}
           <h2 id={titleId}>{title}</h2>
+          <ProductReferenceDisplay value={referenceNumber} compact />
           {description?.trim() && <p>{description}</p>}
           <div className="modal-price"><small>السعر</small><strong>{productPriceLabel(price)}</strong></div>
           {summaryRows.length > 0 && <dl className="modal-specs">{summaryRows.map((row) => <div key={row.key} className={row.state === false ? "negative" : row.state === true ? "positive" : ""}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}

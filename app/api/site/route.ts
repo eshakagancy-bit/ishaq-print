@@ -11,6 +11,11 @@ import {
 import { normalizePaperSpecifications } from "../../paper-specifications";
 import { getInkProductNameError, normalizeInkSpecifications } from "../../ink-specifications";
 import { normalizePrinterPageContent } from "../../printer-page-content";
+import {
+  PRODUCT_REFERENCE_DUPLICATE_MESSAGE,
+  ProductReferenceConflictError,
+  normalizeProductReferenceNumber,
+} from "../../product-reference";
 import { validationResponse } from "../admin-validation";
 import { validateDeletePayload, validateProductPayload, validateSettingsPayload } from "./validation";
 import {
@@ -106,6 +111,7 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
   return {
     id: Number.isSafeInteger(Number(input.id)) && Number(input.id) > 0 ? Number(input.id) : Date.now() + index,
     slug: String(input.slug ?? "").trim().slice(0, 200) || undefined,
+    referenceNumber: normalizeProductReferenceNumber(typeof input.referenceNumber === "string" ? input.referenceNumber : undefined),
     name: normalizeProductBrandName(name),
     family: String(input.family ?? "").trim().slice(0, 120),
     image: images?.[0] ?? legacyImage,
@@ -187,6 +193,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const invalid = validationResponse(error);
     if (invalid) return invalid;
+    if (error instanceof ProductReferenceConflictError) return Response.json({ error: PRODUCT_REFERENCE_DUPLICATE_MESSAGE }, { status: 409 });
     return Response.json({ error: error instanceof Error ? error.message : "تعذر إضافة المنتج" }, { status: 500 });
   }
 }
@@ -207,6 +214,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     const invalid = validationResponse(error);
     if (invalid) return invalid;
+    if (error instanceof ProductReferenceConflictError) return Response.json({ error: PRODUCT_REFERENCE_DUPLICATE_MESSAGE }, { status: 409 });
     return Response.json({ error: error instanceof Error ? error.message : "تعذر حفظ المنتج" }, { status: 500 });
   }
 }

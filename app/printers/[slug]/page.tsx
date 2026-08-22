@@ -15,6 +15,7 @@ import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
 import PublicSearchControl from "../../global-search-drawer";
 import ProductShare from "../../product-share";
+import ProductReferenceDisplay from "../../product-reference-display";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,6 +102,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
             {product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}
             {product.family?.trim() && <span className="product-family">{product.family}</span>}
             <h1>{product.name}</h1>
+            <ProductReferenceDisplay value={product.referenceNumber} />
             {product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}
             <div className="printer-meta">
               {getPrinterCategoryLabel(product.printerCategory) && <span><small>الفئة</small><b>{getPrinterCategoryLabel(product.printerCategory)}</b></span>}
@@ -111,7 +113,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
               <a className="primary-btn" href={getWhatsappLink(product, "quote")} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a>
               <a className="secondary-btn" href={getWhatsappLink(product, "specialist")} target="_blank" rel="noreferrer">تواصل مع المختص</a>
               <ProductFavoriteButton productId={product.id} />
-              <ProductShare productName={product.name} productUrl={`/printers/${slug}`} />
+              <ProductShare productName={product.name} productUrl={`/printers/${slug}`} referenceNumber={product.referenceNumber} />
               <Link className="printer-page-back" href="/printers">العودة إلى المنتجات</Link>
             </div>
           </div>
