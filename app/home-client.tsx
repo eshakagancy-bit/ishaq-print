@@ -199,6 +199,11 @@ const categories = allCategories.filter((category) => isPublicCategoryEnabled(ca
 type CategoryId = typeof categories[number]["id"];
 
 const homeCategoryOrder: PublicEnabledCategory[] = ["printers", "inks", "papers"];
+const homeCategoryArtwork: Record<PublicEnabledCategory, string> = {
+  printers: "/categories/printers-unified.png",
+  inks: "/categories/inks-unified.png",
+  papers: "/categories/papers-unified.png",
+};
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
 }
@@ -939,9 +944,7 @@ export default function HomeClient({
       <section className="storefront-categories" id="categories" aria-labelledby="storefront-categories-title"><div className="container">
         <div className="storefront-section-heading"><h2 id="storefront-categories-title">تسوق حسب الفئة</h2></div>
         <div className="storefront-category-grid">{homeCategoryOrder.map((categoryId) => {
-          const categoryProducts = products.filter((product) => product.category === categoryId);
-          const categoryImage = settings.categoryImages[categoryId] || categoryProducts[0]?.image || settings.logoImage;
-          return <Link className="storefront-category-card" data-category={categoryId} href={PUBLIC_CATEGORY_DETAILS[categoryId].href} key={categoryId}><div className="storefront-category-image"><Image src={imageSrcOrFallback(categoryImage)} alt={PUBLIC_CATEGORY_DETAILS[categoryId].label} width={520} height={520} sizes="(max-width: 760px) 28vw, (max-width: 1100px) 22vw, 250px" /></div><h3>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h3></Link>;
+          return <Link className="storefront-category-card" data-category={categoryId} href={PUBLIC_CATEGORY_DETAILS[categoryId].href} key={categoryId}><div className="storefront-category-image"><Image src={homeCategoryArtwork[categoryId]} alt={PUBLIC_CATEGORY_DETAILS[categoryId].label} width={1254} height={1254} sizes="(max-width: 760px) 28vw, (max-width: 1100px) 22vw, 250px" /></div><h3>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h3></Link>;
         })}</div>
       </div></section>
 

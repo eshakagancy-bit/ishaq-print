@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     localPatterns: [
       { pathname: "/api/media/**", search: "" },
       { pathname: "/brand/**", search: "" },
+      { pathname: "/categories/**", search: "" },
       { pathname: "/hero/**", search: "" },
       { pathname: "/products/**", search: "" },
     ],

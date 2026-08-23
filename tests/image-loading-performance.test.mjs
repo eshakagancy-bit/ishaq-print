@@ -45,7 +45,7 @@ test("only preoptimized images bypass transformations while other formats retain
     read("app/home-client.tsx"),
   ]);
   assert.doesNotMatch(config, /unoptimized:\s*true/);
-  for (const path of ["/api/media/**", "/brand/**", "/hero/**", "/products/**"]) assert.ok(config.includes(path));
+  for (const path of ["/api/media/**", "/brand/**", "/categories/**", "/hero/**", "/products/**"]) assert.ok(config.includes(path));
   assert.doesNotMatch(config, /remotePatterns/);
   assert.match(image, /isPreoptimizedImageSource\(props\.src\)/);
   assert.match(image, /unoptimized=\{Boolean\(unoptimized \|\| preoptimized\)\}/);
