@@ -45,7 +45,6 @@ export function GlobalSearchDrawer({ open, onClose, products, triggerRef }: Glob
   const matchingProducts = useMemo(() => searchProducts(products, searchQuery, searchScope, (product) => [
     product.name,
     productDisplayName(product),
-    product.referenceNumber,
     product.family,
     product.type,
     product.description,

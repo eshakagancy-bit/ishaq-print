@@ -10,8 +10,8 @@ const cdpBase = process.env.CDP_BASE || "http://127.0.0.1:9779";
 const artifactDir = process.env.ARTIFACT_DIR || "test-artifacts";
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const products = [
-  { id: 910001, referenceNumber: "PR-001", name: "QA Printer", family: "EcoTank", image: "", category: "printers", printerCategory: "ecotank", type: "", size: "", description: "", features: [] },
-  { id: 910002, referenceNumber: "INK-025", name: "حبر Pigment", family: "", image: "", images: [], category: "inks", type: "", size: "", description: "", features: [] },
+  { id: 910001, name: "QA Printer", family: "EcoTank", image: "", category: "printers", printerCategory: "ecotank", type: "", size: "", description: "", features: [] },
+  { id: 910002, name: "حبر Pigment", family: "", image: "", images: [], category: "inks", type: "", size: "", description: "", features: [] },
   { id: 910003, name: "QA Paper", family: "", image: "", images: [], category: "papers", type: "", size: "", description: "", features: [] },
 ];
 
@@ -29,9 +29,8 @@ const send = (method, params = {}) => new Promise((resolve, reject) => {
 });
 socket.on("message", (raw) => {
   const message = JSON.parse(raw.toString());
-  if (message.method === "Runtime.consoleAPICalled" && message.params.type === "error") {
-    consoleErrors.push(message.params.args.map((argument) => argument.value || argument.description).join(" "));
-  }
+  if (message.method === "Runtime.consoleAPICalled" && message.params.type === "error") consoleErrors.push(message.params.args.map((argument) => argument.value || argument.description).join(" "));
+  if (message.method === "Runtime.exceptionThrown") consoleErrors.push(message.params.exceptionDetails?.text || "Runtime exception");
   if (message.method === "Network.loadingFailed" && !message.params.canceled) networkFailures.push(message.params.errorText);
   if (message.method === "Fetch.requestPaused") {
     const { requestId, request } = message.params;
@@ -40,9 +39,7 @@ socket.on("message", (raw) => {
       void send("Fetch.fulfillRequest", { requestId, responseCode: 200, responseHeaders: [{ name: "content-type", value: "application/json" }], body: Buffer.from(JSON.stringify({ settings: {}, products })).toString("base64") });
     } else if (request.method === "GET" && url.pathname === "/api/admin/hero-slides") {
       void send("Fetch.fulfillRequest", { requestId, responseCode: 200, responseHeaders: [{ name: "content-type", value: "application/json" }], body: Buffer.from(JSON.stringify({ slides: [], settings: {} })).toString("base64") });
-    } else {
-      void send("Fetch.continueRequest", { requestId });
-    }
+    } else void send("Fetch.continueRequest", { requestId });
   }
   if (!message.id) return;
   const handler = pending.get(message.id);
@@ -62,44 +59,41 @@ const waitFor = async (expression) => {
   }
   throw new Error(`Timed out waiting for ${expression}`);
 };
-const setViewport = (width, height) => send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width <= 760, screenWidth: width, screenHeight: height });
 const setCategory = async (category) => {
   await evaluate(`(() => { const select=document.querySelector('.product-editor>label select'); const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set; setter.call(select,${JSON.stringify(category)}); select.dispatchEvent(new Event('change',{bubbles:true})); })()`);
-  await delay(100);
+  await delay(80);
+};
+const assertAbsent = async (context) => {
+  assert.equal(await evaluate(`!document.body.innerText.includes('الرقم المرجعي') && !document.querySelector('[name="referenceNumber"], [name="reference_number"], .admin-product-reference, .product-reference-number')`), true, context);
 };
 
 await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Network.enable"), send("Fetch.enable", { patterns: [{ urlPattern: "*/api/*", requestStage: "Request" }] })]);
-await setViewport(1440, 900);
+await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false, screenWidth: 1440, screenHeight: 900 });
 await send("Page.navigate", { url: `${appUrl}/admin` });
 await waitFor("document.readyState === 'complete' && Boolean(document.querySelector('.real-admin-page'))");
 await evaluate(`([...document.querySelectorAll('.real-admin-toolbar button')].find((button) => button.textContent.trim() === 'المنتجات')).click()`);
 await waitFor("Boolean(document.querySelector('.product-admin-layout')) && document.querySelectorAll('.products-manager article').length === 3");
 
-assert.equal(await evaluate("document.querySelectorAll('input[placeholder=\"مثال: PR-001\"]').length"), 1);
-assert.equal(await evaluate("document.querySelector('input[placeholder=\"مثال: PR-001\"]').maxLength"), 50);
-assert.equal(await evaluate("document.querySelectorAll('.admin-product-reference').length"), 2, "admin list hides empty references");
 for (const category of ["printers", "inks", "papers"]) {
   await setCategory(category);
-  assert.equal(await evaluate("Boolean(document.querySelector('input[placeholder=\"مثال: PR-001\"]'))"), true, `${category} reference field`);
+  await assertAbsent(`${category} add form`);
+  await evaluate(`([...document.querySelectorAll('.products-manager article')].find((article) => article.textContent.includes(${JSON.stringify(products.find((product) => product.category === category).name)})).querySelector('button')).click()`);
+  await waitFor("document.querySelector('.product-editor h2').textContent.includes('تعديل المنتج')");
+  await assertAbsent(`${category} edit form`);
+  await evaluate(`([...document.querySelectorAll('.product-editor-actions button')].find((button) => button.textContent.trim() === 'تفريغ')).click()`);
 }
-await setCategory("printers");
-await evaluate(`(() => { const input=document.querySelector('input[placeholder="مثال: PR-001"]'); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; setter.call(input,'pr-001'); input.dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('.product-editor').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); })()`);
-await waitFor("document.querySelector('.admin-live-status')?.textContent.includes('الرقم المرجعي مستخدم بالفعل')");
-await evaluate(`(() => { const input=document.querySelector('input[placeholder="مثال: PR-001"]'); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; setter.call(input,'  Sqm-1001  '); input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
-assert.equal(await evaluate("document.querySelector('input[placeholder=\"مثال: PR-001\"]').value"), "  Sqm-1001  ", "manual casing remains untouched while editing");
 assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false, "desktop admin overflow");
 
-await setViewport(390, 844);
+await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true, screenWidth: 390, screenHeight: 844 });
 await delay(150);
-await evaluate("document.querySelector('input[placeholder=\"مثال: PR-001\"]').scrollIntoView({block:'center'})");
-assert.equal(await evaluate(`(() => { const rect=document.querySelector('input[placeholder="مثال: PR-001"]').getBoundingClientRect(); return rect.left >= 0 && rect.right <= innerWidth && rect.height >= 44; })()`), true, "mobile admin reference field");
+await assertAbsent("mobile admin");
 assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false, "mobile admin overflow");
 await mkdir(artifactDir, { recursive: true });
 const screenshot = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
-await writeFile(join(artifactDir, "product-reference-admin-mobile-390.png"), Buffer.from(screenshot.data, "base64"));
+await writeFile(join(artifactDir, "product-reference-removal-admin-mobile-390.png"), Buffer.from(screenshot.data, "base64"));
 
 const relevantConsoleErrors = consoleErrors.filter((message) => !message.includes("eval() is not supported in this environment"));
 assert.deepEqual(relevantConsoleErrors, []);
 assert.deepEqual(networkFailures, []);
-console.log(JSON.stringify({ printerAdmin: "PASS", inkAdmin: "PASS", paperAdmin: "PASS", duplicateMessage: "PASS", adminList: "PASS", mobile390: "PASS", consoleErrors: relevantConsoleErrors, networkFailures }, null, 2));
+console.log(JSON.stringify({ printerAddEdit: "PASS", inkAddEdit: "PASS", paperAddEdit: "PASS", adminList: "PASS", mobile390: "PASS", consoleErrors: relevantConsoleErrors, networkFailures }, null, 2));
 socket.close();

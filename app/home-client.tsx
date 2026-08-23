@@ -52,7 +52,6 @@ const allowedImagePrefixes = ["/api/media/", "/brand/", "/hero/", "/products/"];
 
 type Product = {
   id: number;
-  referenceNumber?: string;
   name: string;
   family: string;
   image: string;
@@ -417,7 +416,6 @@ export default function HomeClient({
     (product) => [
       product.name,
       getProductDisplayName(product),
-      product.referenceNumber,
       product.family,
       product.type,
       product.description,
@@ -1029,7 +1027,7 @@ export default function HomeClient({
           return <button key={section} type="button" className={mobileNavSection === section ? "active" : ""} aria-current={mobileNavSection === section ? "page" : undefined} onClick={() => openMobileSection(section)}><MobileNavIcon section={section} /><span>{label}</span></button>;
         })}
       </nav>
-      {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} referenceNumber={selected.referenceNumber} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
+      {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
     </main>
   );
 }

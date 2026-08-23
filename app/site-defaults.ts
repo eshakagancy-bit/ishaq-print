@@ -120,7 +120,6 @@ export function normalizeProductBrandName(value: string) {
 export type StoredProduct = {
   id: number;
   slug?: string;
-  referenceNumber?: string;
   name: string;
   family: string;
   image: string;

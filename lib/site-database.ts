@@ -13,11 +13,6 @@ import {
 import { normalizePaperSpecifications } from "../app/paper-specifications";
 import { normalizeInkSpecifications } from "../app/ink-specifications";
 import {
-  ProductReferenceConflictError,
-  normalizeProductReferenceNumber,
-  productReferenceKey,
-} from "../app/product-reference";
-import {
   hasPrinterPageContent,
   normalizePrinterPageContent,
 } from "../app/printer-page-content";
@@ -44,7 +39,6 @@ import {
 
 type ProductRow = {
   id: number;
-  reference_number: string | null;
   name: string;
   family: string;
   image: string;
@@ -92,25 +86,6 @@ function databaseError(message: string, error: { message: string } | null) {
   if (error) throw new Error(`${message}: ${error.message}`);
 }
 
-function isReferenceNumberUniqueViolation(error: { code?: string; message: string; details?: string } | null) {
-  return error?.code === "23505" && `${error.message} ${error.details ?? ""}`.includes("products_reference_number_ci_uidx");
-}
-
-async function ensureProductReferenceAvailable(
-  client: ReturnType<typeof getSupabaseAdmin>,
-  referenceNumber: string | undefined,
-  excludedProductId?: number,
-) {
-  const key = productReferenceKey(referenceNumber);
-  if (!key) return;
-  const result = await client.from("products").select("id,reference_number").not("reference_number", "is", null);
-  databaseError("تعذر التحقق من الرقم المرجعي", result.error);
-  const duplicate = ((result.data ?? []) as Array<{ id: number; reference_number: string | null }>).some((row) =>
-    Number(row.id) !== excludedProductId && productReferenceKey(row.reference_number) === key
-  );
-  if (duplicate) throw new ProductReferenceConflictError();
-}
-
 function normalizeFeatures(value: unknown) {
   if (Array.isArray(value)) return value.map(String).map((item) => item.trim()).filter(Boolean);
   if (typeof value === "string") {
@@ -151,7 +126,6 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     : undefined;
   return {
     id: product.id,
-    reference_number: normalizeProductReferenceNumber(product.referenceNumber) ?? null,
     name: normalizeProductBrandName(product.name),
     family: product.family,
     image: normalizeStoredMediaUrl(product.category === "inks" || product.category === "papers" ? product.images?.[0] || product.image : product.image),
@@ -188,7 +162,6 @@ function productFromRow(row: ProductRow): StoredProduct {
     : undefined;
   return {
     id: Number(row.id),
-    referenceNumber: normalizeProductReferenceNumber(row.reference_number),
     name: normalizeProductBrandName(row.name),
     family: row.family,
     image: inkImages?.[0] ?? normalizeStoredMediaUrl(row.image),
@@ -395,7 +368,6 @@ export async function saveSiteSettings(settings: SiteSettings) {
 
 export async function updateProduct(product: StoredProduct) {
   const client = getSupabaseAdmin();
-  await ensureProductReferenceAvailable(client, product.referenceNumber, product.id);
   const result = await client
     .from("products")
     .update({
@@ -405,7 +377,6 @@ export async function updateProduct(product: StoredProduct) {
     .eq("id", product.id)
     .select("*")
     .maybeSingle();
-  if (isReferenceNumberUniqueViolation(result.error)) throw new ProductReferenceConflictError();
   databaseError("تعذر حفظ المنتج", result.error);
   if (!result.data) throw new Error("تعذر العثور على المنتج أثناء الحفظ");
   return productFromRow(result.data as ProductRow);
@@ -413,7 +384,6 @@ export async function updateProduct(product: StoredProduct) {
 
 export async function createProduct(product: StoredProduct) {
   const client = getSupabaseAdmin();
-  await ensureProductReferenceAvailable(client, product.referenceNumber);
   let homeDisplayOrder = product.homeDisplayOrder;
   if (isHomeProductCategory(product.category) && homeDisplayOrder === undefined) {
     const databaseCategories = product.category === "printers"
@@ -434,7 +404,6 @@ export async function createProduct(product: StoredProduct) {
     .insert(productToRow({ ...product, homeDisplayOrder }, product.sortOrder ?? 0))
     .select("*")
     .single();
-  if (isReferenceNumberUniqueViolation(result.error)) throw new ProductReferenceConflictError();
   databaseError("تعذر إضافة المنتج", result.error);
   return productFromRow(result.data as ProductRow);
 }

@@ -105,6 +105,7 @@ for (const route of routes) {
     assert.match(whatsapp.href, /^https:\/\/wa\.me\/\?text=/);
     assert.ok(whatsappMessage.includes(productName), `${route} WhatsApp product name`);
     assert.ok(whatsappMessage.includes(currentUrl), `${route} WhatsApp product URL`);
+    assert.doesNotMatch(whatsappMessage, /الرقم المرجعي|مرجع المنتج/, `${route} has no reference number`);
     assert.equal(whatsapp.target, "_blank");
     assert.match(whatsapp.rel, /noopener/);
     assert.match(whatsapp.rel, /noreferrer/);

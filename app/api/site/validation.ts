@@ -1,6 +1,5 @@
 import { categoryImageDefinitions } from "../../site-defaults";
 import { isPrinterCategory } from "../../printer-categories";
-import { PRODUCT_REFERENCE_MAX_LENGTH } from "../../product-reference";
 import {
   AdminValidationError,
   enumValue,
@@ -15,7 +14,7 @@ import {
   strictStringArray,
 } from "../admin-validation";
 
-const productKeys = ["id", "slug", "referenceNumber", "name", "family", "image", "images", "category", "printerCategory", "type", "size", "badge", "price", "description", "features", "specifications", "printerPageContent", "paperPageContent", "paperSpecifications", "inkSpecifications", "specificationsSourceUrl", "specificationsVerifiedAt", "sortOrder", "homeDisplayOrder"];
+const productKeys = ["id", "slug", "name", "family", "image", "images", "category", "printerCategory", "type", "size", "badge", "price", "description", "features", "specifications", "printerPageContent", "paperPageContent", "paperSpecifications", "inkSpecifications", "specificationsSourceUrl", "specificationsVerifiedAt", "sortOrder", "homeDisplayOrder"];
 const settingsKeys = ["logoImage", "featureEyebrow", "featureTitle", "featureDescription", "featureImage", "maintenanceTitle", "maintenanceDescription", "contactKicker", "contactTitle", "address", "salesPhone", "customerServicePhone", "generalWhatsapp", "workDays", "workHours", "workWeekdays", "workStartTime", "workEndTime", "categoryImages", "productPurchaseBenefits"];
 const pageContentKeys = ["detailedDescription", "productFeatures", "productUses", "whyChooseThisProduct", "faq"];
 const contentItemKeys = ["title", "description"];
@@ -83,7 +82,6 @@ export function validateProductPayload(value: unknown) {
   const product = strictObject(wrapper.product, productKeys, "المنتج");
   positiveInteger(product.id, "معرّف المنتج");
   requiredString(product.name, "اسم المنتج", 180);
-  if (product.referenceNumber !== undefined) requiredString(product.referenceNumber, "الرقم المرجعي", PRODUCT_REFERENCE_MAX_LENGTH, true);
   const category = requiredString(product.category, "الفئة", 80);
   enumValue(category, validCategories, "الفئة");
   for (const [key, max] of [["family", 120], ["image", 1000], ["type", 100], ["size", 100], ["description", 1200]] as const) requiredString(product[key], key, max, true);

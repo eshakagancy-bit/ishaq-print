@@ -768,7 +768,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .products-manager article div { display:grid; gap:4px; min-width:0; }
 .products-manager article b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; direction:ltr; text-align:right; }
 .products-manager article span { color:var(--muted); font-size:9px; }
-.products-manager article .admin-product-reference { color:var(--cyan-dark); font-size:9px; font-weight:800; unicode-bidi:plaintext; }
 .products-manager article button { border:1px solid var(--line); border-radius:6px; padding:8px; background:#fff; color:var(--cyan-dark); font-size:9px; font-weight:900; }
 .products-manager article .delete-product { color:#c4320a; border-color:#ffd6d1; background:#fff7f5; }
 .hero-admin-layout { width:min(1180px,calc(100% - 40px)); margin:0 auto; display:grid; grid-template-columns:1.25fr .95fr; gap:16px; align-items:start; }
@@ -983,12 +982,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .printer-summary h1 { margin:12px 0 16px; font-size:clamp(32px,3.6vw,48px); }
 .printer-summary-description { max-width:650px; -webkit-line-clamp:4; }
 .product-detail-price { margin:22px 0 18px; padding-block:18px; display:grid; gap:5px; border-block:1px solid var(--store-line); }
-.product-reference-number { margin:0 0 16px; }
-.product-reference-number>div { width:fit-content; min-width:180px; padding:10px 13px; border:1px solid var(--store-line); border-radius:8px; background:var(--store-surface); }
-.product-reference-number dt { margin-bottom:4px; color:var(--muted); font-size:9px; font-weight:800; }
-.product-reference-number dd { margin:0; color:var(--store-navy); font-size:12px; font-weight:900; unicode-bidi:plaintext; }
-.product-reference-number.compact { margin:12px 0; }
-.product-reference-number.compact>div { min-width:0; width:100%; }
 .product-detail-price small { color:var(--muted); font-size:10px; } .product-detail-price strong { font-size:25px; }
 .printer-key-info { grid-template-columns:1fr; gap:0; border-top:1px solid var(--store-line); }
 .printer-key-info>div { padding:11px 0; display:grid; grid-template-columns:145px 1fr; border:0; border-bottom:1px solid var(--store-line); border-radius:0; background:#fff; }
