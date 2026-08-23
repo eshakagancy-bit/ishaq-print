@@ -42,6 +42,8 @@ import { searchProducts, type ProductSearchScope } from "./global-product-search
 import { maintenanceContacts, maintenanceServices, maintenanceWhatsappHref } from "./maintenance-data";
 import StorefrontFooter from "./storefront-footer";
 import Image from "./storefront-image";
+import { CartDrawerOverlay, CartHeaderButton } from "./order-cart-ui";
+import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from "./order-cart-provider";
 
 const HERO_IMAGE_SIZES = "100vw";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -408,6 +410,14 @@ export default function HomeClient({
   const generalWhatsappPhone = normalizeYemenPhone(settings.generalWhatsapp, defaultSiteSettings.generalWhatsapp);
   const generalWhatsappDisplay = generalWhatsappPhone.replace(/^967/, "");
   const favoriteProducts = products.filter((product) => favorites.includes(product.id));
+
+  useEffect(() => {
+    const closeForCart = (event: Event) => {
+      if ((event as CustomEvent<HeaderDrawerName>).detail === "cart") setActiveHeaderDrawer("closed");
+    };
+    window.addEventListener(HEADER_DRAWER_EVENT, closeForCart);
+    return () => window.removeEventListener(HEADER_DRAWER_EVENT, closeForCart);
+  }, []);
   const normalizedSearchQuery = searchQuery.trim();
   const matchingSearchProducts = useMemo(() => searchProducts(
     products,
@@ -764,17 +774,20 @@ export default function HomeClient({
   };
 
   const openSiteMenu = () => {
+    announceHeaderDrawer("menu");
     setActiveHeaderDrawer("menu");
     window.setTimeout(() => document.querySelector<HTMLElement>("#site-menu-drawer .drawer-close")?.focus(), 150);
   };
 
   const openWishlist = () => {
+    announceHeaderDrawer("wishlist");
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setActiveHeaderDrawer("wishlist");
     window.setTimeout(() => document.querySelector<HTMLElement>("#wishlist-drawer .drawer-close")?.focus(), 150);
   };
 
   const openSearch = () => {
+    announceHeaderDrawer("search");
     setActiveHeaderDrawer("search");
   };
 
@@ -839,6 +852,7 @@ export default function HomeClient({
             ? <Link href="/" className="brand" aria-label="وكالة إسحاق العالمية"><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></Link>
             : <a href="#home" className="brand" aria-label="وكالة إسحاق العالمية" onClick={(event) => { event.preventDefault(); openHomeView(); }}><Image src={imageSrcOrFallback(settings.logoImage)} alt="شعار وكالة إسحاق العالمية" width={190} height={78} sizes="(max-width: 760px) 140px, 194px" /></a>}
           <div className="header-left-actions">
+            <CartHeaderButton/>
             <button ref={favoritesButtonRef} type="button" className="favorite-counter" onClick={openWishlist} aria-label={favorites.length ? `فتح قائمة الرغبات، ${favorites.length} منتجات` : "فتح قائمة الرغبات"} aria-controls="wishlist-drawer" aria-expanded={favoritesOpen} aria-haspopup="dialog"><DrawerIcon name="heart"/>{favorites.length > 0 && <b>{favorites.length}</b>}</button>
             <button ref={searchButtonRef} type="button" className="header-search-button" onClick={openSearch} aria-label="فتح البحث" aria-controls="search-drawer" aria-expanded={searchOpen} aria-haspopup="dialog"><DrawerIcon name="search"/></button>
           </div>
@@ -1028,6 +1042,7 @@ export default function HomeClient({
         })}
       </nav>
       {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
+      <CartDrawerOverlay/>
     </main>
   );
 }

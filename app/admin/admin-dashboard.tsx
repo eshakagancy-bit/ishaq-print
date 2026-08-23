@@ -911,10 +911,11 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
               onUpload={uploadInkImages}
               onChange={(images, removedImage) => {
                 if (removedImage) queueMediaRemoval(removedImage);
+                const specifications = productForm.inkSpecifications ?? createEmptyInkSpecifications();
                 updateProductForm({
                   image: images[0] ?? "",
                   images,
-                  inkSpecifications: { ...(productForm.inkSpecifications ?? createEmptyInkSpecifications()), images },
+                  inkSpecifications: { ...specifications, images, variants: specifications.variants.filter((variant) => images.includes(variant.image)) },
                 });
               }}
             />
@@ -1031,6 +1032,9 @@ function InkSpecificationsEditor({
   const updateListItem = (field: "features" | "uses", index: number, value: string) => update({
     [field]: specifications[field].map((item, itemIndex) => itemIndex === index ? value : item),
   });
+  const updateVariant = (index: number, patch: Partial<InkSpecifications["variants"][number]>) => update({
+    variants: specifications.variants.map((variant, variantIndex) => variantIndex === index ? { ...variant, ...patch } : variant),
+  });
 
   return <fieldset className="printer-specifications-editor">
     <legend>مواصفات الأحبار المنظمة</legend>
@@ -1038,6 +1042,17 @@ function InkSpecificationsEditor({
       <label>العلامة التجارية<input value={specifications.brand ?? ""} onChange={(event) => update({ brand: event.target.value || null })} /></label>
       <label>نوع الحبر<select value={specifications.inkType ?? ""} onChange={(event) => update({ inkType: event.target.value || null })}><option value="">غير محدد</option>{PRODUCT_INK_TYPE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
       <label>عدد الألوان<select value={specifications.colorCount ?? ""} onChange={(event) => update({ colorCount: event.target.value as InkSpecifications["colorCount"] || null })}><option value="">غير محدد</option>{INK_COLOR_COUNT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+    </div>
+    <div className="ink-variant-editor">
+      <div className="admin-dynamic-list-head"><div><b>ربط ألوان الحبر بالصور</b><small>كل لون يجب أن يرتبط بصورته الصحيحة قبل تفعيل طلبه.</small></div><button type="button" onClick={() => update({ variants: [...specifications.variants, { code: "", label: "", image: "" }] })}>إضافة لون</button></div>
+      {specifications.variants.map((variant, index) => <div className="ink-variant-editor-row" key={`${index}-${variant.code}`}>
+        <label>كود اللون<input dir="ltr" required value={variant.code} maxLength={20} placeholder="C" onChange={(event) => updateVariant(index, { code: event.target.value.toUpperCase() })} /></label>
+        <label>اسم اللون<input required value={variant.label} maxLength={80} placeholder="Cyan" onChange={(event) => updateVariant(index, { label: event.target.value })} /></label>
+        <label>صورة اللون<select required value={variant.image} onChange={(event) => updateVariant(index, { image: event.target.value })}><option value="">اختر الصورة المؤكدة</option>{(product.images ?? specifications.images).map((image, imageIndex) => <option value={image} key={image}>الصورة {imageIndex + 1}</option>)}</select></label>
+        {variant.image ? <img src={normalizeMediaUrl(variant.image)} alt={`معاينة ${variant.label || variant.code}`} /> : null}
+        <button type="button" className="admin-remove-item" onClick={() => update({ variants: specifications.variants.filter((_, variantIndex) => variantIndex !== index) })}>حذف اللون</button>
+      </div>)}
+      {!specifications.variants.length ? <p className="admin-help-text">لن يظهر زر طلب الحبر حسب اللون حتى تضيف ربطًا مؤكدًا هنا.</p> : null}
     </div>
     <div className="admin-option-group"><span>السعات المتوفرة</span><div className="admin-options-grid">{INK_CAPACITY_OPTIONS.map((option) => <label className="admin-check" key={option}><input type="checkbox" checked={specifications.capacities.includes(option)} onChange={() => toggle("capacities", option)} /> {option}</label>)}</div></div>
     <div className="admin-two-columns"><label>سعة أخرى<input value={customCapacity} onChange={(event) => setCustomCapacity(event.target.value)} placeholder="مثال: 250 مل" /></label><button type="button" onClick={() => addCustom("capacities", customCapacity, () => setCustomCapacity(""))}>إضافة السعة</button></div>

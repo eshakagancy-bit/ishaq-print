@@ -15,6 +15,7 @@ import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
 import PublicSearchControl from "../../global-search-drawer";
 import ProductShare from "../../product-share";
+import { AddToCartButton, CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,7 +89,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
           <Link href="/" aria-label="الصفحة الرئيسية">
             <Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" />
           </Link>
-          <PublicSearchControl products={products} variant="icon"/>
+          <div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div>
         </div>
       </header>
 
@@ -108,6 +109,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
             <div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>
             {keyInformation.length > 0 && <dl className="printer-key-info">{keyInformation.map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}
             <div className="printer-actions">
+              <AddToCartButton item={{ productType: "printer", productId: String(product.id), productName: product.name, productUrl: `/printers/${slug}`, image: product.image || "/brand/eshak-logo.png" }} />
               <a className="primary-btn" href={getWhatsappLink(product, "quote")} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a>
               <a className="secondary-btn" href={getWhatsappLink(product, "specialist")} target="_blank" rel="noreferrer">تواصل مع المختص</a>
               <ProductFavoriteButton productId={product.id} />
@@ -137,6 +139,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
         {pageContent?.faq.some((item) => item.question) ? <section id="faq"><h2>الأسئلة الشائعة</h2><div className="printer-faq">{pageContent.faq.filter((item) => item.question).map((item, index) => <details key={`${item.question}-${index}`}><summary>{item.question}</summary>{item.answer && <p>{item.answer}</p>}</details>)}</div></section> : null}
         {similarProducts.length > 0 && <section id="similar-products"><h2>منتجات مشابهة</h2><div className="similar-printers">{similarProducts.map((printer) => <Link href={`/printers/${getPrinterSlug(printer)}`} key={printer.id}><Image src={printer.image || "/brand/eshak-logo.png"} alt={printer.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{printer.name}</b><span>{getPrinterCategoryLabel(printer.printerCategory)}</span></Link>)}</div></section>}
       </div>
+      <CartDrawerOverlay/>
     </main><StorefrontFooter settings={settings} /></>
   );
 }

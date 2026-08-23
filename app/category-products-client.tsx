@@ -23,6 +23,7 @@ import QuickViewModal from "./quick-view-modal";
 import { productPriceLabel } from "./product-commerce";
 import StorefrontFooter from "./storefront-footer";
 import PublicSearchControl from "./global-search-drawer";
+import { CartDrawerOverlay, CartHeaderButton } from "./order-cart-ui";
 
 const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 type SortMode = "default" | "name-asc" | "name-desc";
@@ -119,7 +120,7 @@ export default function CategoryProductsClient({ category, products, allProducts
     : [];
 
   return <main id="main-content" tabIndex={-1} className="category-products-page" data-category={category} dir="rtl">
-    <header className="category-products-header"><div className="container"><Link className="collection-brand" href="/" aria-label="وكالة إسحاق العالمية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/categories">الفئات</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><PublicSearchControl products={allProducts}/><Link href="/?favorites=1" aria-label={`المفضلة، ${favorites.length} منتجات`}>المفضلة <b>{favorites.length}</b></Link></div></div></header>
+    <header className="category-products-header"><div className="container"><Link className="collection-brand" href="/" aria-label="وكالة إسحاق العالمية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/categories">الفئات</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl products={allProducts}/><Link href="/?favorites=1" aria-label={`المفضلة، ${favorites.length} منتجات`}>المفضلة <b>{favorites.length}</b></Link></div></div></header>
     <section className="container category-products-content">
       <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>{categoryLabels[category]}</b></nav>
       <div className="category-products-title"><div><span>مجموعة المنتجات</span><h1>{categoryLabels[category]}</h1></div><p>{products.length} {products.length === 1 ? "منتج" : "منتجات"}</p></div>
@@ -141,6 +142,7 @@ export default function CategoryProductsClient({ category, products, allProducts
       })}</div> : filteredSearchHasNoResults ? <div className="empty-state"><b>{`لا توجد نتائج لـ «${trimmedQuery}» ضمن فلتر ${printerFilterLabels[printerFilter]}.`}</b><p>قد يكون الفلتر الحالي سبب عدم ظهور المنتج الذي تبحث عنه.</p><div className="empty-actions"><button type="button" onClick={clearPrinterFilters}>مسح الفلاتر</button><button type="button" className="outline-button" onClick={showAllProducts}>عرض كل المنتجات</button></div></div> : <div className="empty-state"><b>{query ? "لا توجد نتائج مطابقة" : category === "printers" && printerFilter !== ALL_PRINTERS_FILTER.value ? "لا توجد طابعات في هذا التصنيف حاليًا" : `لا توجد منتجات في ${categoryLabels[category]} حاليًا`}</b><p>{query ? "جرّب البحث باسم آخر." : "يمكنك العودة لاحقًا أو التواصل معنا لمعرفة المتوفر."}</p></div>}
     </section>
     <StorefrontFooter settings={settings} />
+    <CartDrawerOverlay/>
     {selected && <QuickViewModal id={selected.id} title={displayName(selected)} categoryLabel={categoryLabels[category]} family={selected.family} badge={selected.badge} availabilityLabel={category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : selected.paperSpecifications?.images?.length ? selected.paperSpecifications.images : selected.inkSpecifications?.images?.length ? selected.inkSpecifications.images : [selected.image]} rows={selectedRows} detailsHref={`/${category}/${productSlug(selected)}`} whatsappHref={whatsappLink(selected)} whatsappLabel="اعرف السعر والتوفر" trigger={quickViewTrigger} onClose={closeQuickView} />}
   </main>;
 }

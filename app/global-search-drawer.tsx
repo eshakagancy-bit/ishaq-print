@@ -2,12 +2,13 @@
 
 import Image from "./storefront-image";
 import Link from "next/link";
-import { useCallback, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { searchProducts, type ProductSearchScope } from "./global-product-search";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import { getPrinterSlug } from "./printers/product-slug";
 import type { StoredProduct } from "./site-defaults";
+import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from "./order-cart-provider";
 
 function SearchIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
@@ -104,5 +105,13 @@ export default function PublicSearchControl({ products, variant = "text" }: { pr
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const close = useCallback(() => setOpen(false), []);
-  return <><button ref={triggerRef} type="button" className={variant === "icon" ? "header-search-button" : "public-search-button"} onClick={() => setOpen(true)} aria-label="فتح البحث" aria-controls="search-drawer" aria-expanded={open} aria-haspopup="dialog">{variant === "icon" ? <SearchIcon/> : "بحث"}</button><div className={open ? "menu-overlay open search-open" : "menu-overlay"} aria-hidden={!open} onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><GlobalSearchDrawer open={open} onClose={close} products={products} triggerRef={triggerRef}/></div></>;
+  useEffect(() => {
+    const closeForAnotherDrawer = (event: Event) => {
+      if ((event as CustomEvent<HeaderDrawerName>).detail !== "search") setOpen(false);
+    };
+    window.addEventListener(HEADER_DRAWER_EVENT, closeForAnotherDrawer);
+    return () => window.removeEventListener(HEADER_DRAWER_EVENT, closeForAnotherDrawer);
+  }, []);
+  const openSearch = () => { announceHeaderDrawer("search"); setOpen(true); };
+  return <><button ref={triggerRef} type="button" className={variant === "icon" ? "header-search-button" : "public-search-button"} onClick={openSearch} aria-label="فتح البحث" aria-controls="search-drawer" aria-expanded={open} aria-haspopup="dialog">{variant === "icon" ? <SearchIcon/> : "بحث"}</button><div className={open ? "menu-overlay open search-open" : "menu-overlay"} aria-hidden={!open} onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><GlobalSearchDrawer open={open} onClose={close} products={products} triggerRef={triggerRef}/></div></>;
 }

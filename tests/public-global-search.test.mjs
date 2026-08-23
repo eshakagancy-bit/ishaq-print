@@ -14,7 +14,7 @@ test("public collection search buttons open the shared drawer without navigation
   ]);
   assert.doesNotMatch(client, /href="\/#general-search"/);
   assert.match(client, /<PublicSearchControl products=\{allProducts\}\/>/);
-  assert.match(drawer, /onClick=\{\(\) => setOpen\(true\)\}/);
+  assert.match(drawer, /const openSearch = \(\) => \{ announceHeaderDrawer\("search"\); setOpen\(true\); \}/);
   assert.match(drawer, /id="search-drawer"[\s\S]*?id="global-search-scope"[\s\S]*?id="global-search-input"/);
   assert.match(drawer, /event\.key === "Escape"/);
   assert.match(drawer, /event\.target === event\.currentTarget\) close\(\)/);

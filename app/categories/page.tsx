@@ -7,6 +7,7 @@ import { defaultSiteSettings, starterProducts } from "../site-defaults";
 import { publicMetadata } from "../seo";
 import StorefrontFooter from "../storefront-footer";
 import PublicSearchControl from "../global-search-drawer";
+import { CartDrawerOverlay, CartHeaderButton } from "../order-cart-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export default async function CategoriesPage() {
   });
 
   return <><main id="main-content" tabIndex={-1} className="categories-index-page" dir="rtl">
-    <header className="categories-index-header"><div className="container"><Link className="collection-brand" href="/"><Image src={data.settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><PublicSearchControl products={data.products}/><Link className="categories-contact" href="/#contact">استشارات ومبيعات</Link></div></div></header>
+    <header className="categories-index-header"><div className="container"><Link className="collection-brand" href="/"><Image src={data.settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl products={data.products}/><Link className="categories-contact" href="/#contact">استشارات ومبيعات</Link></div></div></header>
     <section className="container categories-index-content">
       <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>الفئات</b></nav>
       <div className="categories-index-title"><span>أقسام المنتجات</span><h1>تسوق حسب الفئة</h1><p>اختر القسم الذي تريد تصفحه</p></div>
@@ -38,5 +39,5 @@ export default async function CategoriesPage() {
         <div className="categories-index-card-content"><span>{item.count === 0 ? "لا توجد منتجات حاليًا" : `${item.count} ${item.count === 1 ? "منتج" : "منتجات"}`}</span><h2>{item.label}</h2><p>{item.description}</p><b>عرض المنتجات <i aria-hidden="true">←</i></b></div>
       </Link>)}</div>
     </section>
-  </main><StorefrontFooter settings={data.settings} /></>;
+    <CartDrawerOverlay/></main><StorefrontFooter settings={data.settings} /></>;
 }

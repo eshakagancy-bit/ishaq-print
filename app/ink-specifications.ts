@@ -2,6 +2,7 @@ import type { SpecificationDisplayRow } from "./printer-specifications";
 
 export type InkSpecifications = {
   images: string[];
+  variants: InkVariant[];
   brand: string | null;
   inkType: string | null;
   colorCount: InkColorCount | null;
@@ -11,12 +12,19 @@ export type InkSpecifications = {
   uses: string[];
 };
 
+export type InkVariant = {
+  code: string;
+  label: string;
+  image: string;
+};
+
 export const INK_TYPE_OPTIONS = ["Dye", "Pigment", "Sublimation", "Eco-Solvent", "UV Ink", "DTF", "أخرى"] as const;
 export const INK_COLOR_COUNT_OPTIONS = ["4 ألوان", "5 ألوان", "6 ألوان", "أخرى"] as const;
 export type InkColorCount = typeof INK_COLOR_COUNT_OPTIONS[number];
 export const INK_CAPACITY_OPTIONS = ["70 مل", "100 مل", "500 مل", "1000 مل"] as const;
 
 export function getInkProductNameError(name: string, _capacities: string[]) {
+  void _capacities;
   const normalizedName = name.trim().replace(/\s+/g, " ");
   if (!normalizedName) return "يجب إدخال اسم لمنتج الحبر.";
   if (normalizedName.length > 80) return "اسم منتج الحبر طويل.";
@@ -25,7 +33,22 @@ export function getInkProductNameError(name: string, _capacities: string[]) {
 }
 
 export function createEmptyInkSpecifications(): InkSpecifications {
-  return { images: [], brand: null, inkType: null, colorCount: null, capacities: [], compatiblePrinters: [], features: [], uses: [] };
+  return { images: [], variants: [], brand: null, inkType: null, colorCount: null, capacities: [], compatiblePrinters: [], features: [], uses: [] };
+}
+
+function normalizeInkVariants(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap((raw): InkVariant[] => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const input = raw as Record<string, unknown>;
+    const code = typeof input.code === "string" ? input.code.trim().toUpperCase().slice(0, 20) : "";
+    const label = typeof input.label === "string" ? input.label.trim().slice(0, 80) : "";
+    const image = typeof input.image === "string" ? input.image.trim().slice(0, 1000) : "";
+    if (!code || !label || !image || !/^[A-Z0-9-]+$/.test(code) || seen.has(code)) return [];
+    seen.add(code);
+    return [{ code, label, image }];
+  }).slice(0, 12);
 }
 
 function textOrNull(value: unknown, maxLength = 160) {
@@ -47,9 +70,10 @@ export function normalizeInkSpecifications(value: unknown): InkSpecifications | 
   const input = value as Record<string, unknown>;
   // `color` remains a recognized legacy key so existing products still load,
   // but color names are intentionally not mapped to the new count field.
-  if (!["images", "brand", "inkType", "colorCount", "color", "capacities", "compatiblePrinters", "features", "uses"].some((key) => Object.hasOwn(input, key))) return undefined;
+  if (!["images", "variants", "brand", "inkType", "colorCount", "color", "capacities", "compatiblePrinters", "features", "uses"].some((key) => Object.hasOwn(input, key))) return undefined;
   return {
     images: stringList(input.images, 50),
+    variants: normalizeInkVariants(input.variants),
     brand: textOrNull(input.brand, 120),
     inkType: textOrNull(input.inkType, 80),
     colorCount: inkColorCountOrNull(input.colorCount),

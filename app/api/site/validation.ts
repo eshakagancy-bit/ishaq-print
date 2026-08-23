@@ -21,7 +21,8 @@ const contentItemKeys = ["title", "description"];
 const faqKeys = ["question", "answer"];
 const printerSpecificationKeys = ["paperSize", "printerType", "functions", "printTechnology", "colorCount", "colorMode", "wifi", "wifiAvailability", "wifiDirect", "nfc", "ethernet", "usb", "parallel", "serial", "optionalInterface", "scanner", "fax", "faxMode", "duplex", "duplexMode", "adf", "adfCapacity", "duplexScanning", "adfDuplexType", "printSpeed", "speedUnit", "inkType", "inkSystem", "borderless", "mobilePrinting", "cdDvdPrinting", "plasticCardPrinting", "photoPrintTimeSeconds", "usage", "printLanguages", "standardPaperCapacity", "maximumPaperCapacity", "finisherSupport", "dotMatrixPins", "printColumns", "multipartCopies", "ribbonYield"];
 const paperSpecificationKeys = ["images", "nameAr", "nameEn", "brand", "series", "paperType", "surface", "size", "dimensions", "weightGsm", "sheetCount", "printSides", "printerCompatibility", "selfAdhesive", "thermalTransfer", "inkCompatibility", "quickDry", "uses", "availability"];
-const inkSpecificationKeys = ["images", "brand", "inkType", "colorCount", "capacities", "compatiblePrinters", "features", "uses"];
+const inkSpecificationKeys = ["images", "variants", "brand", "inkType", "colorCount", "capacities", "compatiblePrinters", "features", "uses"];
+const inkVariantKeys = ["code", "label", "image"];
 const stringSettingsKeys = settingsKeys.slice(0, 18);
 const validCategories = categoryImageDefinitions.map(({ key }) => key).filter((key) => key !== "all-products");
 const printerBooleanKeys = ["wifi", "wifiDirect", "nfc", "ethernet", "usb", "parallel", "serial", "optionalInterface", "scanner", "fax", "duplex", "adf", "duplexScanning", "borderless", "mobilePrinting", "cdDvdPrinting", "plasticCardPrinting", "finisherSupport"];
@@ -54,6 +55,20 @@ function validateInkSpecifications(value: unknown) {
   const input = strictObject(value, inkSpecificationKeys, "مواصفات الحبر");
   ["brand", "inkType", "colorCount"].forEach((key) => nullableString(input[key], `مواصفات الحبر.${key}`, 160));
   ["images", "capacities", "compatiblePrinters", "features", "uses"].forEach((key) => strictStringArray(input[key] ?? [], `مواصفات الحبر.${key}`, 50, 1000));
+  const verifiedImages = new Set((input.images ?? []) as string[]);
+  if (!Array.isArray(input.variants) || input.variants.length > 12) throw new AdminValidationError("ألوان الحبر غير صالحة");
+  const codes = new Set<string>();
+  input.variants.forEach((variant) => {
+    const entry = strictObject(variant, inkVariantKeys, "لون الحبر");
+    const code = requiredString(entry.code, "كود لون الحبر", 20).toUpperCase();
+    if (!/^[A-Z0-9-]+$/.test(code)) throw new AdminValidationError("كود لون الحبر غير صالح");
+    if (codes.has(code)) throw new AdminValidationError("لا يمكن تكرار كود اللون داخل منتج الحبر");
+    codes.add(code);
+    requiredString(entry.label, "اسم لون الحبر", 80);
+    const image = requiredString(entry.image, "صورة لون الحبر", 1000);
+    safeWebOrLocalUrl(image, "صورة لون الحبر", 1000);
+    if (!verifiedImages.has(image)) throw new AdminValidationError("صورة لون الحبر يجب أن تكون ضمن صور المنتج");
+  });
 }
 
 function validatePageContent(value: unknown, label: string) {

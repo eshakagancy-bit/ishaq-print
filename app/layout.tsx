@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { publicMetadata, SITE_NAME, SITE_URL } from "./seo";
+import { OrderCartProvider } from "./order-cart-provider";
 
 const title = "وكالة إسحاق العالمية | طابعات إبسون والأوراق والأحبار";
 const description = "وكالة إسحاق العالمية لحلول طباعة إبسون ومستلزماتها، من الطابعات والأوراق المتخصصة إلى الأحبار الموثوقة في اليمن.";
@@ -23,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" data-scroll-behavior="smooth">
-      <body><a className="skip-link" href="#main-content">تجاوز إلى المحتوى</a>{children}</body>
+      <body><OrderCartProvider><a className="skip-link" href="#main-content">تجاوز إلى المحتوى</a>{children}</OrderCartProvider></body>
     </html>
   );
 }

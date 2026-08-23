@@ -6,7 +6,6 @@ import { getSiteData } from "../../../lib/site-database";
 import { buildInkSpecificationRows } from "../../ink-specifications";
 import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
 import { getInkSlug } from "../product-slug";
-import ProductGallery from "../../product-gallery";
 import { isPublicCategoryEnabled } from "../../public-categories";
 import { publicMetadata } from "../../seo";
 import { productPriceLabel } from "../../product-commerce";
@@ -14,6 +13,8 @@ import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
 import PublicSearchControl from "../../global-search-drawer";
 import ProductShare from "../../product-share";
+import InkVariantSelector from "../../ink-variant-selector";
+import { CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,11 +52,11 @@ export default async function InkDetailsPage({ params }: PageProps) {
   const specifications = product.inkSpecifications;
 
   return <><main id="main-content" tabIndex={-1} className="printer-details-page">
-    <header className="printer-details-header"><div className="container"><Link href="/inks" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><PublicSearchControl products={products} variant="icon"/></div></header>
+    <header className="printer-details-header"><div className="container"><Link href="/inks" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/inks">الأحبار</Link><span>/</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">
-      <ProductGallery images={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} alt={product.name} />
+      <InkVariantSelector productId={String(product.id)} productName={product.name} productUrl={`/inks/${slug}`} variants={specifications?.variants ?? []} fallbackImages={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} />
       <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={product.name} productUrl={`/inks/${slug}`} /><Link className="printer-page-back" href="/inks">العودة إلى المنتجات</Link></div></div>
     </div></div></section>
     <div className="container printer-sections">
@@ -65,5 +66,5 @@ export default async function InkDetailsPage({ params }: PageProps) {
       {specifications?.features.length ? <section id="features"><h2>المميزات الرئيسية</h2><div className="printer-content-cards">{specifications.features.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
       {specifications?.uses.length ? <section id="uses"><h2>الاستخدامات المناسبة</h2><div className="printer-content-cards">{specifications.uses.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
     </div>
-  </main><StorefrontFooter settings={settings} /></>;
+    <CartDrawerOverlay/></main><StorefrontFooter settings={settings} /></>;
 }
