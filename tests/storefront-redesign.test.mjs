@@ -58,7 +58,10 @@ test("homepage categories are three unified square-artwork links without legacy 
   assert.match(styles, /\.storefront-category-image \{[^}]*aspect-ratio:1;[^}]*overflow:visible;[^}]*background:transparent;/);
   assert.match(styles, /\.storefront-category-image img \{[^}]*object-fit:contain;[^}]*object-position:center;/);
   assert.doesNotMatch(styles, /\.storefront-category-image \{[^}]*border-radius:50%/);
-  assert.match(styles, /@media \(hover:hover\) and \(pointer:fine\) \{ \.storefront-category-card:hover \{ transform:translateY\(-4px\) scale\(1\.02\); \} \}/);
+  assert.match(styles, /@media \(hover:hover\) and \(pointer:fine\) \{ \.storefront-category-card:hover \{ transform:translateY\(-4px\) scale\(1\.03\); \} \}/);
+  assert.match(styles, /\.storefront-category-image \{ width:clamp\(220px,23vw,320px\);/);
+  assert.match(styles, /@media \(max-width:1100px\)[\s\S]*?\.storefront-category-image \{ width:clamp\(190px,21vw,230px\); \}/);
+  assert.match(home, /sizes="\(max-width: 760px\) 28vw, \(max-width: 1100px\) clamp\(190px, 21vw, 230px\), clamp\(220px, 23vw, 320px\)"/);
   assert.match(styles, /@media \(prefers-reduced-motion:reduce\) \{ \.storefront-category-card,\.storefront-category-card:hover \{ transition:none; transform:none; \} \}/);
   assert.match(styles, /\.storefront-category-card \{[^}]*display:flex;[^}]*align-items:center;[^}]*cursor:pointer;/);
   assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.storefront-category-grid \{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\); gap:12px; \}/);

@@ -77,6 +77,10 @@ const inspect = () => evaluate(`(() => ({
       objectPosition: imageStyle.objectPosition,
       overflow: boxStyle.overflow,
       background: boxStyle.backgroundColor,
+      overlapsFloatingContact: (() => {
+        const floating = document.querySelector('.whatsapp-float')?.getBoundingClientRect();
+        return floating ? heading.left < floating.right && heading.right > floating.left && heading.top < floating.bottom && heading.bottom > floating.top : false;
+      })(),
     };
   }),
 }))()`);
@@ -94,6 +98,7 @@ const assertLayout = (result, viewport) => {
     assert.equal(card.objectPosition, "50% 50%");
     assert.equal(card.overflow, "visible");
     assert.equal(card.background, "rgba(0, 0, 0, 0)");
+    assert.equal(card.overlapsFloatingContact, false, `${viewport} ${card.category} floating contact overlap`);
   });
   assert.ok(Math.max(...result.cards.map((card) => card.width)) - Math.min(...result.cards.map((card) => card.width)) < 0.5, `${viewport} equal widths`);
   assert.ok(Math.max(...result.cards.map((card) => card.headingGap)) - Math.min(...result.cards.map((card) => card.headingGap)) < 0.5, `${viewport} equal heading gaps`);
@@ -107,13 +112,20 @@ const screenshotSection = async (name) => {
 
 await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Network.enable")]);
 const results = {};
-for (const viewport of [{ name: "desktop-1440", width: 1440, height: 1000 }, { name: "desktop-1366", width: 1366, height: 900 }, { name: "mobile-390", width: 390, height: 844 }]) {
+for (const viewport of [{ name: "desktop-1440", width: 1440, height: 1000 }, { name: "desktop-1366", width: 1366, height: 900 }, { name: "tablet-900", width: 900, height: 1000 }, { name: "mobile-390", width: 390, height: 844 }]) {
   await navigate(viewport);
   assertLayout(await inspect(), viewport.name);
   const statuses = await evaluate(`Promise.all(${JSON.stringify(expected.map(({ href }) => href))}.map(async (path) => (await fetch(path, { method: 'HEAD' })).status))`);
   assert.deepEqual(statuses, [200, 200, 200]);
   await screenshotSection(`category-artwork-${viewport.name}.png`);
   results[viewport.name] = "PASS";
+}
+
+for (const { category, href } of expected) {
+  await navigate({ width: 1440, height: 1000 });
+  await evaluate(`document.querySelector('.storefront-category-card[data-category="${category}"]').click()`);
+  await waitFor(`location.pathname === "${href}"`);
+  assert.equal(await evaluate("location.pathname"), href);
 }
 
 await navigate({ width: 1440, height: 1000 });
