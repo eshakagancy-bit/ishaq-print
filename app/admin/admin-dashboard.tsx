@@ -1255,10 +1255,6 @@ function PrinterSpecificationsEditor({ product, onChange }: { product: StoredPro
       <label>عمر الشريط<input type="number" min="0" value={specifications.ribbonYield ?? ""} onChange={(event) => updateSpecifications({ ribbonYield: numberOrNull(event.target.value) })} /></label>
     </div><div className="admin-option-group"><span>واجهات اتصال الطابعة النقطية</span><div className="admin-tristate-grid">{LQ_INTERFACE_SPECIFICATION_FIELDS.map((field) => <TriStateField key={field.key} label={field.label} value={specifications[field.key] as TriState} onChange={(value) => updateSpecifications({ [field.key]: value })} />)}</div></div></div>}
 
-    <div className="admin-two-columns">
-      <label>رابط مصدر المواصفات<input dir="ltr" type="url" value={product.specificationsSourceUrl ?? ""} onChange={(event) => onChange({ specificationsSourceUrl: event.target.value || undefined })} placeholder="https://" /></label>
-      <label>تاريخ التحقق<input type="datetime-local" value={product.specificationsVerifiedAt?.slice(0, 16) ?? ""} onChange={(event) => onChange({ specificationsVerifiedAt: event.target.value ? new Date(event.target.value).toISOString() : undefined })} /></label>
-    </div>
   </fieldset>;
 }
 

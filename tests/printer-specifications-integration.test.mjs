@@ -54,6 +54,25 @@ test("admin provides structured choices, tri-state fields, conditional LQ fields
   }
 });
 
+test("printer admin hides verification fields while preserving stored data and optional API support", async () => {
+  const [admin, validation, database] = await Promise.all([
+    read("app/admin/admin-dashboard.tsx"),
+    read("app/api/site/validation.ts"),
+    read("lib/site-database.ts"),
+  ]);
+
+  assert.doesNotMatch(admin, /رابط مصدر المواصفات/);
+  assert.doesNotMatch(admin, /تاريخ التحقق/);
+  assert.doesNotMatch(admin, /onChange\(\{ specificationsSourceUrl:/);
+  assert.doesNotMatch(admin, /onChange\(\{ specificationsVerifiedAt:/);
+  assert.match(admin, /productForm\.category === "printers" && <PrinterSpecificationsEditor/);
+  assert.match(admin, /productForm\.category === "inks" && <InkSpecificationsEditor/);
+  assert.match(admin, /productForm\.category === "papers" && <PaperSpecificationsEditor/);
+  assert.match(validation, /\["specificationsSourceUrl", 1000\], \["specificationsVerifiedAt", 80\][\s\S]+optionalString/);
+  assert.match(database, /specifications_source_url: product\.specificationsSourceUrl \|\| null/);
+  assert.match(database, /specifications_verified_at: product\.specificationsVerifiedAt \|\| null/);
+});
+
 test("EcoTank phase-two migration is transactional, exact and preserves all protected data", async () => {
   const migration = await read("supabase/migrations/20260722090300_populate_ecotank_phase_two_specifications.sql");
   const lower = migration.toLowerCase();
