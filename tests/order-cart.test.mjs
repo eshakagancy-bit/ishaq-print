@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  INK_FULL_SET_VARIANT_CODE,
+  INK_FULL_SET_VARIANT_LABEL,
   ORDER_CART_SALES_INTERNATIONAL,
   addCartItem,
   buildOrderMessage,
@@ -16,6 +18,7 @@ const printer = { productType: "printer", productId: "p1", productName: "EPSON L
 const paper = { productType: "paper", productId: "pa1", productName: "ورق SQM A4", productUrl: "/papers/sqm-a4", image: "/products/paper.webp" };
 const cyan = { productType: "ink", productId: "i1", productName: "حبر SQM 500 مل", productUrl: "/inks/sqm-500", image: "/products/cyan.webp", variant: { code: "C", label: "Cyan" } };
 const black = { ...cyan, image: "/products/black.webp", variant: { code: "BK", label: "Black" } };
+const fullSet = { ...cyan, image: "/products/all.webp", variant: { code: INK_FULL_SET_VARIANT_CODE, label: INK_FULL_SET_VARIANT_LABEL } };
 
 test("cart adds printers and papers and increments duplicate products", () => {
   let items = addCartItem([], printer);
@@ -39,6 +42,20 @@ test("same ink color increments while different colors remain independent", () =
   assert.equal(items.find((item) => item.variant?.code === "BK")?.image, "/products/black.webp");
 });
 
+test("full ink set remains independent from every single color", () => {
+  let items = addCartItem([], cyan);
+  items = addCartItem(items, black);
+  items = addCartItem(items, fullSet);
+  items = addCartItem(items, fullSet);
+  assert.equal(items.length, 3);
+  assert.equal(items.find((item) => item.variant?.code === "C")?.quantity, 1);
+  assert.equal(items.find((item) => item.variant?.code === "BK")?.quantity, 1);
+  const setItem = items.find((item) => item.variant?.code === INK_FULL_SET_VARIANT_CODE);
+  assert.equal(setItem?.quantity, 2);
+  assert.equal(setItem?.image, "/products/all.webp");
+  assert.match(setItem?.productName ?? "", /المجموعة الكاملة/);
+});
+
 test("generic ink cannot be added without an explicit color", () => {
   assert.throws(() => addCartItem([], { ...cyan, variant: undefined }), /require a color variant/);
 });
@@ -55,7 +72,7 @@ test("quantity controls preserve minimum one and removal and clear stay explicit
 });
 
 test("versioned localStorage data restores safely and corrupted data falls back empty", () => {
-  const items = addCartItem(addCartItem([], printer), cyan);
+  const items = addCartItem(addCartItem(addCartItem([], printer), cyan), fullSet);
   assert.deepEqual(parseStoredCart(serializeCart(items)), items);
   assert.deepEqual(parseStoredCart("not-json"), []);
   assert.deepEqual(parseStoredCart(JSON.stringify({ version: 99, items })), []);
@@ -67,6 +84,7 @@ test("WhatsApp order uses sales recipient, variants, quantities and product link
     ...addCartItem([], { ...printer, quantity: 1 }),
     ...addCartItem([], { ...paper, quantity: 3 }),
     ...addCartItem([], { ...cyan, quantity: 2 }),
+    ...addCartItem([], { ...fullSet, quantity: 1 }),
   ];
   const origin = "https://ishaq-print-zeta.vercel.app";
   const message = buildOrderMessage(items, origin);
@@ -76,6 +94,8 @@ test("WhatsApp order uses sales recipient, variants, quantities and product link
   assert.match(message, /EPSON LQ-350[\s\S]*الكمية: 1/);
   assert.match(message, /ورق SQM A4[\s\S]*الكمية: 3/);
   assert.match(message, /حبر SQM 500 مل[\s\S]*اللون: Cyan \(C\)[\s\S]*الكمية: 2/);
+  assert.match(message, /حبر SQM 500 مل — المجموعة الكاملة[\s\S]*الكمية: 1/);
+  assert.doesNotMatch(message, /اللون: المجموعة الكاملة/);
   assert.match(message, /https:\/\/ishaq-print-zeta\.vercel\.app\/inks\/sqm-500/);
   assert.doesNotMatch(message, /السعر:|الإجمالي|الضريبة|الشحن|الرقم المرجعي|reference/i);
 });

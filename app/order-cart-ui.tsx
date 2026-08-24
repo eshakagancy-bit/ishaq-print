@@ -4,7 +4,7 @@ import Image from "./storefront-image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SITE_URL } from "./seo";
-import { buildOrderWhatsAppUrl, type CartItemInput } from "./order-cart";
+import { INK_FULL_SET_VARIANT_CODE, buildOrderWhatsAppUrl, type CartItemInput } from "./order-cart";
 import { HEADER_DRAWER_EVENT, useOrderCart, type HeaderDrawerName } from "./order-cart-provider";
 
 function CartIcon() {
@@ -85,7 +85,7 @@ export function CartDrawerOverlay() {
       {items.length ? <>
         <div className="order-cart-list">{items.map((item) => <article className="order-cart-item" key={item.key}>
           <Image src={item.image} alt="" width={92} height={92} sizes="72px" />
-          <div className="order-cart-item-copy"><Link href={item.productUrl} onClick={closeDrawer}>{item.productName}</Link>{item.variant ? <span>اللون: {item.variant.label} ({item.variant.code})</span> : null}<div className="order-cart-item-actions"><div className="order-cart-quantity" aria-label={`كمية ${item.productName}`}><button type="button" onClick={() => decrement(item.key)} disabled={item.quantity === 1} aria-label={`تقليل كمية ${item.productName}`}>−</button><b>{item.quantity}</b><button type="button" onClick={() => increment(item.key)} aria-label={`زيادة كمية ${item.productName}`}>+</button></div><button type="button" className="order-cart-remove" onClick={() => removeItem(item.key)} aria-label={`إزالة ${item.productName} من السلة`}>حذف</button></div></div>
+          <div className="order-cart-item-copy"><Link href={item.productUrl} onClick={closeDrawer}>{item.productName}</Link>{item.variant && item.variant.code !== INK_FULL_SET_VARIANT_CODE ? <span>اللون: {item.variant.label} ({item.variant.code})</span> : null}<div className="order-cart-item-actions"><div className="order-cart-quantity" aria-label={`كمية ${item.productName}`}><button type="button" onClick={() => decrement(item.key)} disabled={item.quantity === 1} aria-label={`تقليل كمية ${item.productName}`}>−</button><b>{item.quantity}</b><button type="button" onClick={() => increment(item.key)} aria-label={`زيادة كمية ${item.productName}`}>+</button></div><button type="button" className="order-cart-remove" onClick={() => removeItem(item.key)} aria-label={`إزالة ${item.productName} من السلة`}>حذف</button></div></div>
         </article>)}</div>
         <footer className="order-cart-footer">
           <a className="order-cart-whatsapp" href={whatsappUrl} target="_blank" rel="noopener noreferrer">إرسال الطلب عبر واتساب</a>

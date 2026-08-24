@@ -4,6 +4,8 @@ export const ORDER_CART_STORAGE_KEY = "ishaq-order-cart-v1";
 export const ORDER_CART_STORAGE_VERSION = 1;
 export const ORDER_CART_SALES_NUMBER = "774666202";
 export const ORDER_CART_SALES_INTERNATIONAL = normalizeYemenPhone(ORDER_CART_SALES_NUMBER);
+export const INK_FULL_SET_VARIANT_CODE = "SET";
+export const INK_FULL_SET_VARIANT_LABEL = "المجموعة الكاملة";
 
 export type CartProductType = "printer" | "paper" | "ink";
 
@@ -42,16 +44,25 @@ export function buildCartItemKey(productType: CartProductType, productId: string
 
 export function createCartItem(input: CartItemInput): CartItem {
   const productId = cleanText(input.productId, 160);
+  const variantCode = cleanText(input.variant?.code, 20).toUpperCase();
   const variant = input.variant ? {
-    code: cleanText(input.variant.code, 20).toUpperCase(),
-    label: cleanText(input.variant.label, 80),
+    code: variantCode,
+    label: variantCode === INK_FULL_SET_VARIANT_CODE
+      ? INK_FULL_SET_VARIANT_LABEL
+      : cleanText(input.variant.label, 80),
   } : undefined;
   if (input.productType === "ink" && (!variant?.code || !variant.label)) throw new Error("Ink cart items require a color variant");
+  const productName = cleanText(input.productName, 200);
+  const displayProductName = input.productType === "ink"
+    && variant?.code === INK_FULL_SET_VARIANT_CODE
+    && !productName.includes(INK_FULL_SET_VARIANT_LABEL)
+      ? `${productName} — ${INK_FULL_SET_VARIANT_LABEL}`
+      : productName;
   return {
     key: buildCartItemKey(input.productType, productId, variant?.code),
     productType: input.productType,
     productId,
-    productName: cleanText(input.productName, 200),
+    productName: displayProductName,
     productUrl: cleanText(input.productUrl, 500),
     image: cleanText(input.image, 1000),
     quantity: boundedQuantity(input.quantity),
@@ -126,7 +137,7 @@ export function buildOrderMessage(items: CartItem[], origin: string) {
   const baseOrigin = origin.replace(/\/$/, "");
   const lines = items.flatMap((item, index) => [
     `${index + 1}. ${item.productName}`,
-    ...(item.variant ? [`   اللون: ${item.variant.label} (${item.variant.code})`] : []),
+    ...(item.variant && item.variant.code !== INK_FULL_SET_VARIANT_CODE ? [`   اللون: ${item.variant.label} (${item.variant.code})`] : []),
     `   الكمية: ${item.quantity}`,
     `   الرابط: ${baseOrigin}${item.productUrl}`,
     "",

@@ -18,14 +18,17 @@ test("cart UI exposes the badge, accessible drawer, empty state, controls, and W
   assert.match(source, /buildOrderWhatsAppUrl/);
 });
 
-test("ink selector orders only a selected verified color and exposes text semantics", async () => {
+test("ink selector exposes a synthetic full-set option alongside verified colors", async () => {
   const source = await read("app/ink-variant-selector.tsx");
   assert.match(source, /variants\[0\]/);
+  assert.match(source, /INK_FULL_SET_VARIANT_CODE/);
+  assert.match(source, /INK_FULL_SET_VARIANT_LABEL/);
+  assert.match(source, /image: fallbackImage/);
+  assert.match(source, /options = \[fullSetOption, \.\.\.variants\]/);
   assert.match(source, /aria-pressed=/);
   assert.match(source, /variant: \{ code: selected\.code, label: selected\.label \}/);
   assert.match(source, /image: selected\.image/);
   assert.match(source, /AddToCartButton/);
-  assert.match(source, /if \(!selected\)/);
 });
 
 test("all public product details expose cart access and the correct add flow", async () => {
