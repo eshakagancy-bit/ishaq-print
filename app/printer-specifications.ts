@@ -61,11 +61,28 @@ export const PRINTER_FAMILY_OPTIONS = [
   "Epson FX",
 ] as const;
 
-export const PAPER_SIZE_OPTIONS = ["A4", "A3", "A3+", "A3+/SRA3", "A5", "ورق متصل 80 عمود", "ورق متصل 106 أعمدة", "أخرى"] as const;
-export const PRINTER_TYPE_OPTIONS = ["طباعة فقط", "متعددة الوظائف", "طابعة صور", "متعددة الوظائف للصور", "طابعة نقطية"] as const;
+export const PAPER_SIZE_OPTIONS = ["A4", "A4 / Legal", "A3", "A3+", "A3+/SRA3", "A5", "ورق متصل 80 عمود", "ورق متصل 106 أعمدة", "أخرى"] as const;
+export const PRINTER_TYPE_OPTIONS = [
+  "طباعة فقط",
+  "متعددة الوظائف",
+  "طابعة صور",
+  "متعددة الوظائف للصور",
+  "طابعة نقطية",
+  "EcoTank متعددة الوظائف",
+  "EcoTank متعددة الوظائف للأعمال",
+  "EcoTank متعددة الوظائف مع فاكس",
+  "EcoTank واسعة التنسيق متعددة الوظائف",
+  "WorkForce Pro للأعمال",
+  "WorkForce Pro أحادية اللون متعددة الوظائف",
+] as const;
 export const PRINTER_FUNCTION_OPTIONS = ["طباعة", "نسخ", "مسح ضوئي", "فاكس"] as const;
 export const SPEED_UNIT_OPTIONS = ["صفحة/دقيقة", "صورة/دقيقة", "حرف/ثانية"] as const;
-export const INK_TYPE_OPTIONS = ["خزانات حبر", "أكياس حبر", "خراطيش حبر", "حبر صبغي", "DURABrite ET صبغي", "Dye", "أسود صبغي وألوان Dye", "صبغي", "أسود صبغي، أسود صور، وألوان Dye", "شريط طباعة"] as const;
+export const INK_TYPE_OPTIONS = [
+  "خزانات حبر", "أكياس حبر", "خراطيش حبر", "حبر صبغي", "DURABrite ET صبغي", "Dye", "Dye Ink",
+  "أسود صبغي وألوان Dye", "Pigment Black + Dye CMY", "Pigment Black + Dye Colour",
+  "DURABrite ET Pigment - أربعة ألوان Pigment", "RIPS - Replaceable Ink Pack System",
+  "DURABrite Ultra - Black Pigment Ink Pack", "صبغي", "أسود صبغي، أسود صور، وألوان Dye", "شريط طباعة",
+] as const;
 export const PRINTER_USAGE_OPTIONS = [
   "شخصي", "مكتبي", "شركات ومؤسسات", "تصوير فوتوجرافي", "فواتير وسندات",
   "مكاتب", "طباعة A3+", "أحجام طباعة مرتفعة", "أعمال", "مجموعات عمل",
