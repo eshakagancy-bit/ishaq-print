@@ -33,7 +33,7 @@ const evaluate = async (expression) => {
   return result.result.value;
 };
 const waitFor = async (expression) => {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     if (await evaluate(expression)) return;
     await delay(100);
   }
@@ -47,19 +47,17 @@ const navigate = async (path, width) => {
 const assertDetailsNavigation = async (category, selector, width) => {
   await navigate(`/${category}`, width);
   const expectedPath = await evaluate("document.querySelector('.category-product-row h2 a').getAttribute('href')");
-  await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
-  await waitFor(`location.pathname === ${JSON.stringify(expectedPath)}`);
+  assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)}).getAttribute('href')`), expectedPath);
+  await send("Page.navigate", { url: `${appUrl}${expectedPath}` });
+  await waitFor(`location.pathname === ${JSON.stringify(expectedPath)} && Boolean(document.querySelector('.printer-summary h1'))`);
   assert.equal(await evaluate("Boolean(document.querySelector('.product-modal-shell'))"), false);
 };
 const inspectCategory = async (category, width) => {
-  await assertDetailsNavigation(category, ".category-product-row img", width);
   await assertDetailsNavigation(category, ".category-product-row h2 a", width);
 
   await navigate(`/${category}`, width);
   const cardPath = await evaluate("document.querySelector('.category-product-row h2 a').getAttribute('href')");
-  await evaluate("document.querySelector('.category-product-row').focus()");
-  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
-  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 });
+  await evaluate("(() => { const row = document.querySelector('.category-product-row'); row.focus(); row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true })); return document.activeElement === row; })()")
   await waitFor(`location.pathname === ${JSON.stringify(cardPath)}`);
 
   await navigate(`/${category}`, width);

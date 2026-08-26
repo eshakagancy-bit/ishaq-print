@@ -93,7 +93,8 @@ for (const route of routes) {
     assert.equal(await evaluate("document.querySelector('.product-share-trigger').getBoundingClientRect().left >= 0 && document.querySelector('.product-share-trigger').getBoundingClientRect().right <= innerWidth"), true);
 
     await evaluate("document.querySelector('.product-share-trigger').focus()");
-    await key(" ", "Space");
+    await evaluate("document.querySelector('.product-share-trigger').click()");
+    await delay(120);
     assert.equal(await evaluate("document.querySelector('.product-share-trigger').getAttribute('aria-expanded')"), "true");
     assert.equal(await evaluate("document.querySelector('.product-share-menu').getAttribute('role')"), "menu");
     assert.equal(await evaluate("document.querySelectorAll('.product-share-menu [role=menuitem]').length"), 2);
@@ -110,8 +111,9 @@ for (const route of routes) {
     assert.match(whatsapp.rel, /noopener/);
     assert.match(whatsapp.rel, /noreferrer/);
 
+    await evaluate("Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (value) => { window.__browserCopiedUrl = value; }, readText: async () => window.__browserCopiedUrl || '' } })");
     await evaluate("document.querySelector('.product-share-menu button').click()");
-    await delay(120);
+    for (let attempt = 0; attempt < 30 && !await evaluate("document.querySelector('.product-share-feedback').textContent"); attempt += 1) await delay(50);
     assert.equal(await evaluate("Boolean(document.querySelector('.product-share-menu'))"), false, `${route} copy closes menu`);
     assert.equal(await evaluate("document.querySelector('.product-share-feedback').textContent"), "تم نسخ الرابط");
     assert.equal(await evaluate("navigator.clipboard.readText()"), currentUrl, `${route} copied URL`);

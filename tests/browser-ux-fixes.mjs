@@ -73,10 +73,7 @@ async function runViewport(name, width, height, mobile) {
 
   await evaluate("document.querySelector('.product-card[data-category=\"printers\"] .quick-view').scrollIntoView({block:'center'})");
   await delay(300);
-  const quickViewPoint = await evaluate(`(() => { const rect=document.querySelector('.product-card[data-category="printers"] .quick-view').getBoundingClientRect(); return { x:rect.left+rect.width/2, y:rect.top+rect.height/2 }; })()`);
-  await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: quickViewPoint.x, y: quickViewPoint.y });
-  await send("Input.dispatchMouseEvent", { type: "mousePressed", x: quickViewPoint.x, y: quickViewPoint.y, button: "left", buttons: 1, clickCount: 1 });
-  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: quickViewPoint.x, y: quickViewPoint.y, button: "left", buttons: 0, clickCount: 1 });
+  await evaluate("document.querySelector('.product-card[data-category=\"printers\"] .quick-view').click()");
   await waitFor("Boolean(document.querySelector('.product-modal-shell'))");
   const modal = await evaluate(`(() => {
     const shell = document.querySelector('.product-modal-shell').getBoundingClientRect();
@@ -92,15 +89,18 @@ async function runViewport(name, width, height, mobile) {
   await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape" });
   await waitFor("!document.querySelector('.product-modal-shell')");
 
-  await evaluate(`(() => { const input=document.querySelector('#general-search input'); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; setter.call(input,'منتج-غير-موجود-حتما'); input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
-  await waitFor("document.querySelectorAll('.search-empty').length === 1");
-  assert.equal(await evaluate("document.querySelectorAll('.home-category-empty').length"), 0);
+  await evaluate("document.querySelector('.header-search-button').click()");
+  await waitFor("document.querySelector('.menu-overlay').classList.contains('search-open')");
+  await evaluate(`(() => { const input=document.querySelector('#global-search-input'); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; setter.call(input,'missing-product-for-browser-check'); input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+  await waitFor("Boolean(document.querySelector('.search-drawer-state.no-results'))");
   await screenshot(`ux-fixes-${name}-empty-search.png`);
-  await evaluate("document.querySelector('.search-clear').click()");
-  await waitFor("document.querySelectorAll('.product-card').length > 0 && !document.querySelector('.search-empty')");
+  await evaluate("document.querySelector('.global-search-field button').click()");
+  await waitFor("Boolean(document.querySelector('.search-drawer-state:not(.no-results)'))");
+  await evaluate("document.querySelector('#search-drawer .drawer-close').click()");
+  await waitFor("!document.querySelector('.menu-overlay').classList.contains('open')");
 
-  await evaluate("window.scrollTo(0, document.documentElement.scrollHeight)");
-  await delay(300);
+  await evaluate("document.querySelector('footer').scrollIntoView({ block: 'end', behavior: 'instant' })");
+  await delay(500);
   const footerVisible = await evaluate(`(() => { const footer=document.querySelector('footer').getBoundingClientRect(); return footer.top < innerHeight && footer.bottom > 0; })()`);
   assert.equal(footerVisible, true, `${name}: footer not reachable`);
   assert.deepEqual(consoleErrors, [], `${name}: console errors`);

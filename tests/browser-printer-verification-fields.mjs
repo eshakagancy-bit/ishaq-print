@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { seedAdminSession } from "./browser-admin-session.mjs";
 
 const require = createRequire(import.meta.url);
 const WebSocketClient = require("next/dist/compiled/ws");
@@ -85,6 +86,7 @@ const assertRemoved = async () => {
 };
 
 await Promise.all([send("Page.enable"), send("Runtime.enable")]);
+await seedAdminSession(send, appUrl);
 await send("Fetch.enable", { patterns: [
   { urlPattern: "*://*/api/site*" },
   { urlPattern: "*://*/api/admin/hero-slides*" },

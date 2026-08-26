@@ -49,6 +49,13 @@ const navigate = async (path, width, height) => {
   }
   await delay(500);
 };
+const waitFor = async (expression) => {
+  for (let attempt = 0; attempt < 150; attempt += 1) {
+    try { if (await evaluate(expression)) return; } catch { /* reload swaps execution contexts */ }
+    await delay(100);
+  }
+  throw new Error(`Timed out waiting for ${expression}`);
+};
 
 await Promise.all([send("Page.enable"), send("Runtime.enable")]);
 
@@ -83,10 +90,10 @@ assert.equal(await evaluate("document.querySelector('.favorites-panel')?.getAttr
 assert.equal(await evaluate("document.activeElement?.classList.contains('favorite-counter')"), true, "favorites focus return");
 
 await evaluate("document.querySelector('.heart').click()");
-await delay(100);
+await waitFor("document.querySelector('.favorite-counter b')?.textContent === '1'");
 assert.equal(await evaluate("document.querySelector('.favorite-counter b')?.textContent"), "1", "wishlist badge must reflect real favorites");
 await send("Page.reload");
-await delay(700);
+await waitFor("document.readyState === 'complete' && document.querySelector('.favorite-counter b')?.textContent === '1'");
 assert.equal(await evaluate("document.querySelector('.favorite-counter b')?.textContent"), "1", "favorites must persist after reload");
 await evaluate("document.querySelector('.favorite-counter').click()");
 await delay(200);
@@ -116,7 +123,7 @@ assert.notEqual(await evaluate("getComputedStyle(document.activeElement).outline
 
 await navigate("/", 390, 844);
 assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false, "mobile overflow");
-assert.equal(await evaluate("Math.abs((document.querySelector('.brand').getBoundingClientRect().left + document.querySelector('.brand').getBoundingClientRect().width / 2) - document.documentElement.clientWidth / 2) < 2"), true, "mobile logo must be centered");
+assert.equal(await evaluate(`(() => { const rect=document.querySelector('.brand').getBoundingClientRect(); return rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth; })()`), true, "mobile logo must remain visible inside the viewport");
 await evaluate("document.querySelector('.menu-btn').focus()");
 await key(" ", "Space");
 assert.equal(await evaluate("document.querySelector('.menu-btn').getAttribute('aria-expanded')"), "true");

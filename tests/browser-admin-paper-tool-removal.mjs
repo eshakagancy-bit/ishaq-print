@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { seedAdminSession } from "./browser-admin-session.mjs";
 
 const require = createRequire(import.meta.url);
 const WebSocketClient = require("next/dist/compiled/ws");
@@ -40,11 +41,18 @@ const waitFor = async (expression) => {
 };
 
 await Promise.all([send("Page.enable"), send("Runtime.enable")]);
+await seedAdminSession(send, appUrl);
 await send("Page.navigate", { url: `${appUrl}/admin` });
-await waitFor("document.readyState === 'complete' && Boolean(document.querySelector('.real-admin-page'))");
+await waitFor("document.readyState === 'complete' && Boolean(document.querySelector('.real-admin-page') || document.querySelector('input[name=password]'))");
+if (await evaluate("Boolean(document.querySelector('input[name=password]'))")) {
+  const password = process.env.QA_ADMIN_PASSWORD;
+  assert.ok(password, "QA_ADMIN_PASSWORD is required for production admin verification");
+  await evaluate(`(() => { const input=document.querySelector('input[name=password]'); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; setter.call(input,${JSON.stringify(process.env.QA_ADMIN_PASSWORD)}); input.dispatchEvent(new Event('input',{bubbles:true})); input.form.requestSubmit(); })()`);
+  await waitFor("Boolean(document.querySelector('.real-admin-page'))");
+}
 assert.equal(await evaluate("document.body.textContent.includes('تحديث مواصفات الأوراق الحالية')"), false);
 assert.equal(await evaluate("Boolean(document.querySelector('.paper-update-tool'))"), false);
-await evaluate("document.querySelector('.real-admin-toolbar nav button:last-child').click()");
+await evaluate("[...document.querySelectorAll('.real-admin-toolbar nav button')].find((button) => button.textContent.trim() === 'المنتجات').click()");
 await waitFor("Boolean(document.querySelector('.product-admin-layout'))");
 assert.ok(await evaluate("document.querySelector('.product-admin-layout').getBoundingClientRect().top - document.querySelector('.admin-live-status').getBoundingClientRect().bottom < 80"));
 const editPaper = await evaluate(`(() => { const article=[...document.querySelectorAll('.products-manager article')].find(item => item.textContent.includes('papers') || item.textContent.includes('الأوراق')); const button=[...(article?.querySelectorAll('button') || [])].find(item => item.textContent.trim() === 'تعديل'); button?.click(); return Boolean(button); })()`);

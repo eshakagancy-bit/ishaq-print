@@ -83,3 +83,5 @@ assert.deepEqual(blockedRequests, []);
 assert.deepEqual(consoleErrors.filter((message) => /content security policy|refused to|blocked/i.test(message)), []);
 console.log(JSON.stringify({ homeImages: home.images.length, quickView: true, admin: true, blockedRequests, cspConsoleErrors: [] }));
 socket.close();
+await Promise.race([new Promise((resolve) => socket.once("close", resolve)), delay(1_000)]);
+socket.terminate();

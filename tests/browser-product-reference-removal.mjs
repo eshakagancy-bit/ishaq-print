@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { seedAdminSession } from "./browser-admin-session.mjs";
 
 const require = createRequire(import.meta.url);
 const WebSocketClient = require("next/dist/compiled/ws");
@@ -68,9 +69,16 @@ const assertAbsent = async (context) => {
 };
 
 await Promise.all([send("Page.enable"), send("Runtime.enable"), send("Network.enable"), send("Fetch.enable", { patterns: [{ urlPattern: "*/api/*", requestStage: "Request" }] })]);
+await seedAdminSession(send, appUrl);
 await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false, screenWidth: 1440, screenHeight: 900 });
 await send("Page.navigate", { url: `${appUrl}/admin` });
-await waitFor("document.readyState === 'complete' && Boolean(document.querySelector('.real-admin-page'))");
+await waitFor("document.readyState === 'complete' && Boolean(document.querySelector('.real-admin-page') || document.querySelector('input[name=password]'))");
+if (await evaluate("Boolean(document.querySelector('input[name=password]'))")) {
+  const password = process.env.QA_ADMIN_PASSWORD;
+  assert.ok(password, "QA_ADMIN_PASSWORD is required for production admin verification");
+  await evaluate(`(() => { const input=document.querySelector('input[name=password]'); const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; setter.call(input,${JSON.stringify(process.env.QA_ADMIN_PASSWORD)}); input.dispatchEvent(new Event('input',{bubbles:true})); input.form.requestSubmit(); })()`);
+  await waitFor("Boolean(document.querySelector('.real-admin-page'))");
+}
 await evaluate(`([...document.querySelectorAll('.real-admin-toolbar button')].find((button) => button.textContent.trim() === 'المنتجات')).click()`);
 await waitFor("Boolean(document.querySelector('.product-admin-layout')) && document.querySelectorAll('.products-manager article').length === 3");
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { seedAdminSession } from "./browser-admin-session.mjs";
 import path from "node:path";
 import os from "node:os";
 
@@ -73,9 +74,10 @@ const navigate = async (url) => {
   await waitFor(`location.href.startsWith(${JSON.stringify(url)}) && document.readyState === "complete"`);
 };
 
-sessionId = (await send("Target.attachToTarget", { targetId: target.id, flatten: true })).sessionId;
-await send("Page.enable");
-await send("Runtime.enable");
+  sessionId = (await send("Target.attachToTarget", { targetId: target.id, flatten: true })).sessionId;
+  await send("Page.enable");
+  await send("Runtime.enable");
+  await seedAdminSession(send, appUrl);
 await send("Network.enable");
 handlers.set("Fetch.requestPaused", ({ requestId, request }) => {
   let body = { ok: true };

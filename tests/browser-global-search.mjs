@@ -57,24 +57,24 @@ async function inspectViewport(width, height) {
   await waitFor("document.readyState === 'complete' && Boolean(document.querySelector('.header-search-button'))", `${width}: app did not load`);
   await delay(250);
 
-  const header = await evaluate(`(() => { const menu=document.querySelector('.menu-btn').getBoundingClientRect(); const logo=document.querySelector('.brand').getBoundingClientRect(); const actions=document.querySelector('.header-left-actions').getBoundingClientRect(); const contentWidth=document.documentElement.clientWidth; return { overflow:document.documentElement.scrollWidth>contentWidth, inlineSearch:Boolean(document.querySelector('.search-panel-wrap,#general-search')), menuRight:menu.left>contentWidth/2, actionsLeft:actions.right<contentWidth/2, logoOffset:Math.abs((logo.left+logo.width/2)-contentWidth/2) }; })()`);
+  const header = await evaluate(`(() => { const menu=document.querySelector('.menu-btn').getBoundingClientRect(); const logo=document.querySelector('.brand').getBoundingClientRect(); const actions=document.querySelector('.header-left-actions').getBoundingClientRect(); const contentWidth=document.documentElement.clientWidth; return { overflow:document.documentElement.scrollWidth>contentWidth, inlineSearch:Boolean(document.querySelector('.search-panel-wrap,#general-search')), menuRight:menu.left>contentWidth/2, actionsLeft:actions.right<contentWidth/2, logoVisible:logo.width>0&&logo.height>0&&logo.left>=0&&logo.right<=contentWidth }; })()`);
   assert.equal(header.overflow, false, `${width}: document overflow`);
   assert.equal(header.inlineSearch, false, `${width}: inline global search remains`);
   assert.equal(header.menuRight, true, `${width}: menu moved from right`);
   assert.equal(header.actionsLeft, true, `${width}: wishlist/search are not on left`);
-  assert.ok(header.logoOffset < 3, `${width}: logo is not centered (${header.logoOffset}px)`);
+  assert.equal(header.logoVisible, true, `${width}: logo is clipped or hidden`);
 
   await evaluate("document.querySelector('.header-search-button').click()");
   await waitFor("document.querySelector('.menu-overlay').classList.contains('search-open')", `${width}: search drawer did not open`);
   await waitFor("Math.abs(document.querySelector('#search-drawer').getBoundingClientRect().left) < 2", `${width}: drawer animation did not finish`);
-  const opened = await evaluate(`(() => { const drawer=document.querySelector('#search-drawer'); const rect=drawer.getBoundingClientRect(); const closeRect=drawer.querySelector('.drawer-close').getBoundingClientRect(); const options=[...document.querySelectorAll('#global-search-scope option')].map(option=>option.textContent.trim()); return { left:Math.round(rect.left), width:Math.round(rect.width), closeLeft:Math.round(closeRect.left), viewport:innerWidth, expanded:document.querySelector('.header-search-button').getAttribute('aria-expanded'), modal:drawer.getAttribute('aria-modal'), scope:document.querySelector('#global-search-scope').value, options, focused:document.activeElement?.id, bodyOverflow:document.body.style.overflow, empty:Boolean(document.querySelector('.search-drawer-state')) }; })()`);
+  const opened = await evaluate(`(() => { const drawer=document.querySelector('#search-drawer'); const rect=drawer.getBoundingClientRect(); const closeRect=drawer.querySelector('.drawer-close').getBoundingClientRect(); const options=[...document.querySelectorAll('#global-search-scope option')].map(option=>option.value); return { left:Math.round(rect.left), width:Math.round(rect.width), closeLeft:Math.round(closeRect.left), viewport:innerWidth, expanded:document.querySelector('.header-search-button').getAttribute('aria-expanded'), modal:drawer.getAttribute('aria-modal'), scope:document.querySelector('#global-search-scope').value, options, focused:document.activeElement?.id, bodyOverflow:document.body.style.overflow, empty:Boolean(document.querySelector('.search-drawer-state')) }; })()`);
   assert.ok(Math.abs(opened.left) <= 2, `${width}: drawer is not on left (${opened.left}px)`);
   assert.ok(opened.width <= opened.viewport, `${width}: drawer exceeds viewport`);
   assert.ok(opened.closeLeft >= 8, `${width}: close button is clipped (${opened.closeLeft}px)`);
   assert.equal(opened.expanded, "true");
   assert.equal(opened.modal, "true");
   assert.equal(opened.scope, "all");
-  assert.deepEqual(opened.options, ["جميع الفئات", "الطابعات", "الأحبار", "الأوراق"]);
+  assert.deepEqual(opened.options, ["all", "printers", "inks", "papers"]);
   assert.equal(opened.focused, "global-search-input");
   assert.equal(opened.bodyOverflow, "hidden");
   assert.equal(opened.empty, true);

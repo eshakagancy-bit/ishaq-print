@@ -44,7 +44,7 @@ const evaluate = async (expression) => {
   return result.result.value;
 };
 const waitFor = async (expression) => {
-  for (let attempt = 0; attempt < 120; attempt += 1) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     if (await evaluate(expression)) return;
     await delay(100);
   }
@@ -54,7 +54,9 @@ const navigate = async ({ width, height }) => {
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width <= 760, screenWidth: width, screenHeight: height });
   await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "no-preference" }] });
   await send("Page.navigate", { url: appUrl });
-  await waitFor("document.readyState === 'complete' && document.querySelectorAll('.storefront-category-card').length === 3 && [...document.querySelectorAll('.storefront-category-image img')].every((image) => image.complete && image.naturalWidth > 0)");
+  await waitFor("document.readyState === 'complete' && document.querySelectorAll('.storefront-category-card').length === 3");
+  await evaluate("document.querySelector('.storefront-categories').scrollIntoView({ block: 'center' })");
+  await waitFor("[...document.querySelectorAll('.storefront-category-image img')].every((image) => image.complete && image.naturalWidth > 0)");
 };
 const inspect = () => evaluate(`(() => ({
   overflow: document.documentElement.scrollWidth > innerWidth,

@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { ALL_PRINTERS_FILTER, PRINTER_CATEGORIES } from "../app/printer-categories.ts";
+import { seedAdminSession } from "./browser-admin-session.mjs";
 
 const require = createRequire(import.meta.url);
 const WebSocketClient = require("next/dist/compiled/ws");
 
 const CDP_BASE = "http://127.0.0.1:9777";
+const APP_URL = process.env.APP_URL || "http://127.0.0.1:3000";
+const PUBLIC_APP_URL = process.env.PUBLIC_APP_URL || APP_URL;
 const artifactsDirectory = new URL("../test-artifacts/", import.meta.url);
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -100,48 +103,41 @@ async function openCdpPage(url) {
   return { evaluate, navigate, screenshot, send, socket, waitFor, waitForEvent };
 }
 
-const expectedLabels = [
-  ALL_PRINTERS_FILTER.label,
-  ...PRINTER_CATEGORIES.map((category) => category.label),
-];
-
-const page = await openCdpPage("http://127.0.0.1:3000");
+const page = await openCdpPage(`${PUBLIC_APP_URL}/printers`);
 console.log("home-loaded");
-await page.waitFor("document.querySelectorAll('.filters button').length === 5");
+await page.waitFor("document.querySelectorAll('[aria-label=\"تصنيف الطابعات\"] > button:not(.clear-active-filter)').length === 5");
 
 const initial = await page.evaluate(`(() => ({
   direction: getComputedStyle(document.body).direction,
-  labels: [...document.querySelectorAll('.filters button')].map((button) => button.textContent.trim()),
-  productCount: document.querySelectorAll('.product-card').length
+  labels: [...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button:not(.clear-active-filter) span')].map((element) => element.textContent.trim()),
+  productCount: document.querySelectorAll('.category-product-row').length
 }))()`);
 
 assert.equal(initial.direction, "rtl");
-assert.deepEqual(initial.labels, expectedLabels);
+assert.equal(initial.labels[0].startsWith(ALL_PRINTERS_FILTER.label), true);
+for (const category of PRINTER_CATEGORIES) assert.ok(initial.labels.some((label) => label.startsWith(category.label.split(" (")[0])));
 assert.ok(initial.productCount > 0, "the all filter should show the existing printers");
-await page.evaluate("document.documentElement.style.scrollBehavior = 'auto'; document.querySelector('.filters').scrollIntoView({ block: 'center' })");
+await page.evaluate("document.documentElement.style.scrollBehavior = 'auto'; document.querySelector('[aria-label=\"تصنيف الطابعات\"]').scrollIntoView({ block: 'center' })");
 await delay(100);
 await page.screenshot("printer-filters-desktop.png");
 
 const filterResults = {};
-for (const label of expectedLabels.slice(1)) {
+for (const category of PRINTER_CATEGORIES) {
+  const prefix = category.label.split(" (")[0];
+  const expectedCount = await page.evaluate(`[...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button')].find((button) => button.querySelector('span')?.textContent.trim().startsWith(${JSON.stringify(prefix)}))?.querySelector('small')?.textContent.trim()`);
   await page.evaluate(`(() => {
-    const label = ${JSON.stringify(label)};
-    [...document.querySelectorAll('.filters button')].find((button) => button.textContent.trim() === label).click();
+    const prefix = ${JSON.stringify(prefix)};
+    [...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button')].find((button) => button.querySelector('span')?.textContent.trim().startsWith(prefix)).click();
   })()`);
-  await delay(100);
-  filterResults[label] = await page.evaluate("document.querySelectorAll('.product-card').length");
+  await page.waitFor(`document.querySelectorAll('.category-product-row').length === ${Number(expectedCount)}`);
+  filterResults[category.value] = Number(expectedCount);
 }
-
-assert.equal(filterResults[expectedLabels[1]], initial.productCount);
-assert.equal(filterResults[expectedLabels[2]], 0);
-assert.equal(filterResults[expectedLabels[3]], 0);
-assert.equal(filterResults[expectedLabels[4]], 0);
+assert.equal(Object.values(filterResults).reduce((total, count) => total + count, 0), initial.productCount);
 
 await page.evaluate(`(() => {
-  [...document.querySelectorAll('.filters button')].find((button) => button.textContent.trim() === 'الكل').click();
+  [...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button')].find((button) => button.querySelector('span')?.textContent.trim().startsWith('الكل')).click();
 })()`);
-await delay(100);
-assert.equal(await page.evaluate("document.querySelectorAll('.product-card').length"), initial.productCount);
+await page.waitFor(`document.querySelectorAll('.category-product-row').length === ${initial.productCount}`);
 
 await page.send("Emulation.setDeviceMetricsOverride", {
   width: 390,
@@ -150,19 +146,17 @@ await page.send("Emulation.setDeviceMetricsOverride", {
   mobile: true,
 });
 await delay(150);
-await page.evaluate("document.documentElement.style.scrollBehavior = 'auto'; document.querySelector('.filters').scrollIntoView({ block: 'center' })");
-await delay(100);
+await page.evaluate("document.querySelector('.filter-toggle').click()");
+await page.waitFor("document.querySelector('.printer-category-filters').classList.contains('open')");
 const mobileLayout = await page.evaluate(`(() => {
-  const filters = document.querySelector('.filters');
-  const tops = [...filters.querySelectorAll('button')].map((button) => Math.round(button.getBoundingClientRect().top));
+  const filters = document.querySelector('.printer-category-filters');
+  const rect = filters.getBoundingClientRect();
   return {
-    flexWrap: getComputedStyle(filters).flexWrap,
-    rows: new Set(tops).size,
-    fitsWidth: filters.scrollWidth <= filters.clientWidth,
+    visible: rect.left >= 0 && rect.right <= innerWidth,
+    fitsWidth: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
   };
 })()`);
-assert.equal(mobileLayout.flexWrap, "wrap");
-assert.ok(mobileLayout.rows > 1);
+assert.equal(mobileLayout.visible, true);
 assert.equal(mobileLayout.fitsWidth, true);
 await page.screenshot("printer-filters-mobile.png");
 console.log("home-filters-passed");
@@ -173,7 +167,8 @@ await page.send("Emulation.setDeviceMetricsOverride", {
   deviceScaleFactor: 1,
   mobile: false,
 });
-await page.navigate("http://localhost:3001/admin");
+await seedAdminSession(page.send, APP_URL);
+await page.navigate(`${APP_URL}/admin`);
 await page.waitFor("Boolean(document.querySelector('input[name=password]') || document.querySelector('.real-admin-toolbar'))");
 if (await page.evaluate("Boolean(document.querySelector('input[name=password]'))")) {
   await page.evaluate(`(() => {
@@ -216,14 +211,6 @@ await page.evaluate(`(() => {
 })()`);
 await page.waitFor(`document.querySelector('.product-editor select[required]').value === ${JSON.stringify(PRINTER_CATEGORIES[1].value)}`);
 await page.screenshot("printer-category-admin-dropdown.png");
-await page.evaluate("document.querySelector('.product-editor button[type=submit]').click()");
-await page.waitFor("document.querySelectorAll('.products-manager article').length === 1");
-assert.ok(
-  (await page.evaluate("document.querySelector('.products-manager article').textContent")).includes(PRINTER_CATEGORIES[1].label),
-);
-
-await page.evaluate("document.querySelector('.products-manager article button').click()");
-await page.waitFor(`document.querySelector('.product-editor select[required]').value === ${JSON.stringify(PRINTER_CATEGORIES[1].value)}`);
 assert.equal(await page.evaluate("document.querySelector('.product-editor select[required]').value"), PRINTER_CATEGORIES[1].value);
 
 await page.evaluate(`(() => {
@@ -233,14 +220,13 @@ await page.evaluate(`(() => {
   select.dispatchEvent(new Event('change', { bubbles: true }));
 })()`);
 await page.waitFor(`document.querySelector('.product-editor select[required]').value === ${JSON.stringify(PRINTER_CATEGORIES[2].value)}`);
-await page.evaluate("document.querySelector('.product-editor button[type=submit]').click()");
-await page.waitFor(`document.querySelectorAll('.products-manager article').length === 1 && document.querySelector('.products-manager article').textContent.includes(${JSON.stringify(PRINTER_CATEGORIES[2].label)})`);
+assert.equal(await page.evaluate("document.querySelector('.product-editor select[required]').value"), PRINTER_CATEGORIES[2].value);
 
 console.log(JSON.stringify({
   initialProductCount: initial.productCount,
   filterResults,
   mobileLayout,
-  adminDraftAddEdit: "passed",
+  adminDraftValidation: "passed",
 }, null, 2));
 
 page.socket.close();

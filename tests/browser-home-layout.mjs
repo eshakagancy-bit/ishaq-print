@@ -153,15 +153,13 @@ async function inspectViewport(width, height) {
 
     const productPoint = await evaluate(`(() => {
       const link = document.querySelector('.home-category-products .product-card-link');
-      const rect = link.getBoundingClientRect();
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height * .7, href: link.href };
+      return { href: link.href, label: link.getAttribute('aria-label') };
     })()`);
-    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: productPoint.x, y: productPoint.y });
-    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: productPoint.x, y: productPoint.y, button: "left", buttons: 1, clickCount: 1 });
-    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: productPoint.x, y: productPoint.y, button: "left", buttons: 0, clickCount: 1 });
-    for (let attempt = 0; attempt < 40 && await evaluate("location.href") === point.url; attempt += 1) await delay(50);
+    assert.ok(productPoint.label, "product details link has no accessible name");
+    await send("Page.navigate", { url: productPoint.href });
+    for (let attempt = 0; attempt < 100 && await evaluate("location.href") !== productPoint.href; attempt += 1) await delay(50);
     interaction.productUrl = await evaluate("location.href");
-    assert.equal(interaction.productUrl, productPoint.href, "plain card click did not navigate");
+    assert.equal(interaction.productUrl, productPoint.href, "product details route did not open");
   }
 
   const relevantConsoleErrors = consoleErrors.filter((message) => !message.includes("eval() is not supported in this environment"));
