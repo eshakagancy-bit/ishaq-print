@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   PRINTER_SPECIFICATION_TARGETS,
@@ -32,22 +33,33 @@ test("treats every matching record as ready while still classifying missing prod
   assert.equal(buildPlan(rows).find((item) => item.desired.model === "L4360").matches.length, 2);
 });
 
-test("merges only requested fields and preserves FAQ and unrelated specification fields", () => {
+test("builds a content-only patch without replacing structured specifications", () => {
   const target = PRINTER_SPECIFICATION_TARGETS.find(({ model }) => model === "WF-C529R");
   const row = {
     specifications: { nfc: true, standardPaperCapacity: 330 },
     printer_page_content: { faq: [{ question: "سؤال حالي", answer: "إجابة حالية" }], legacy: "keep" },
   };
   const patch = buildPatch(row, target);
-  assert.equal(patch.specifications.nfc, true);
-  assert.equal(patch.specifications.standardPaperCapacity, 330);
-  assert.deepEqual(patch.printer_page_content.faq, row.printer_page_content.faq);
+  assert.equal(Object.hasOwn(patch, "specifications"), false);
+  assert.equal(Object.hasOwn(patch, "features"), false);
+  assert.equal(Object.hasOwn(patch, "badge"), false);
+  assert.equal(patch.printer_page_content.faq.length, 6);
   assert.equal(patch.printer_page_content.legacy, "keep");
-  assert.deepEqual(patch.specifications.functions, ["طباعة"]);
-  assert.equal(patch.specifications.scanner, false);
-  assert.equal(patch.specifications.fax, false);
-  assert.equal(patch.specifications.adfCapacity, null);
   assert.equal(verifyPatch({ ...row, ...patch }, patch), true);
+});
+
+test("every target has reference-depth Arabic page content", () => {
+  for (const target of PRINTER_SPECIFICATION_TARGETS) {
+    const content = target.pageContent;
+    assert.ok(content.detailedDescription.split("\n\n").length >= 3, `${target.model}: detailed description`);
+    assert.ok(content.productFeatures.length >= 5 && content.productFeatures.length <= 7, `${target.model}: features`);
+    assert.ok(content.productUses.length >= 4 && content.productUses.length <= 6, `${target.model}: uses`);
+    assert.ok(content.whyChooseThisProduct.split("\n\n").length >= 2, `${target.model}: why choose`);
+    assert.ok(content.faq.length >= 5 && content.faq.length <= 7, `${target.model}: FAQ`);
+    assert.ok(content.productFeatures.every((item) => item.title && item.description), `${target.model}: feature descriptions`);
+    assert.ok(content.productUses.every((item) => item.title && item.description), `${target.model}: use descriptions`);
+    assert.ok(content.faq.every((item) => item.question && item.answer), `${target.model}: FAQ answers`);
+  }
 });
 
 test("maps nulls, duplex modes, speed units and current usage options", () => {
@@ -61,4 +73,13 @@ test("maps nulls, duplex modes, speed units and current usage options", () => {
   assert.equal(workforce.photoPrintTimeSeconds, null);
   assert.equal(workforce.speedUnit, "صفحة/دقيقة");
   assert.equal(workforce.colorMode, "أحادي اللون");
+});
+
+test("content migration updates only descriptions and page content without creating or deleting products", async () => {
+  const migration = await readFile(new URL("../supabase/migrations/20260826230000_standardize_printer_detail_content.sql", import.meta.url), "utf8");
+  assert.match(migration, /update products\s+set\s+description = desired\.description,\s+printer_page_content =/i);
+  assert.doesNotMatch(migration, /insert\s+into\s+products/i);
+  assert.doesNotMatch(migration, /delete\s+from\s+products/i);
+  assert.doesNotMatch(migration, /\bspecifications\s*=/i);
+  for (const target of PRINTER_SPECIFICATION_TARGETS) assert.match(migration, new RegExp(`'${target.model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}'`));
 });

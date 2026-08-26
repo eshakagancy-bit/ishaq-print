@@ -2,21 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
 import { pathToFileURL } from "node:url";
+import { PRINTER_CONTENT } from "./printer-content.mjs";
 
 for (const envFile of [".env.local", ".env"]) {
   if (existsSync(envFile)) loadEnvFile(envFile);
 }
 
 const usageAliases = new Map([["مكتب شخصي", "مكتبي شخصي"]]);
-
-function pageContent(shortDescription, features, uses, whyChoose) {
-  return {
-    detailedDescription: `${shortDescription}\n\n${whyChoose}`,
-    productFeatures: features.map((title) => ({ title, description: "" })),
-    productUses: uses.map((title) => ({ title, description: "" })),
-    whyChooseThisProduct: whyChoose,
-  };
-}
 
 function target(model, input) {
   const functions = Object.entries(input.functions)
@@ -55,7 +47,7 @@ function target(model, input) {
       inkType: input.inkType,
       usage: input.recommendedUses.map((item) => usageAliases.get(item) ?? item),
     },
-    pageContent: pageContent(input.shortDescription, input.featuresList, input.usesList, input.whyChoose),
+    pageContent: PRINTER_CONTENT[model],
   };
 }
 
@@ -204,18 +196,14 @@ export function buildPlan(rows) {
 
 export function buildPatch(row, desired) {
   const currentContent = row.printer_page_content && typeof row.printer_page_content === "object" ? row.printer_page_content : {};
-  const currentSpecifications = row.specifications && typeof row.specifications === "object" ? row.specifications : {};
   return {
-    badge: desired.badge,
     description: desired.description,
-    features: desired.features,
-    specifications: { ...currentSpecifications, ...desired.specifications },
-    printer_page_content: { ...currentContent, ...desired.pageContent, faq: Array.isArray(currentContent.faq) ? currentContent.faq : [] },
+    printer_page_content: { ...currentContent, ...desired.pageContent },
   };
 }
 
 export function verifyPatch(row, patch) {
-  return ["badge", "description", "features", "specifications", "printer_page_content"].every((key) => equal(row[key], patch[key]));
+  return ["description", "printer_page_content"].every((key) => equal(row[key], patch[key]));
 }
 
 async function loadRowsFromUrl(url) {
