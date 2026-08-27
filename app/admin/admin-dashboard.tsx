@@ -285,6 +285,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     setProductForm((current) => ({
       ...current,
       category,
+      badge: category === "printers" ? undefined : current.badge,
       printerCategory: category === "printers" ? current.printerCategory : undefined,
       specifications: category === "printers" ? current.specifications : undefined,
       printerPageContent: category === "printers" ? current.printerPageContent ?? createEmptyPrinterPageContent() : undefined,
@@ -546,6 +547,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       : undefined;
     const next = {
       ...productForm,
+      badge: productForm.category === "printers" ? undefined : productForm.badge,
       id: editingId ?? Date.now(),
       image: inkImages?.[0] ?? productForm.image,
       images: inkImages,
@@ -895,7 +897,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         {productForm.category === "printers" && <PrinterPageContentEditor product={productForm} onChange={updateProductForm} />}
         {productForm.category === "papers" && <PaperSpecificationsEditor product={productForm} onChange={updateProductForm} />}
         {productForm.category === "inks" && <InkSpecificationsEditor product={productForm} printers={products.filter((product) => product.category === "printers")} onChange={updateProductForm} />}
-        <div className="admin-two-columns">{productForm.category !== "inks" && <label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label>}<label>نمط السعر<select value={priceMode} onChange={(event) => {
+        <div className="admin-two-columns">{productForm.category === "papers" && <label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label>}<label>نمط السعر<select value={priceMode} onChange={(event) => {
           const mode = event.target.value as PriceMode;
           setPriceMode(mode);
           if (mode === "quote") updateProductForm({ price: "" });

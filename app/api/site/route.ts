@@ -116,7 +116,7 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
       : undefined,
     type: String(input.type ?? "").trim().slice(0, 100),
     size: String(input.size ?? "").trim().slice(0, 100),
-    badge: String(input.badge ?? "").trim().slice(0, 80) || undefined,
+    badge: category === "printers" ? undefined : String(input.badge ?? "").trim().slice(0, 80) || undefined,
     price: String(input.price ?? "").trim().slice(0, 80) || undefined,
     description: String(input.description ?? "").trim().slice(0, 1200),
     features: Array.isArray(input.features)

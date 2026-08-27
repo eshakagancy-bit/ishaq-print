@@ -368,10 +368,14 @@ export async function saveSiteSettings(settings: SiteSettings) {
 
 export async function updateProduct(product: StoredProduct) {
   const client = getSupabaseAdmin();
+  const row = productToRow(product, product.sortOrder ?? 0);
+  const updates = product.category === "printers"
+    ? Object.fromEntries(Object.entries(row).filter(([key]) => key !== "badge"))
+    : row;
   const result = await client
     .from("products")
     .update({
-      ...productToRow(product, product.sortOrder ?? 0),
+      ...updates,
       updated_at: new Date().toISOString(),
     })
     .eq("id", product.id)
@@ -401,7 +405,11 @@ export async function createProduct(product: StoredProduct) {
   }
   const result = await client
     .from("products")
-    .insert(productToRow({ ...product, homeDisplayOrder }, product.sortOrder ?? 0))
+    .insert(productToRow({
+      ...product,
+      badge: product.category === "printers" ? undefined : product.badge,
+      homeDisplayOrder,
+    }, product.sortOrder ?? 0))
     .select("*")
     .single();
   databaseError("تعذر إضافة المنتج", result.error);
