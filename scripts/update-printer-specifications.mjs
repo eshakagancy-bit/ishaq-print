@@ -1,8 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { existsSync } from "node:fs";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { loadEnvFile } from "node:process";
 import { pathToFileURL } from "node:url";
+import {
+  assertPrinterPageContent,
+  equalContent,
+  selectArabicContent,
+} from "./arabic-content-integrity.mjs";
 import { PRINTER_CONTENT } from "./printer-content.mjs";
+
+const BACKUP_URL = new URL("../tmp/printer-content-corrupted-backup.json", import.meta.url);
 
 for (const envFile of [".env.local", ".env"]) {
   if (existsSync(envFile)) loadEnvFile(envFile);
@@ -177,16 +185,6 @@ export function matchesModel(name, model) {
   return normalizedModelToken(name).endsWith(normalizedModelToken(model));
 }
 
-function canonicalize(value) {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, nested]) => [key, canonicalize(nested)]));
-  return value;
-}
-
-function equal(left, right) {
-  return JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
-}
-
 export function buildPlan(rows) {
   return PRINTER_SPECIFICATION_TARGETS.map((desired) => {
     const matches = rows.filter((row) => matchesModel(row.name, desired.model));
@@ -197,13 +195,12 @@ export function buildPlan(rows) {
 export function buildPatch(row, desired) {
   const currentContent = row.printer_page_content && typeof row.printer_page_content === "object" ? row.printer_page_content : {};
   return {
-    description: desired.description,
     printer_page_content: { ...currentContent, ...desired.pageContent },
   };
 }
 
 export function verifyPatch(row, patch) {
-  return ["description", "printer_page_content"].every((key) => equal(row[key], patch[key]));
+  return equalContent(row.printer_page_content, patch.printer_page_content);
 }
 
 async function loadRowsFromUrl(url) {
@@ -228,8 +225,8 @@ async function main() {
     rows = await loadRowsFromUrl(sourceArg.slice("--source-url=".length));
   } else {
     const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-    if (!url || !key) throw new Error("Missing SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL or Supabase service role key");
+    const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+    if (!url || !key) throw new Error("Missing Supabase URL or service/secret key");
     client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
     const result = await client.from("products").select("id,name,badge,description,features,specifications,printer_page_content").order("id");
     if (result.error) throw result.error;
@@ -238,6 +235,12 @@ async function main() {
 
   const beforeIds = rows.map((row) => String(row.id)).sort();
   const plan = buildPlan(rows);
+  if (plan.some((item) => item.matches.length !== 1)) {
+    const invalid = plan.filter((item) => item.matches.length !== 1).map((item) => `${item.desired.model}:${item.matches.length}`).join(", ");
+    throw new Error(`Repair requires exactly one record per model; found ${invalid}`);
+  }
+  const targetIds = new Set(plan.flatMap((item) => item.matches.map((row) => String(row.id))));
+  const protectedBefore = rows.filter((row) => !targetIds.has(String(row.id)));
   if (inspect) {
     for (const item of plan) {
       const identities = item.matches.map((row) => `${row.id} | ${row.name}`).join(" || ");
@@ -253,6 +256,17 @@ async function main() {
     }
   }
   const results = [];
+  if (apply) {
+    for (const item of plan) assertPrinterPageContent(item.desired.pageContent, `source.${item.desired.model}`);
+    await mkdir(new URL("../tmp/", import.meta.url), { recursive: true });
+    const backup = plan.map((item) => ({
+      model: item.desired.model,
+      id: item.matches[0].id,
+      name: item.matches[0].name,
+      printer_page_content: item.matches[0].printer_page_content,
+    }));
+    await writeFile(BACKUP_URL, `${JSON.stringify(backup, null, 2)}\n`, "utf8");
+  }
   for (const item of plan) {
     if (item.status !== "READY") { results.push({ model: item.desired.model, status: item.status }); continue; }
     if (!apply) {
@@ -263,10 +277,16 @@ async function main() {
     let verified = 0;
     for (const row of item.matches) {
       const patch = buildPatch(row, item.desired);
-      const update = await client.from("products").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", row.id).eq("name", row.name).select("id").maybeSingle();
-      if (update.error || !update.data) continue;
+      assertPrinterPageContent(selectArabicContent(patch.printer_page_content), `pre-write.${item.desired.model}`);
+      const update = await client.from("products").update(patch).eq("id", row.id).eq("name", row.name).select("id").maybeSingle();
+      if (update.error) throw update.error;
+      if (!update.data) throw new Error(`${item.desired.model}: guarded update did not match a record`);
       const verification = await client.from("products").select("id,name,badge,description,features,specifications,printer_page_content").eq("id", row.id).eq("name", row.name).maybeSingle();
-      if (!verification.error && verification.data && verifyPatch(verification.data, patch)) verified += 1;
+      if (verification.error) throw verification.error;
+      if (!verification.data) throw new Error(`${item.desired.model}: post-write record not found`);
+      assertPrinterPageContent(selectArabicContent(verification.data.printer_page_content), `post-write.${item.desired.model}`);
+      if (!verifyPatch(verification.data, patch)) throw new Error(`${item.desired.model}: post-write content mismatch`);
+      verified += 1;
     }
     const status = verified !== item.matches.length
       ? "FAIL"
@@ -277,10 +297,13 @@ async function main() {
   }
 
   if (apply) {
-    const after = await client.from("products").select("id").order("id");
+    const after = await client.from("products").select("id,name,badge,description,features,specifications,printer_page_content").order("id");
     if (after.error) throw after.error;
     const afterIds = (after.data ?? []).map((row) => String(row.id)).sort();
-    if (!equal(beforeIds, afterIds)) throw new Error("Product identity set changed; database verification failed");
+    if (!equalContent(beforeIds, afterIds)) throw new Error("Product identity set changed; database verification failed");
+    const protectedAfter = (after.data ?? []).filter((row) => !targetIds.has(String(row.id)));
+    if (!equalContent(protectedBefore, protectedAfter)) throw new Error("A non-target product changed; database verification failed");
+    await rm(BACKUP_URL, { force: true });
   }
   for (const result of results) console.log(`${result.model}: ${result.status}`);
   if (!apply) console.log("DRY RUN: no products were changed");

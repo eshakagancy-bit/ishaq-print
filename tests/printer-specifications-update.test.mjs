@@ -8,6 +8,11 @@ import {
   matchesModel,
   verifyPatch,
 } from "../scripts/update-printer-specifications.mjs";
+import {
+  assertArabicIntegrity,
+  assertPrinterPageContent,
+  inspectArabicIntegrity,
+} from "../scripts/arabic-content-integrity.mjs";
 
 test("contains exactly ten unique target models", () => {
   assert.equal(PRINTER_SPECIFICATION_TARGETS.length, 10);
@@ -33,19 +38,38 @@ test("treats every matching record as ready while still classifying missing prod
   assert.equal(buildPlan(rows).find((item) => item.desired.model === "L4360").matches.length, 2);
 });
 
-test("builds a content-only patch without replacing structured specifications", () => {
+test("builds a page-content-only patch without replacing other product fields", () => {
   const target = PRINTER_SPECIFICATION_TARGETS.find(({ model }) => model === "WF-C529R");
   const row = {
     specifications: { nfc: true, standardPaperCapacity: 330 },
     printer_page_content: { faq: [{ question: "سؤال حالي", answer: "إجابة حالية" }], legacy: "keep" },
   };
   const patch = buildPatch(row, target);
+  assert.deepEqual(Object.keys(patch), ["printer_page_content"]);
+  assert.equal(Object.hasOwn(patch, "description"), false);
   assert.equal(Object.hasOwn(patch, "specifications"), false);
   assert.equal(Object.hasOwn(patch, "features"), false);
   assert.equal(Object.hasOwn(patch, "badge"), false);
   assert.equal(patch.printer_page_content.faq.length, 6);
   assert.equal(patch.printer_page_content.legacy, "keep");
   assert.equal(verifyPatch({ ...row, ...patch }, patch), true);
+});
+
+test("rejects corrupted Arabic and accepts a real Arabic fixture", () => {
+  const cleanFixture = { title: "طباعة لاسلكية", description: "تدعم الطباعة عبر Wi-Fi؟" };
+  assert.doesNotThrow(() => assertArabicIntegrity(cleanFixture, "fixture.clean"));
+  assert.equal(inspectArabicIntegrity(cleanFixture).suspiciousQuestionMarkSequences, 0);
+  assert.throws(
+    () => assertArabicIntegrity({ title: "???? ??????", description: "Wi-Fi ???????" }, "fixture.corrupted"),
+    /suspicious question marks detected/,
+  );
+  assert.throws(
+    () => assertArabicIntegrity({ title: "Wi-Fi", description: "USB" }, "fixture.missing-arabic"),
+    /no Arabic characters detected/,
+  );
+  for (const target of PRINTER_SPECIFICATION_TARGETS) {
+    assert.doesNotThrow(() => assertPrinterPageContent(target.pageContent, `fixture.${target.model}`));
+  }
 });
 
 test("every target has reference-depth Arabic page content", () => {

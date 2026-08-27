@@ -1,8 +1,13 @@
 import { writeFile } from "node:fs/promises";
+import { assertPrinterPageContent } from "./arabic-content-integrity.mjs";
 import { PRINTER_SPECIFICATION_TARGETS } from "./update-printer-specifications.mjs";
 
 const migrationUrl = new URL("../supabase/migrations/20260826230000_standardize_printer_detail_content.sql", import.meta.url);
 const sqlText = (value) => `'${String(value).replaceAll("'", "''")}'`;
+
+for (const target of PRINTER_SPECIFICATION_TARGETS) {
+  assertPrinterPageContent(target.pageContent, `migration.${target.model}`);
+}
 
 const rows = PRINTER_SPECIFICATION_TARGETS.map((target) => `    (${sqlText(target.model)}, ${sqlText(target.description)}, ${sqlText(JSON.stringify(target.pageContent))}::jsonb)`).join(",\n");
 

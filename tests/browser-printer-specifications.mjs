@@ -18,8 +18,8 @@ const siteData = await siteResponse.json();
 const printers = siteData.products.filter((product) => product.category === "printers");
 assert.ok(printers.length > 0, "the public printer catalog must not be empty");
 
-const stableModels = ["L15180", "L6290", "WF-C529R", "WF-M5799DWF"];
-const duplicateTolerantModels = ["L4360", "L3266", "L3160"];
+const stableModels = ["L3160", "L15180", "L6290", "L14150", "WF-C529R", "WF-M5799DWF"];
+const duplicateTolerantModels = ["L4360", "L3266"];
 const stableProducts = stableModels.map((model) => {
   const matches = printers.filter((product) => matchesModel(product.name, model));
   assert.ok(matches.length >= 1, `${model}: public product missing`);
@@ -62,7 +62,7 @@ const evaluate = async (expression) => {
   return result.result.value;
 };
 const waitFor = async (expression) => {
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  for (let attempt = 0; attempt < 600; attempt += 1) {
     try { if (await evaluate(expression)) return; } catch { /* navigation swaps contexts */ }
     await delay(100);
   }
@@ -95,6 +95,15 @@ for (const viewport of viewports) {
       title: document.querySelector('.printer-summary h1')?.textContent?.trim(),
       imageLoaded: [...document.querySelectorAll('.product-gallery img')].some((image) => image.complete && image.naturalWidth > 0),
       specificationRows: document.querySelectorAll('.printer-key-info > div,.printer-spec-table tr').length,
+      sectionLinks: document.querySelectorAll('.product-section-nav a').length,
+      descriptionParagraphs: document.querySelectorAll('#description p').length,
+      featureCards: document.querySelectorAll('#features article').length,
+      useCards: document.querySelectorAll('#uses article').length,
+      whyChooseParagraphs: document.querySelectorAll('#why-product p').length,
+      faqItems: document.querySelectorAll('#faq details').length,
+      arabicCharacters: (document.body.innerText.match(/[\u0600-\u06FF]/g) || []).length,
+      suspiciousQuestionMarkSequences: (document.body.innerText.match(/\\?{3,}/g) || []).length,
+      direction: getComputedStyle(document.body).direction,
       hasUndefined: /(^|\\s)undefined($|\\s)/i.test(document.body.innerText),
       hasNull: /(^|\\s)null($|\\s)/i.test(document.body.innerText),
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -105,16 +114,28 @@ for (const viewport of viewports) {
     assert.equal(state.title, product.name);
     assert.equal(state.imageLoaded, true, `${product.name}: image did not load`);
     assert.ok(state.specificationRows > 0, `${product.name}: specifications are not visible`);
+    assert.equal(state.sectionLinks, 6, `${product.name}: all six content tabs must be visible`);
+    assert.ok(state.descriptionParagraphs >= 3, `${product.name}: detailed description quality`);
+    assert.ok(state.featureCards >= 5 && state.featureCards <= 7, `${product.name}: feature content quality`);
+    assert.ok(state.useCards >= 4 && state.useCards <= 6, `${product.name}: use content quality`);
+    assert.ok(state.whyChooseParagraphs >= 2, `${product.name}: why-choose content quality`);
+    assert.ok(state.faqItems >= 5 && state.faqItems <= 7, `${product.name}: FAQ content quality`);
+    assert.ok(state.arabicCharacters > 100, `${product.name}: Arabic content must render`);
+    assert.equal(state.suspiciousQuestionMarkSequences, 0, `${product.name}: corrupted question marks are visible`);
+    assert.equal(state.direction, "rtl", `${product.name}: page direction must be RTL`);
     assert.equal(state.hasUndefined, false, `${product.name}: undefined is visible`);
     assert.equal(state.hasNull, false, `${product.name}: null is visible`);
     assert.equal(state.overflow, false, `${product.name}: ${viewport.name} horizontal overflow`);
     assert.equal(state.backLink, "/printers");
     assert.equal(state.searchButton, true);
+    await evaluate("document.querySelector('#faq details summary').click()");
+    assert.equal(await evaluate("document.querySelector('#faq details').open"), true, `${product.name}: FAQ interaction`);
     await evaluate("document.querySelector('button[aria-label=\"فتح البحث\"]').click()");
     await waitFor("document.querySelector('#search-drawer')?.getAttribute('aria-modal') === 'true'");
     await evaluate("document.querySelector('#search-drawer button[aria-label=\"إغلاق البحث\"]').click()");
     await waitFor("document.querySelector('#search-drawer')?.getAttribute('aria-hidden') === 'true'");
-    results.push({ model: product.name, viewport: viewport.name, status: "PASS" });
+    results.push({ model: product.name, viewport: viewport.name, tabs: state.sectionLinks, faq: "PASS", rtl: state.direction, status: "PASS" });
+    await screenshot(`printer-arabic-${normalizedModel(product.name)}-${viewport.name}.png`);
   }
   await screenshot(`printer-specifications-${viewport.name}.png`);
 }
