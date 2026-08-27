@@ -12,6 +12,7 @@ import { productPriceLabel } from "../../product-commerce";
 import ProductFavoriteButton from "../../product-favorite-button";
 import StorefrontFooter from "../../storefront-footer";
 import PublicSearchControl from "../../global-search-drawer";
+import PublicTopBar from "../../public-topbar";
 import ProductShare from "../../product-share";
 import InkVariantSelector from "../../ink-variant-selector";
 import { CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
@@ -52,6 +53,7 @@ export default async function InkDetailsPage({ params }: PageProps) {
   const specifications = product.inkSpecifications;
 
   return <><main id="main-content" tabIndex={-1} className="printer-details-page">
+    <PublicTopBar settings={settings}/>
     <header className="printer-details-header"><div className="container"><Link href="/inks" className="printer-back-link">العودة إلى الأحبار</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/inks">الأحبار</Link><span>/</span><b>{product.name}</b></nav>

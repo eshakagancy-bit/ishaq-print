@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isPreoptimizedImageSource, normalizeMediaUrl } from "../lib/media-url";
 import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
+import PublicTopBar from "./public-topbar";
 import {
   HOME_PRINTER_LABELS,
   resolvePrinterCategory,
@@ -384,7 +385,6 @@ export default function HomeClient({
   const [headerCompact, setHeaderCompact] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
   const [scrollRequest, setScrollRequest] = useState<{ targetId: string; sequence: number } | null>(null);
-  const [customerPhoneCopied, setCustomerPhoneCopied] = useState(false);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [outgoingHeroSlide, setOutgoingHeroSlide] = useState<number | null>(null);
   const [heroPaused, setHeroPaused] = useState(false);
@@ -455,23 +455,6 @@ export default function HomeClient({
       heroTransitionTimerRef.current = null;
     }, 1500);
   }, [heroSlides.length]);
-
-  const copyCustomerPhone = async () => {
-    try {
-      await navigator.clipboard.writeText(customerPhoneDisplay);
-    } catch {
-      const input = document.createElement("textarea");
-      input.value = customerPhoneDisplay;
-      input.style.position = "fixed";
-      input.style.opacity = "0";
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand("copy");
-      input.remove();
-    }
-    setCustomerPhoneCopied(true);
-    window.setTimeout(() => setCustomerPhoneCopied(false), 1800);
-  };
 
   useEffect(() => {
     if (!heroSettings.autoplayEnabled || heroPaused || heroSlides.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
@@ -839,12 +822,7 @@ export default function HomeClient({
   return (
     <main id="main-content" tabIndex={-1} dir="rtl" className="home-page">
       {pageView === "home" && <h1 className="seo-page-title">وكالة إسحاق العالمية للطابعات والأوراق والأحبار</h1>}
-      <div className="topbar">
-        <div className="container topbar-inner">
-          <span>📍 {settings.address}</span>
-          <div className="topbar-links"><span>توصيل إلى جميع المحافظات</span><span className="topbar-customer"><a dir="ltr" href={customerPhoneHref} aria-label={`الاتصال بخدمة العملاء على الرقم ${customerPhoneDisplay}`}>خدمة العملاء: {customerPhoneDisplay}</a><button type="button" onClick={copyCustomerPhone} aria-label={`نسخ رقم خدمة العملاء ${customerPhoneDisplay}`}>{customerPhoneCopied ? "تم النسخ ✓" : "نسخ"}</button></span></div>
-        </div>
-      </div>
+      <PublicTopBar settings={settings}/>
 
       <header className={headerCompact ? "header compact" : "header"}>
         <div className="container nav-wrap">

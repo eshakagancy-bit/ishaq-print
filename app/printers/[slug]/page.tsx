@@ -16,6 +16,7 @@ import StorefrontFooter from "../../storefront-footer";
 import PublicSearchControl from "../../global-search-drawer";
 import ProductShare from "../../product-share";
 import { AddToCartButton, CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
+import PublicTopBar from "../../public-topbar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,6 +84,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
 
   return (
     <><main id="main-content" tabIndex={-1} className="printer-details-page">
+      <PublicTopBar settings={settings}/>
       <header className="printer-details-header">
         <div className="container">
           <Link href="/printers" className="printer-back-link">العودة إلى الطابعات</Link>
