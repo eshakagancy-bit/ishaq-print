@@ -68,15 +68,12 @@ test("homepage categories are three unified square-artwork links without legacy 
   assert.match(styles, /\.storefront-category-card:focus-visible \{[^}]*outline:/);
 });
 
-test("collections provide real safe sorting and a mobile filter drawer", async () => {
+test("collections place search directly before products without filters, sorting or counts", async () => {
   const [client, styles] = await Promise.all([read("app/category-products-client.tsx"), read("app/globals.css")]);
-  assert.match(client, /type SortMode = "default" \| "name-asc" \| "name-desc"/);
-  assert.match(client, /productNameCollator\.compare\(displayName\(first\), displayName\(second\)\)/);
-  assert.match(client, /value="name-asc">الاسم A–Z/);
-  assert.match(client, /value="name-desc">الاسم Z–A/);
-  assert.doesNotMatch(client, /price-(?:asc|desc)|الأقل سعر|الأعلى سعر/);
-  assert.match(client, /aria-controls="collection-filters"/);
-  assert.match(styles, /\.printer-category-filters \{ position:fixed; z-index:72;/);
+  assert.match(client, /className="category-products-search"[\s\S]*?visibleProducts\.length \? <div className="category-products-list"/);
+  assert.match(client, /const normalizedQuery = query\.trim\(\)\.toLocaleLowerCase\("ar"\)/);
+  assert.doesNotMatch(client, /SortMode|sortMode|printerFilter|filtersOpen|collection-toolbar|collection-sort|collection-result-count|filter-toggle/);
+  assert.doesNotMatch(styles, /\.collection-toolbar|\.collection-sort|\.collection-result-count|\.filter-toggle|\.printer-category-filters/);
   assert.match(styles, /\.category-products-list \{ display:grid; grid-template-columns:repeat\(auto-fill,minmax\(230px,1fr\)\)/);
 });
 

@@ -10,18 +10,19 @@ test("one and three mobile printer results center the lone row without stretchin
   assert.match(styles, /data-category="printers"[^}]*\.category-product-row:last-child:nth-child\(odd\) \{[^}]*width:calc\(\(100% - 9px\)\/2\);[^}]*grid-column:1 \/ -1;[^}]*justify-self:center;/);
 });
 
-test("all result counts use the shared responsive storefront grid and safe sorting", () => {
+test("all search results use the shared responsive storefront grid", () => {
   assert.match(styles, /\.category-products-content \{ width:min\(1280px,calc\(100% - 48px\)\);/);
   assert.match(styles, /\.category-products-list \{ display:grid; grid-template-columns:repeat\(auto-fill,minmax\(230px,1fr\)\)/);
-  assert.match(client, /className="category-products-list"[^]*sortedProducts\.map\(\(product\) =>/);
+  assert.match(client, /className="category-products-list"[^]*visibleProducts\.map\(\(product\) =>/);
   assert.match(client, /<article className="category-product-row" key=\{product\.id\}/);
-  assert.match(client, /return \[\.\.\.visibleProducts\]\.sort/);
+  assert.match(client, /return products\.filter\(\(product\) =>/);
+  assert.doesNotMatch(client, /sortedProducts|sortMode/);
 });
 
 test("papers and inks keep the shared balanced row layout at every result count", () => {
   assert.doesNotMatch(styles, /data-category="(?:papers|inks)"[^}]*\.category-products-list/);
   assert.doesNotMatch(styles, /data-category="(?:papers|inks)"[^}]*\.category-product-row:last-child/);
-  assert.match(client, /category === "printers" && <><div className=\{filtersOpen/);
+  assert.doesNotMatch(client, /printerFilter|filtersOpen|printer-category-filters/);
 });
 
 test("sparse-result styling does not remove card images or actions", () => {

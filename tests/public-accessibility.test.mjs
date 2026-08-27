@@ -18,7 +18,7 @@ test("public layout provides a visible-on-focus skip link and a focusable main t
   assert.match(styles, /:focus-visible\s*\{[^}]*outline:/);
 });
 
-test("navigation, filters, sliders and favorites expose state to assistive technology", async () => {
+test("navigation, sliders and favorites expose state to assistive technology", async () => {
   const [home, category] = await Promise.all([
     read("app/home-client.tsx"),
     read("app/category-products-client.tsx"),
@@ -31,8 +31,8 @@ test("navigation, filters, sliders and favorites expose state to assistive techn
   assert.match(home, /role="region"[\s\S]*?tabIndex=\{0\}[\s\S]*?aria-label=\{`منتجات \$\{label\}، مرر أفقيًا لعرض المزيد`\}/);
   assert.doesNotMatch(home, /inert=\{index !== activeGroup\} aria-hidden=\{index !== activeGroup\}/);
   assert.match(home, /aria-pressed=\{favorites\.includes\(product\.id\)\}/);
-  assert.match(category, /aria-pressed=\{printerFilter === item\.value\}/);
   assert.match(category, /aria-pressed=\{favorites\.includes\(product\.id\)\}/);
+  assert.match(category, /<label className="category-products-search">/);
 });
 
 test("quick view and favorites dialogs manage focus and close from Escape", async () => {

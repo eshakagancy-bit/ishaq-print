@@ -116,9 +116,7 @@ assert.equal(await evaluate("document.activeElement?.classList.contains('quick-v
 
 await navigate("/printers", 1366, 768);
 assert.equal(await evaluate("document.querySelector('.category-products-search input')?.labels?.length > 0"), true, "search needs a label");
-await evaluate("document.querySelectorAll('.printer-category-filters button')[1].focus()");
-await key(" ", "Space");
-assert.equal(await evaluate("document.querySelectorAll('.printer-category-filters button')[1].getAttribute('aria-pressed')"), "true", "filter state");
+await evaluate("document.querySelector('.category-products-search input').focus()");
 assert.notEqual(await evaluate("getComputedStyle(document.activeElement).outlineStyle"), "none", "focus indicator");
 
 await navigate("/", 390, 844);

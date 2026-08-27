@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { ALL_PRINTERS_FILTER, PRINTER_CATEGORIES } from "../app/printer-categories.ts";
 import { seedAdminSession } from "./browser-admin-session.mjs";
 
 const require = createRequire(import.meta.url);
@@ -105,39 +104,26 @@ async function openCdpPage(url) {
 
 const page = await openCdpPage(`${PUBLIC_APP_URL}/printers`);
 console.log("home-loaded");
-await page.waitFor("document.querySelectorAll('[aria-label=\"تصنيف الطابعات\"] > button:not(.clear-active-filter)').length === 5");
+await page.waitFor("document.querySelectorAll('.category-product-row').length > 0");
 
 const initial = await page.evaluate(`(() => ({
   direction: getComputedStyle(document.body).direction,
-  labels: [...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button:not(.clear-active-filter) span')].map((element) => element.textContent.trim()),
-  productCount: document.querySelectorAll('.category-product-row').length
+  productCount: document.querySelectorAll('.category-product-row').length,
+  searchLabelled: document.querySelector('.category-products-search input')?.labels?.length > 0,
+  removedControls: document.querySelectorAll('.collection-toolbar,.filter-toggle,.collection-sort,.collection-result-count,.printer-category-filters').length,
 }))()`);
 
 assert.equal(initial.direction, "rtl");
-assert.equal(initial.labels[0].startsWith(ALL_PRINTERS_FILTER.label), true);
-for (const category of PRINTER_CATEGORIES) assert.ok(initial.labels.some((label) => label.startsWith(category.label.split(" (")[0])));
-assert.ok(initial.productCount > 0, "the all filter should show the existing printers");
-await page.evaluate("document.documentElement.style.scrollBehavior = 'auto'; document.querySelector('[aria-label=\"تصنيف الطابعات\"]').scrollIntoView({ block: 'center' })");
-await delay(100);
-await page.screenshot("printer-filters-desktop.png");
-
-const filterResults = {};
-for (const category of PRINTER_CATEGORIES) {
-  const prefix = category.label.split(" (")[0];
-  const expectedCount = await page.evaluate(`[...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button')].find((button) => button.querySelector('span')?.textContent.trim().startsWith(${JSON.stringify(prefix)}))?.querySelector('small')?.textContent.trim()`);
-  await page.evaluate(`(() => {
-    const prefix = ${JSON.stringify(prefix)};
-    [...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button')].find((button) => button.querySelector('span')?.textContent.trim().startsWith(prefix)).click();
-  })()`);
-  await page.waitFor(`document.querySelectorAll('.category-product-row').length === ${Number(expectedCount)}`);
-  filterResults[category.value] = Number(expectedCount);
-}
-assert.equal(Object.values(filterResults).reduce((total, count) => total + count, 0), initial.productCount);
-
+assert.ok(initial.productCount > 0, "the collection should show the existing printers");
+assert.equal(initial.searchLabelled, true);
+assert.equal(initial.removedControls, 0);
 await page.evaluate(`(() => {
-  [...document.querySelectorAll('[aria-label="تصنيف الطابعات"] > button')].find((button) => button.querySelector('span')?.textContent.trim().startsWith('الكل')).click();
+  const input = document.querySelector('.category-products-search input');
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'L4360');
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 })()`);
-await page.waitFor(`document.querySelectorAll('.category-product-row').length === ${initial.productCount}`);
+await page.waitFor("document.querySelectorAll('.category-product-row').length === 1");
+await page.screenshot("printer-search-only-desktop.png");
 
 await page.send("Emulation.setDeviceMetricsOverride", {
   width: 390,
@@ -146,20 +132,16 @@ await page.send("Emulation.setDeviceMetricsOverride", {
   mobile: true,
 });
 await delay(150);
-await page.evaluate("document.querySelector('.filter-toggle').click()");
-await page.waitFor("document.querySelector('.printer-category-filters').classList.contains('open')");
 const mobileLayout = await page.evaluate(`(() => {
-  const filters = document.querySelector('.printer-category-filters');
-  const rect = filters.getBoundingClientRect();
   return {
-    visible: rect.left >= 0 && rect.right <= innerWidth,
+    removedControls: document.querySelectorAll('.collection-toolbar,.filter-toggle,.collection-sort,.collection-result-count,.printer-category-filters').length,
     fitsWidth: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
   };
 })()`);
-assert.equal(mobileLayout.visible, true);
+assert.equal(mobileLayout.removedControls, 0);
 assert.equal(mobileLayout.fitsWidth, true);
-await page.screenshot("printer-filters-mobile.png");
-console.log("home-filters-passed");
+await page.screenshot("printer-search-only-mobile.png");
+console.log("home-search-only-passed");
 
 await page.send("Emulation.setDeviceMetricsOverride", {
   width: 1365,

@@ -255,13 +255,6 @@ button { cursor:pointer; }
 .category-products-content { width:min(920px,calc(100% - 40px)); padding:48px 0 80px; }
 .category-products-title span { color:var(--cyan-dark); font-size:11px; font-weight:900; }
 .category-products-title h1 { margin:8px 0 24px; font-size:clamp(28px,4vw,42px); }
-.printer-category-filters { width:100%; max-width:100%; min-width:0; margin-bottom:22px; padding:2px 1px 5px; display:flex; flex-wrap:wrap; gap:8px; overflow-x:visible; }
-.printer-category-filters::-webkit-scrollbar { display:none; }
-.printer-category-filters button { flex:0 0 auto; min-height:42px; padding:8px 14px; display:flex; align-items:center; gap:7px; border:1px solid var(--line); border-radius:24px; background:#fff; color:#526071; font:inherit; font-size:11px; font-weight:800; white-space:nowrap; }
-.printer-category-filters button span,.printer-category-filters button small { flex:0 0 auto; white-space:nowrap; }
-.printer-category-filters button small { min-width:20px; padding:2px 5px; border-radius:10px; background:#eef4f5; color:var(--muted); font-size:9px; text-align:center; }
-.printer-category-filters button.active { border-color:var(--navy); background:var(--navy); color:#fff; }
-.printer-category-filters button.active small { background:rgba(255,255,255,.16); color:#fff; }
 .category-products-search { display:grid; gap:7px; margin-bottom:24px; color:var(--muted); font-size:10px; font-weight:800; }
 .category-products-search input { width:100%; min-height:46px; border:1px solid var(--line); border-radius:10px; padding:10px 14px; background:#fff; color:var(--ink); font:inherit; }
 .category-products-list { display:flex; flex-direction:column; gap:18px; }
@@ -577,7 +570,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .favorites-empty a { min-height:42px; margin-top:8px; padding:0 22px; display:inline-flex; align-items:center; border-radius:8px; background:var(--store-navy); color:#fff; font-weight:800; }
 
 @media (max-width:1000px) {
-  .printer-category-filters { flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-inline:contain; scroll-padding-inline:1px; scrollbar-width:none; touch-action:pan-x; -webkit-overflow-scrolling:touch; }
   .nav-links { gap:18px; } .nav-contact { display:none; }
   .category-grid { grid-template-columns:repeat(3,1fr); } .services-grid { grid-template-columns:repeat(2,1fr); }
   .maintenance-contact-layout { gap:40px; }
@@ -1017,19 +1009,8 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .category-products-content { width:min(1280px,calc(100% - 48px)); padding:38px 0 80px; }
 .collection-breadcrumb { display:flex; align-items:center; gap:8px; margin-bottom:24px; color:#7b8792; font-size:11px; }
 .category-products-title { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:22px; }
-.category-products-title h1 { margin:6px 0 0; font-size:clamp(34px,4vw,50px); } .category-products-title p { color:var(--muted); font-size:12px; }
+.category-products-title h1 { margin:6px 0 0; font-size:clamp(34px,4vw,50px); }
 .category-products-search { max-width:620px; margin-bottom:20px; } .category-products-search input { min-height:50px; border-radius:9px; }
-.collection-toolbar { min-height:64px; margin-bottom:18px; padding-block:10px; display:flex; align-items:center; justify-content:space-between; gap:18px; border-block:1px solid var(--store-line); }
-.collection-toolbar>div { display:flex; align-items:center; gap:14px; }
-.filter-toggle { min-height:40px; padding:0 15px; border:1px solid var(--store-navy); border-radius:8px; background:#fff; color:var(--store-navy); font:inherit; font-size:11px; font-weight:800; }
-.collection-result-count { color:var(--muted); font-size:11px; }
-.collection-sort { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:10px; font-weight:700; }
-.collection-sort select { min-height:40px; min-width:170px; padding:0 12px; border:1px solid var(--store-line); border-radius:8px; background:#fff; color:var(--store-navy); font:inherit; font-size:11px; }
-.filter-drawer-heading { display:none; }
-.printer-category-filters { margin:0 0 24px; padding:0; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
-.printer-category-filters button { min-height:40px; border-radius:8px; }
-.printer-category-filters .clear-active-filter { margin-inline-start:auto; border-color:#f1c9c5; color:#a33a31; }
-.collection-filter-backdrop { display:none; }
 .category-products-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); align-items:stretch; gap:16px; }
 .category-product-row { min-width:0; height:100%; display:flex; flex-direction:column; overflow:hidden; border:1px solid var(--store-line); border-radius:12px; background:#fff; box-shadow:none; transition:.22s; }
 .category-product-row:hover { transform:translateY(-3px); border-color:#bcdbe1; box-shadow:var(--store-shadow); }
@@ -1148,14 +1129,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .category-products-header .collection-brand img,.categories-index-header .collection-brand img { width:126px; height:54px; }
   .collection-header-actions>a:first-child { display:none; } .collection-header-actions>a,.collection-header-actions>button,.categories-contact { min-height:36px; padding:0 9px; font-size:9px; }
   .category-products-content { width:calc(100% - 24px); padding:24px 0 58px; }
-  .category-products-title h1 { font-size:32px; } .collection-toolbar { align-items:stretch; }
-  .collection-sort { align-items:stretch; flex-direction:column; gap:4px; } .collection-sort select { min-width:150px; }
-  .printer-category-filters { position:fixed; z-index:72; right:0; bottom:0; left:0; max-height:78vh; margin:0; padding:20px 16px calc(20px + env(safe-area-inset-bottom)); display:grid; gap:8px; overflow:auto; border-radius:18px 18px 0 0; background:#fff; box-shadow:0 -20px 60px rgba(0,0,0,.24); transform:translateY(105%); transition:transform .25s ease; }
-  .printer-category-filters.open { transform:translateY(0); } .printer-category-filters button { width:100%; justify-content:space-between; border-radius:9px; white-space:normal; text-align:start; }
-  .filter-drawer-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
-  .filter-drawer-heading button { width:38px; min-height:38px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--store-surface); font-size:23px; }
-  .collection-filter-backdrop { position:fixed; z-index:71; inset:0; display:block; background:rgba(5,18,32,.5); opacity:0; visibility:hidden; transition:.2s; }
-  .collection-filter-backdrop.open { opacity:1; visibility:visible; }
+  .category-products-title h1 { font-size:32px; }
   .category-products-list,.category-products-page[data-category="printers"] .category-products-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
   .category-product-row,.category-products-page[data-category="printers"] .category-product-row { width:auto!important; height:100%; display:flex; flex-direction:column; grid-column:auto!important; justify-self:stretch!important; }
   .category-product-image,.category-products-page[data-category="printers"] .category-product-image { height:150px; flex:0 0 150px; }
@@ -1177,7 +1151,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 @media (max-width:430px) {
   .storefront-section-heading { display:block; } .storefront-section-heading>a { margin-top:12px; }
   .services-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .storefront-footer-grid { grid-template-columns:1fr; }
-  .collection-result-count { display:none; } .collection-sort select { min-width:138px; }
   .category-products-list,.category-products-page[data-category="printers"] .category-products-list { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
   .category-product-image,.category-products-page[data-category="printers"] .category-product-image { height:auto; flex:0 0 auto; aspect-ratio:1/1; }
   .category-product-image img,.category-products-page[data-category="printers"] .category-product-image img { width:86%; height:86%; }
