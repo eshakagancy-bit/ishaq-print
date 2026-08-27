@@ -982,6 +982,14 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .product-image img { width:88%; height:88%; object-fit:contain; mix-blend-mode:multiply; }
 .heart { left:12px; top:12px; width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--store-line); background:rgba(255,255,255,.94); }
 .heart svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; } .heart.active svg { fill:currentColor; }
+.product-card-cart { position:absolute; z-index:6; top:12px; right:12px; width:36px; height:36px; padding:0; display:grid; place-items:center; border:1px solid var(--store-line); border-radius:50%; background:rgba(255,255,255,.96); color:var(--store-navy); cursor:pointer; box-shadow:0 5px 14px rgba(15,38,50,.08); transition:transform .18s ease,background .18s ease,color .18s ease,border-color .18s ease; }
+.product-card-cart svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.product-card-cart:hover { transform:translateY(-1px); border-color:var(--store-cyan); background:var(--store-navy); color:#fff; }
+.product-card-cart:active { transform:scale(.94); }
+.product-card-cart:focus-visible { outline:2px solid var(--store-cyan); outline-offset:3px; }
+.product-image>.product-badge,.category-product-image>.product-badge { top:56px; right:12px; max-width:calc(100% - 24px); }
+.product-card-cart-feedback { position:fixed; z-index:120; bottom:24px; left:50%; width:max-content; max-width:calc(100vw - 32px); padding:10px 15px; border-radius:999px; background:var(--store-navy); color:#fff; font-size:11px; font-weight:800; box-shadow:0 12px 36px rgba(4,20,35,.24); pointer-events:none; transform:translateX(-50%); animation:product-card-cart-feedback 2.2s ease both; }
+@keyframes product-card-cart-feedback { 0% { opacity:0; transform:translate(-50%,8px); } 12%,78% { opacity:1; transform:translate(-50%,0); } 100% { opacity:0; transform:translate(-50%,4px); } }
 .product-image .quick-view,.category-product-image .quick-view { position:absolute; right:12px; bottom:12px; z-index:5; width:36px; height:36px; min-height:36px; margin:0; padding:0; display:grid; place-items:center; border:1px solid var(--store-line); border-radius:50%; background:#fff; color:var(--store-navy); opacity:0; transform:translateY(5px); transition:.2s; }
 .product-card:hover .product-image .quick-view,.category-product-row:hover .category-product-image .quick-view,.product-image .quick-view:focus-visible,.category-product-image .quick-view:focus-visible { opacity:1; transform:none; }
 .product-image .quick-view svg,.category-product-image .quick-view svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7; }
@@ -1151,6 +1159,10 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .category-products-list,.category-products-page[data-category="printers"] .category-products-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
   .category-product-row,.category-products-page[data-category="printers"] .category-product-row { width:auto!important; height:100%; display:flex; flex-direction:column; grid-column:auto!important; justify-self:stretch!important; }
   .category-product-image,.category-products-page[data-category="printers"] .category-product-image { height:150px; flex:0 0 150px; }
+  .product-card-cart { top:7px; right:7px; width:32px; height:32px; }
+  .product-card-cart svg { width:16px; height:16px; }
+  .product-image>.product-badge,.category-product-image>.product-badge { top:44px; right:7px; max-width:calc(100% - 14px); }
+  .product-card-cart-feedback { bottom:calc(18px + env(safe-area-inset-bottom)); font-size:10px; }
   .category-product-content,.category-products-page[data-category="printers"] .category-product-content { padding:10px; }
   .category-product-content h2,.category-products-page[data-category="printers"] .category-product-content h2 { min-height:40px; margin:5px 0 8px; font-size:11px; line-height:1.65; }
   .category-product-price strong { font-size:9px; } .category-product-actions a { min-height:35px; font-size:7px; }

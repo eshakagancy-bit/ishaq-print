@@ -7,7 +7,7 @@ import { SITE_URL } from "./seo";
 import { INK_FULL_SET_VARIANT_CODE, buildOrderWhatsAppUrl, type CartItemInput } from "./order-cart";
 import { HEADER_DRAWER_EVENT, useOrderCart, type HeaderDrawerName } from "./order-cart-provider";
 
-function CartIcon() {
+export function CartIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.1 10.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>;
 }
 

@@ -27,6 +27,47 @@ export type CartItem = {
 
 export type CartItemInput = Omit<CartItem, "key" | "quantity"> & { quantity?: number };
 
+type CardProductCategory = "printers" | "papers" | "inks";
+
+type ProductCardCartInput = {
+  category: CardProductCategory;
+  productId: string;
+  productName: string;
+  productUrl: string;
+  image: string;
+  inkVariantCount?: number;
+};
+
+export type ProductCardCartAction =
+  | { kind: "add"; item: CartItemInput }
+  | { kind: "choose-options"; href: string };
+
+const productTypes: Record<CardProductCategory, CartProductType> = {
+  printers: "printer",
+  papers: "paper",
+  inks: "ink",
+};
+
+export function buildProductCardCartAction(input: ProductCardCartInput): ProductCardCartAction {
+  if (input.category === "inks" && (input.inkVariantCount ?? 0) > 0) {
+    return { kind: "choose-options", href: input.productUrl };
+  }
+
+  return {
+    kind: "add",
+    item: {
+      productType: productTypes[input.category],
+      productId: input.productId,
+      productName: input.productName,
+      productUrl: input.productUrl,
+      image: input.image,
+      ...(input.category === "inks" ? {
+        variant: { code: INK_FULL_SET_VARIANT_CODE, label: INK_FULL_SET_VARIANT_LABEL },
+      } : {}),
+    },
+  };
+}
+
 const CART_PRODUCT_TYPES = new Set<CartProductType>(["printer", "paper", "ink"]);
 
 function boundedQuantity(value: unknown) {
