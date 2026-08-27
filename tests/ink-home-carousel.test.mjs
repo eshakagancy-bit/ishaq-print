@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("ink carousels never autoplay while card and quick-view controls stay interactive", async () => {
+test("ink carousels omit pagination dots while arrows and swipe stay interactive without autoplay", async () => {
   const [home, categories, modal, carousel] = await Promise.all([
     read("app/home-client.tsx"),
     read("app/category-products-client.tsx"),
@@ -21,5 +21,5 @@ test("ink carousels never autoplay while card and quick-view controls stay inter
   assert.match(carousel, /onTouchEnd=\{staticMode \? undefined/);
   assert.match(carousel, /aria-label="الصورة السابقة"/);
   assert.match(carousel, /aria-label="الصورة التالية"/);
-  assert.match(carousel, /aria-label="اختيار صورة المنتج"/);
+  assert.doesNotMatch(carousel, /ink-carousel-dots|اختيار صورة المنتج|عرض الصورة/);
 });

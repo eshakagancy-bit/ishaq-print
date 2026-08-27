@@ -50,7 +50,6 @@ export default function InkImageCarousel({ images, alt, variant = "card" }: InkI
     {multiple && !staticMode && <>
       <button type="button" className="ink-carousel-arrow previous" onClick={() => show(activeIndex - 1)} aria-label="الصورة السابقة">‹</button>
       <button type="button" className="ink-carousel-arrow next" onClick={() => show(activeIndex + 1)} aria-label="الصورة التالية">›</button>
-      <div className="ink-carousel-dots" aria-label="اختيار صورة المنتج">{availableImages.map((image, index) => <button type="button" className={index === activeIndex ? "active" : ""} onClick={() => show(index)} aria-label={`عرض الصورة ${index + 1}`} aria-current={index === activeIndex ? "true" : undefined} key={image} />)}</div>
     </>}
   </div>;
 }
