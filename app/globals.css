@@ -3,7 +3,7 @@
 @font-face { font-family:"Alexandria"; src:url("/fonts/alexandria-arabic-700-normal.woff2") format("woff2"); font-style:normal; font-weight:700; font-display:swap; }
 @font-face { font-family:"Alexandria"; src:url("/fonts/alexandria-arabic-800-normal.woff2") format("woff2"); font-style:normal; font-weight:800; font-display:swap; }
 
-:root { --ink:#111b2e; --muted:#667085; --cyan:#05a9c6; --cyan-dark:#058ba5; --navy:#07182b; --soft:#f4f8fa; --line:#e6edf0; --main-header-background:#0ca1c1; }
+:root { --ink:#111b2e; --muted:#667085; --cyan:#05a9c6; --cyan-dark:#058ba5; --navy:#07182b; --soft:#f4f8fa; --line:#e6edf0; --main-header-background:rgba(255,255,255,.98); }
 * { box-sizing:border-box; }
 body,h1,h2,h3,p,ul { margin:0; }
 ul { padding:0; list-style:none; }
@@ -997,7 +997,6 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .categories-index-page { background:#fff; } .categories-index-content { padding-block:38px 76px; }
 .categories-index-title h1 { font-size:clamp(34px,4vw,50px); }
 .printer-details-page { background:#fff; } .printer-details-header { background:var(--main-header-background); }
-.printer-details-header .printer-back-link { color:var(--store-navy); }
 .printer-details-header .container { min-height:76px; } .printer-hero { padding:28px 0 64px; }
 .printer-hero-grid { grid-template-columns:minmax(0,1.05fr) minmax(420px,.95fr); gap:64px; }
 .printer-gallery { border:0; background:#fff; } .product-gallery-main { min-height:510px; border:1px solid var(--store-line); border-radius:14px; background:#fff; }

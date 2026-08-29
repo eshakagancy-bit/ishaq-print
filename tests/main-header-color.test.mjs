@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("every storefront main header uses the shared solid cyan background", async () => {
+test("every storefront main header uses the shared original white background", async () => {
   const [styles, home, collections, categories, printer, ink, paper] = await Promise.all([
     read("app/globals.css"),
     read("app/home-client.tsx"),
@@ -15,11 +15,12 @@ test("every storefront main header uses the shared solid cyan background", async
     read("app/papers/[slug]/page.tsx"),
   ]);
 
-  assert.match(styles, /--main-header-background:#0ca1c1/);
+  assert.match(styles, /--main-header-background:rgba\(255,255,255,\.98\)/);
+  assert.doesNotMatch(styles, /--main-header-background:#0ca1c1/);
   assert.match(styles, /\.header \{[^}]*background:var\(--main-header-background\)/);
   assert.match(styles, /\.category-products-header,\.categories-index-header \{[^}]*background:var\(--main-header-background\)/);
   assert.match(styles, /\.printer-details-header \{[^}]*background:var\(--main-header-background\)/);
-  assert.match(styles, /\.printer-details-header \.printer-back-link \{ color:var\(--store-navy\); \}/);
+  assert.match(styles, /\.printer-back-link \{ color:var\(--cyan-dark\);/);
   assert.match(home, /<header className="header">/);
   assert.match(collections, /className="category-products-header"/);
   assert.match(categories, /className="categories-index-header"/);
