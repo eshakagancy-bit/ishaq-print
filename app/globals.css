@@ -992,11 +992,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .category-product-price small { color:var(--muted); font-size:8px; } .category-product-price strong { font-size:11px; }
 .category-product-actions { padding-top:10px; border:0; }
 .category-product-actions a { width:100%; min-height:40px; display:grid; place-items:center; border:0; border-radius:7px; background:var(--store-navy); color:#fff; font-size:9px; }
-.printer-text-panel { min-width:0; padding:9px 10px; border-radius:7px; background:var(--store-navy); color:#fff; }
-.printer-text-panel :is(h2,h3) a,.printer-text-panel :is(h2,h3) a:hover { color:#fff; }
-.printer-text-panel .product-category-line,.printer-text-panel .product-family { display:block; text-transform:none; }
-.product-card[data-category="printers"] .printer-text-panel { margin-top:5px; }
-.category-products-page[data-category="printers"] .printer-text-panel { margin-bottom:8px; }
+.homepage-product-text-panel { min-width:0; margin-top:5px; padding:9px 10px; border-radius:7px; background:#0ca1c1; color:#fff; }
 
 /* Categories and product details */
 .categories-index-page { background:#fff; } .categories-index-content { padding-block:38px 76px; }
@@ -1283,8 +1279,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .home-category-products .product-category-line { font-size:8px; line-height:1.4; }
 }
 
-.home-category-products .product-card[data-category="printers"] .printer-text-panel h3,
-.category-products-page[data-category="printers"] .printer-text-panel h2 {
+.home-category-products .homepage-product-text-panel h3 {
   min-height:0;
   margin:0;
   overflow:visible;
@@ -1292,8 +1287,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   overflow-wrap:anywhere;
   color:#fff;
 }
-.home-category-products .product-card[data-category="printers"] .printer-text-panel .product-category-line,
-.category-products-page[data-category="printers"] .printer-text-panel .product-family {
+.home-category-products .homepage-product-text-panel .product-category-line {
   margin-top:2px;
   overflow:visible;
   color:rgba(255,255,255,.82);
@@ -1301,7 +1295,5 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 }
 
 @media (max-width:430px) {
-  .printer-text-panel { padding:5px 6px; }
-  .home-category-products .product-card[data-category="printers"] .printer-text-panel,
-  .category-products-page[data-category="printers"] .printer-text-panel { margin-top:2px; margin-bottom:4px; }
+  .homepage-product-text-panel { margin-top:2px; padding:5px 6px; }
 }
