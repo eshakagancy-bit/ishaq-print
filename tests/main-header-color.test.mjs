@@ -20,7 +20,7 @@ test("every storefront main header uses the shared solid cyan background", async
   assert.match(styles, /\.category-products-header,\.categories-index-header \{[^}]*background:var\(--main-header-background\)/);
   assert.match(styles, /\.printer-details-header \{[^}]*background:var\(--main-header-background\)/);
   assert.match(styles, /\.printer-details-header \.printer-back-link \{ color:var\(--store-navy\); \}/);
-  assert.match(home, /className=\{headerCompact \? "header compact" : "header"\}/);
+  assert.match(home, /<header className="header">/);
   assert.match(collections, /className="category-products-header"/);
   assert.match(categories, /className="categories-index-header"/);
   for (const details of [printer, ink, paper]) assert.match(details, /className="printer-details-header"/);

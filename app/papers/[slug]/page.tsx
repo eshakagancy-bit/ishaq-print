@@ -86,5 +86,5 @@ export default async function PaperDetailsPage({ params }: PageProps) {
       {content?.faq.some((item) => item.question) && <section id="faq"><h2>الأسئلة الشائعة</h2><div className="printer-faq">{content.faq.filter((item) => item.question).map((item, index) => <details key={`${item.question}-${index}`}><summary>{item.question}</summary>{item.answer && <p>{item.answer}</p>}</details>)}</div></section>}
       {similar.length > 0 && <section id="similar-products"><h2>منتجات ورقية مشابهة</h2><div className="similar-printers">{similar.map((item) => <Link href={`/papers/${getPaperSlug(item)}`} key={item.id}><Image src={item.images?.[0] || item.image || "/brand/eshak-logo.png"} alt={item.paperSpecifications?.nameEn || item.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{item.paperSpecifications?.nameEn || item.name}</b><span>{item.paperSpecifications?.paperType || item.type}</span></Link>)}</div></section>}
     </div>
-    <CartDrawerOverlay/></main><StorefrontFooter settings={settings} /></>;
+    <CartDrawerOverlay/><StorefrontFooter settings={settings} /></main></>;
 }

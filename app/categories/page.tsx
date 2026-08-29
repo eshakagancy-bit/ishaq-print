@@ -28,5 +28,5 @@ export default async function CategoriesPage() {
       <div className="categories-index-title"><span>أقسام المنتجات</span><h1>تسوق حسب الفئة</h1><p>اختر القسم الذي تريد تصفحه</p></div>
       <StorefrontCategoryLinks/>
     </section>
-    <CartDrawerOverlay/></main><StorefrontFooter settings={data.settings} /></>;
+    <CartDrawerOverlay/><StorefrontFooter settings={data.settings} /></main></>;
 }

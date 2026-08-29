@@ -377,7 +377,6 @@ export default function HomeClient({
   const favoritesOpen = activeHeaderDrawer === "wishlist";
   const searchOpen = activeHeaderDrawer === "search";
   const [importantLinksOpen, setImportantLinksOpen] = useState(false);
-  const [headerCompact, setHeaderCompact] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>("home");
   const [scrollRequest, setScrollRequest] = useState<{ targetId: string; sequence: number } | null>(null);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
@@ -536,8 +535,6 @@ export default function HomeClient({
     const updateActiveSection = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
-        const nextHeaderCompact = window.scrollY >= 96;
-        setHeaderCompact((current) => current === nextHeaderCompact ? current : nextHeaderCompact);
         if (window.scrollY < 40) {
           setMobileNavSection("home");
           return;
@@ -819,7 +816,7 @@ export default function HomeClient({
       {pageView === "home" && <h1 className="seo-page-title">وكالة إسحاق العالمية للطابعات والأوراق والأحبار</h1>}
       <PublicTopBar settings={settings}/>
 
-      <header className={headerCompact ? "header compact" : "header"}>
+      <header className="header">
         <div className="container nav-wrap">
           <button ref={menuButtonRef} className="menu-btn" type="button" onClick={openSiteMenu} aria-label="فتح القائمة" aria-controls="site-menu-drawer" aria-expanded={menuOpen}><span></span><span></span><span></span></button>
           {usesRouteNavigation

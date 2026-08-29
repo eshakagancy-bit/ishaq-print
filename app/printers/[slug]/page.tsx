@@ -142,6 +142,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
         {similarProducts.length > 0 && <section id="similar-products"><h2>منتجات مشابهة</h2><div className="similar-printers">{similarProducts.map((printer) => <Link href={`/printers/${getPrinterSlug(printer)}`} key={printer.id}><Image src={printer.image || "/brand/eshak-logo.png"} alt={printer.name} width={320} height={230} sizes="(max-width: 600px) 82vw, 240px" /><b>{printer.name}</b><span>{getPrinterCategoryLabel(printer.printerCategory)}</span></Link>)}</div></section>}
       </div>
       <CartDrawerOverlay/>
-    </main><StorefrontFooter settings={settings} /></>
+      <StorefrontFooter settings={settings} />
+    </main></>
   );
 }

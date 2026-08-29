@@ -68,5 +68,5 @@ export default async function InkDetailsPage({ params }: PageProps) {
       {specifications?.features.length ? <section id="features"><h2>المميزات الرئيسية</h2><div className="printer-content-cards">{specifications.features.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
       {specifications?.uses.length ? <section id="uses"><h2>الاستخدامات المناسبة</h2><div className="printer-content-cards">{specifications.uses.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
     </div>
-    <CartDrawerOverlay/></main><StorefrontFooter settings={settings} /></>;
+    <CartDrawerOverlay/><StorefrontFooter settings={settings} /></main></>;
 }
