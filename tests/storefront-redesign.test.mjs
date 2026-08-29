@@ -31,6 +31,7 @@ test("homepage product tiles use factual category lines instead of price and com
   assert.match(card, /\? "heart active" : "heart"/);
   assert.match(card, /className="quick-view"/);
   assert.match(card, /className="product-category-line"/);
+  assert.match(card, /product\.category === "printers" \? <div className="printer-text-panel"><h3>/);
   assert.match(home, /HOME_PRINTER_LABELS\[product\.printerCategory\]/);
   assert.match(await read("app/printer-categories.ts"), /LQ \(طابعات الفواتير والسندات\)/);
   assert.match(home, /product\.inkSpecifications\?\.inkType\?\.trim\(\) \|\| product\.type/);
@@ -40,6 +41,7 @@ test("homepage product tiles use factual category lines instead of price and com
   assert.doesNotMatch(card, /productPriceLabel|className="price"|className="product-footer"|اعرف السعر والتوفر/);
   assert.match(styles, /\.product-card-link \{ position:absolute; z-index:2; inset:0;/);
   assert.match(styles, /\.product-category-line \{[^}]*color:var\(--store-cyan-dark\)/);
+  assert.match(styles, /\.printer-text-panel \{[^}]*border-radius:7px;[^}]*background:var\(--store-navy\);[^}]*color:#fff;/);
 });
 
 test("homepage categories are three unified square-artwork links without legacy card details", async () => {
