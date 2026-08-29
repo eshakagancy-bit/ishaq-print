@@ -17,7 +17,6 @@ import PublicSearchControl from "../../global-search-drawer";
 import ProductShare from "../../product-share";
 import { AddToCartButton, CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 import PublicTopBar from "../../public-topbar";
-import ProductMarquee from "../../product-marquee";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,7 +94,6 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
           <div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div>
         </div>
       </header>
-      <ProductMarquee products={products}/>
 
       <section className="printer-hero">
         <div className="container">
