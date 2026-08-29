@@ -5,7 +5,7 @@ import test from "node:test";
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("homepage follows the image-led storefront journey", async () => {
-  const [home, styles] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css")]);
+  const [home, styles, categoryLinks] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css"), read("app/storefront-category-links.tsx")]);
   const hero = home.indexOf('className="hero hero-slider"');
   const categories = home.indexOf('className="storefront-categories"');
   const products = home.indexOf('className="products-section"');
@@ -14,8 +14,8 @@ test("homepage follows the image-led storefront journey", async () => {
   assert.doesNotMatch(home, /className="feature-band"|من أول استشارة حتى تشغيل الطابعة|تواصل مع مختص الطابعات/);
   assert.doesNotMatch(home, /className="contact-banner"|دعنا نساعدك في اختيار الحل الأنسب/);
   assert.doesNotMatch(home, /className="search-panel-wrap"|ابحث في جميع المنتجات/);
-  assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
-  assert.match(home, /className="storefront-category-card"/);
+  assert.match(categoryLinks, /STOREFRONT_CATEGORY_ORDER: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
+  assert.match(categoryLinks, /className="storefront-category-card"/);
   assert.match(home, /className="product-card-link" href=\{detailsHref\}/);
   assert.doesNotMatch(home.slice(home.indexOf("const renderProductCard"), home.indexOf("return (", home.indexOf("const renderProductCard"))), /cardTags|product\.description/);
   assert.match(styles, /\.storefront-category-grid \{ display:grid; grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
@@ -43,25 +43,26 @@ test("homepage product tiles use factual category lines instead of price and com
 });
 
 test("homepage categories are three unified square-artwork links without legacy card details", async () => {
-  const [home, styles] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css")]);
+  const [home, styles, categoryLinks] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css"), read("app/storefront-category-links.tsx")]);
   const categoryStart = home.indexOf('<section className="storefront-categories"');
   const section = home.slice(categoryStart, home.indexOf("</div></section>", categoryStart) + "</div></section>".length);
 
-  assert.equal((section.match(/className="storefront-category-card"/g) ?? []).length, 1, "one mapped category-link template renders the three current categories");
-  assert.match(section, /homeCategoryOrder\.map/);
-  assert.match(section, /href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}/);
-  assert.match(section, /<h3>\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label\}<\/h3>/);
+  assert.match(section, /<StorefrontCategoryLinks\/>/);
+  assert.equal((categoryLinks.match(/className="storefront-category-card"/g) ?? []).length, 1, "one mapped category-link template renders the three current categories");
+  assert.match(categoryLinks, /STOREFRONT_CATEGORY_ORDER\.map/);
+  assert.match(categoryLinks, /href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}/);
+  assert.match(categoryLinks, /<h3>\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label\}<\/h3>/);
   assert.doesNotMatch(section, /منتجات|تصفح القسم|تسوق الآن|عرض جميع الفئات|<b>|<i/);
-  assert.match(home, /printers:\s*"\/categories\/printers-unified\.png"/);
-  assert.match(home, /inks:\s*"\/categories\/inks-unified\.png"/);
-  assert.match(home, /papers:\s*"\/categories\/papers-unified\.png"/);
+  assert.match(categoryLinks, /printers:\s*"\/categories\/printers-unified\.png"/);
+  assert.match(categoryLinks, /inks:\s*"\/categories\/inks-unified\.png"/);
+  assert.match(categoryLinks, /papers:\s*"\/categories\/papers-unified\.png"/);
   assert.match(styles, /\.storefront-category-image \{[^}]*aspect-ratio:1;[^}]*overflow:visible;[^}]*background:transparent;/);
   assert.match(styles, /\.storefront-category-image img \{[^}]*object-fit:contain;[^}]*object-position:center;/);
   assert.doesNotMatch(styles, /\.storefront-category-image \{[^}]*border-radius:50%/);
   assert.match(styles, /@media \(hover:hover\) and \(pointer:fine\) \{ \.storefront-category-card:hover \{ transform:translateY\(-4px\) scale\(1\.03\); \} \}/);
   assert.match(styles, /\.storefront-category-image \{ width:clamp\(220px,23vw,320px\);/);
   assert.match(styles, /@media \(max-width:1100px\)[\s\S]*?\.storefront-category-image \{ width:clamp\(190px,21vw,230px\); \}/);
-  assert.match(home, /sizes="\(max-width: 760px\) 28vw, \(max-width: 1100px\) clamp\(190px, 21vw, 230px\), clamp\(220px, 23vw, 320px\)"/);
+  assert.match(categoryLinks, /sizes="\(max-width: 760px\) 28vw, \(max-width: 1100px\) clamp\(190px, 21vw, 230px\), clamp\(220px, 23vw, 320px\)"/);
   assert.match(styles, /@media \(prefers-reduced-motion:reduce\) \{ \.storefront-category-card,\.storefront-category-card:hover \{ transition:none; transform:none; \} \}/);
   assert.match(styles, /\.storefront-category-card \{[^}]*display:flex;[^}]*align-items:center;[^}]*cursor:pointer;/);
   assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.storefront-category-grid \{ grid-template-columns:repeat\(3,minmax\(0,1fr\)\); gap:12px; \}/);

@@ -22,7 +22,7 @@ test("home keeps every principal section and all category links", () => {
   }
   assert.doesNotMatch(home, /className="maintenance-hero"|id="maintenance"/);
   assert.match(home, /pageView === "maintenance"/);
-  assert.match(home, /homeCategoryOrder\.map/);
+  assert.match(home, /STOREFRONT_CATEGORY_ORDER\.map/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href/);
   assert.match(home, /<StorefrontFooter/);
   assert.match(footer, /<footer>/);

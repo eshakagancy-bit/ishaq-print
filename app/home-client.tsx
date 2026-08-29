@@ -38,7 +38,7 @@ import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
 import QuickViewModal from "./quick-view-modal";
-import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS, type PublicEnabledCategory } from "./public-categories";
+import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS } from "./public-categories";
 import { searchProducts, type ProductSearchScope } from "./global-product-search";
 import { maintenanceContacts, maintenanceServices, maintenanceWhatsappHref } from "./maintenance-data";
 import StorefrontFooter from "./storefront-footer";
@@ -46,6 +46,7 @@ import Image from "./storefront-image";
 import { CartDrawerOverlay, CartHeaderButton } from "./order-cart-ui";
 import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from "./order-cart-provider";
 import ProductCardCartButton from "./product-card-cart-button";
+import StorefrontCategoryLinks, { STOREFRONT_CATEGORY_ORDER } from "./storefront-category-links";
 
 const HERO_IMAGE_SIZES = "100vw";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -201,12 +202,6 @@ const categories = allCategories.filter((category) => isPublicCategoryEnabled(ca
 
 type CategoryId = typeof categories[number]["id"];
 
-const homeCategoryOrder: PublicEnabledCategory[] = ["printers", "inks", "papers"];
-const homeCategoryArtwork: Record<PublicEnabledCategory, string> = {
-  printers: "/categories/printers-unified.png",
-  inks: "/categories/inks-unified.png",
-  papers: "/categories/papers-unified.png",
-};
 function isCategoryId(value: string): value is CategoryId {
   return categories.some((category) => category.id === value);
 }
@@ -934,16 +929,14 @@ export default function HomeClient({
 
       <section className="storefront-categories" id="categories" aria-labelledby="storefront-categories-title"><div className="container">
         <div className="storefront-section-heading"><h2 id="storefront-categories-title">تسوق حسب الفئة</h2></div>
-        <div className="storefront-category-grid">{homeCategoryOrder.map((categoryId) => {
-          return <Link className="storefront-category-card" data-category={categoryId} href={PUBLIC_CATEGORY_DETAILS[categoryId].href} key={categoryId}><div className="storefront-category-image"><Image src={homeCategoryArtwork[categoryId]} alt={PUBLIC_CATEGORY_DETAILS[categoryId].label} width={1254} height={1254} sizes="(max-width: 760px) 28vw, (max-width: 1100px) clamp(190px, 21vw, 230px), clamp(220px, 23vw, 320px)" /></div><h3>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h3></Link>;
-        })}</div>
+        <StorefrontCategoryLinks/>
       </div></section>
 
       </>}
 
       {pageView === "home" && <>
       <section className="products-section" id="products"><div className="container">
-        <div className="home-category-sections">{homeCategoryOrder.map((categoryId) => {
+        <div className="home-category-sections">{STOREFRONT_CATEGORY_ORDER.map((categoryId) => {
           const categoryProducts = products.filter((product) => product.category === categoryId);
           const productCards = categoryProducts.map(renderProductCard);
           return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider products={productCards} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
@@ -953,7 +946,7 @@ export default function HomeClient({
       <nav ref={categoryStripRef} className="category-strip home-category-strip storefront-quick-categories" aria-label="أقسام المنتجات">
         <div className="container category-strip-list">
           <button type="button" className="active" onClick={openAllCategories} aria-current="page">جميع المنتجات</button>
-          {homeCategoryOrder.map((categoryId) => {
+          {STOREFRONT_CATEGORY_ORDER.map((categoryId) => {
             const category = categories.find((item) => item.id === categoryId);
             return category && <button key={category.id} type="button" onClick={() => openCategory(category.id)}>{category.name}</button>;
           })}

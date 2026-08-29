@@ -7,8 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 test("homepage product sections share one zero-wrap strip without navigation controls", async () => {
   const [home, styles] = await Promise.all([read("app/home-client.tsx"), read("app/globals.css")]);
 
-  assert.match(home, /homeCategoryOrder: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
-  assert.match(home, /homeCategoryOrder\.map/);
+  assert.match(home, /STOREFRONT_CATEGORY_ORDER\.map/);
   assert.match(home, /<HomeProductSlider products=\{productCards\}/);
   assert.doesNotMatch(home, /product-group-controls|المجموعة السابقة|المجموعة التالية|pagination|carousel-dot/);
   assert.match(styles, /\.home-category-products \{[\s\S]*?display:flex;[\s\S]*?flex-wrap:nowrap;[\s\S]*?overflow-x:auto;/);
