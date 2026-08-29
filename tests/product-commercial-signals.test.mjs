@@ -35,5 +35,5 @@ test("existing badges remain data-driven and no unsupported claims are generated
   const cardStart = home.indexOf("const renderProductCard");
   const card = home.slice(cardStart, home.indexOf("return (", cardStart));
   assert.doesNotMatch(card, />اعرف السعر والتوفر</);
-  assert.match(category, />اعرف السعر والتوفر</);
+  assert.match(category, />لمعرفة المزيد</);
 });

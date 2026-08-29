@@ -24,7 +24,7 @@ test("category collection cards use the storefront grid and preserve independent
   assert.doesNotMatch(client, /product-grid|product-group/);
   assert.match(client, /onClick=\{\(\) => toggleFavorite\(product\.id\)\}/);
   assert.match(client, /className="quick-view" onClick=\{\(event\) => openQuickView\(product, event\.currentTarget\)\}/);
-  assert.match(client, /<div className="category-product-actions"><a href=\{whatsappLink\(product\)\} target="_blank" rel="noreferrer">اعرف السعر والتوفر<\/a><\/div>/);
+  assert.match(client, /<div className="category-product-actions"><Link href=\{detailsHref\}>لمعرفة المزيد<\/Link><\/div>/);
   assert.match(client, /className="product-image-link" href=\{detailsHref\}/);
   assert.match(home, /STOREFRONT_CATEGORY_ORDER\.map/);
   assert.match(home, /PUBLIC_CATEGORY_DETAILS\[categoryId\]\.label/);

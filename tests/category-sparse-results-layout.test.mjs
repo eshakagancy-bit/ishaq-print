@@ -29,6 +29,6 @@ test("sparse-result styling does not remove card images or actions", () => {
   assert.match(client, /className="category-product-image"/);
   assert.match(client, /className="quick-view"/);
   assert.match(client, /className="category-product-actions"/);
-  assert.match(client, /whatsappLink\(product\)/);
+  assert.match(client, /<Link href=\{detailsHref\}>لمعرفة المزيد<\/Link>/);
   assert.match(client, /toggleFavorite\(product\.id\)/);
 });

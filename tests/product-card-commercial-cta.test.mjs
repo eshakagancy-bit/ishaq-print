@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("collection cards keep one commercial CTA while homepage tiles stay lightweight", async () => {
+test("collection cards link to full details while homepage tiles stay lightweight", async () => {
   const [home, categoryClient] = await Promise.all([
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/category-products-client.tsx", import.meta.url), "utf8"),
@@ -13,9 +13,9 @@ test("collection cards keep one commercial CTA while homepage tiles stay lightwe
 
   assert.doesNotMatch(homeCard, /product-footer|اعرف السعر والتوفر|target="_blank"/);
   assert.match(homeCard, /product-category-line/);
-  assert.match(categoryCard, /<div className="category-product-actions"><a href=\{whatsappLink\(product\)\}[^>]*>اعرف السعر والتوفر<\/a><\/div>/);
+  assert.match(categoryCard, /<div className="category-product-actions"><Link href=\{detailsHref\}>لمعرفة المزيد<\/Link><\/div>/);
   assert.equal((homeCard.match(/target="_blank"/g) ?? []).length, 0);
-  assert.equal((categoryCard.match(/target="_blank"/g) ?? []).length, 1);
+  assert.equal((categoryCard.match(/target="_blank"/g) ?? []).length, 0);
   assert.doesNotMatch(homeCard, />اطلب من المختص<\/a>/);
   assert.doesNotMatch(categoryCard, />اطلب من المختص<\/a>/);
 });

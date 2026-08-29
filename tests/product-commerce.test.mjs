@@ -13,12 +13,12 @@ test("price labels use only stored values or the on-request label", () => {
   assert.match(read("app/quick-view-modal.tsx"), /productPriceLabel\(price\)/);
 });
 
-test("availability is not invented and the commercial CTA remains unchanged", () => {
+test("availability is not invented and the collection CTA opens product details", () => {
   const home = read("app/home-client.tsx");
   const category = read("app/category-products-client.tsx");
   assert.doesNotMatch(home, />متوفر</);
   assert.doesNotMatch(category, />متوفر</);
-  assert.match(category, />اعرف السعر والتوفر</);
+  assert.match(category, /<Link href=\{detailsHref\}>لمعرفة المزيد<\/Link>/);
   assert.match(home, /whatsappLabel="اعرف السعر والتوفر"/);
   assert.match(read("app/paper-specifications.ts"), /specifications\.availability \? \{ key: "availability", label: "التوفر"/);
 });
