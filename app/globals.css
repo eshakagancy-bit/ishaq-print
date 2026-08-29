@@ -877,6 +877,12 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .header-search-button { width:42px; height:42px; display:grid; place-items:center; border:1px solid var(--store-line); border-radius:50%; background:#fff; color:var(--store-navy); transition:border-color .2s ease,background .2s ease,transform .2s ease; }
 .header-search-button:hover { border-color:var(--store-cyan); background:var(--store-surface); transform:translateY(-1px); }
 .header-search-button svg { width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.product-marquee { width:100%; overflow:hidden; direction:ltr; background:#0ca1c1; color:#fff; }
+.product-marquee-track { width:max-content; display:flex; animation:product-marquee-scroll 38s linear infinite; will-change:transform; }
+.product-marquee-group { display:flex; flex:0 0 auto; align-items:center; gap:42px; min-height:34px; padding-inline:21px; white-space:nowrap; }
+.product-marquee-group span { display:inline-flex; align-items:center; gap:21px; font-size:10px; font-weight:700; }
+.product-marquee-group span:after { content:""; width:4px; height:4px; border-radius:50%; background:rgba(255,255,255,.72); }
+@keyframes product-marquee-scroll { to { transform:translateX(-50%); } }
 .menu-overlay { position:fixed; z-index:100; inset:0; visibility:hidden; background:rgba(2,12,23,.7); opacity:0; pointer-events:none; transition:opacity .25s ease,visibility 0s linear .25s; }
 .menu-overlay.open { visibility:visible; opacity:1; pointer-events:auto; transition:opacity .25s ease; }
 .site-menu-drawer { position:absolute; top:0; right:0; width:min(400px,90vw); height:100dvh; overflow-y:auto; overscroll-behavior:contain; display:flex; flex-direction:column; background:#fff; color:var(--store-navy); box-shadow:-20px 0 55px rgba(0,0,0,.16); transform:translateX(100%); transition:transform .26s cubic-bezier(.22,.75,.22,1); }

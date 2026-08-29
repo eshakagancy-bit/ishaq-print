@@ -20,6 +20,7 @@ import PublicSearchControl from "./global-search-drawer";
 import { CartDrawerOverlay, CartHeaderButton } from "./order-cart-ui";
 import ProductCardCartButton from "./product-card-cart-button";
 import PublicTopBar from "./public-topbar";
+import ProductMarquee from "./product-marquee";
 
 const FAVORITES_STORAGE_KEY = "eshak-favorite-products";
 const categoryLabels: Record<PublicEnabledCategory, string> = { printers: "جميع الطابعات", inks: "جميع الأحبار", papers: "جميع الأوراق" };
@@ -77,6 +78,7 @@ export default function CategoryProductsClient({ category, products, allProducts
   return <main id="main-content" tabIndex={-1} className="category-products-page" data-category={category} dir="rtl">
     <PublicTopBar settings={settings}/>
     <header className="category-products-header"><div className="container"><Link className="collection-brand" href="/" aria-label="وكالة إسحاق العالمية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/categories">الفئات</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl products={allProducts}/><Link href="/?favorites=1" aria-label={`المفضلة، ${favorites.length} منتجات`}>المفضلة <b>{favorites.length}</b></Link></div></div></header>
+    <ProductMarquee products={allProducts}/>
     <section className="container category-products-content">
       <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>{categoryLabels[category]}</b></nav>
       <div className="category-products-title"><div><span>مجموعة المنتجات</span><h1>{categoryLabels[category]}</h1></div></div>

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { isPreoptimizedImageSource, normalizeMediaUrl } from "../lib/media-url";
 import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
 import PublicTopBar from "./public-topbar";
+import ProductMarquee from "./product-marquee";
 import {
   HOME_PRINTER_LABELS,
   resolvePrinterCategory,
@@ -837,6 +838,7 @@ export default function HomeClient({
           </div>
         </div>
       </header>
+      <ProductMarquee products={products}/>
 
       <div className={activeHeaderDrawer === "closed" ? "menu-overlay" : `menu-overlay open ${activeHeaderDrawer}-open`} aria-hidden={activeHeaderDrawer === "closed"} onMouseDown={(event) => { if (event.target === event.currentTarget) setActiveHeaderDrawer("closed"); }}>
         <aside ref={menuDrawerRef} id="site-menu-drawer" className="site-menu-drawer" role="dialog" aria-modal={menuOpen ? "true" : undefined} aria-hidden={!menuOpen} inert={!menuOpen} aria-labelledby="site-menu-title">
