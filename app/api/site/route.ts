@@ -141,6 +141,22 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
     homeDisplayOrder: Number.isSafeInteger(Number(input.homeDisplayOrder)) && Number(input.homeDisplayOrder) >= 0
       ? Number(input.homeDisplayOrder)
       : undefined,
+    models: Array.isArray(input.models) ? input.models.map((value, modelIndex) => {
+      const model = value as Record<string, unknown>;
+      return {
+        id: Number.isSafeInteger(Number(model.id)) && Number(model.id) > 0 ? Number(model.id) : undefined,
+        productId: Number.isSafeInteger(Number(input.id)) && Number(input.id) > 0 ? Number(input.id) : undefined,
+        model: String(model.model ?? "").trim().slice(0, 120),
+        partNumber: String(model.partNumber ?? "").trim().slice(0, 120) || undefined,
+        color: String(model.color ?? "").trim().slice(0, 120) || undefined,
+        compatibility: String(model.compatibility ?? "").trim().slice(0, 1000) || undefined,
+        availability: ["in_stock", "out_of_stock", "on_request"].includes(String(model.availability)) ? model.availability as "in_stock" | "out_of_stock" | "on_request" : "on_request",
+        price: String(model.price ?? "").trim().slice(0, 80) || undefined,
+        image: model.image ? normalizeMediaUrl(String(model.image).trim().slice(0, 1000)) : undefined,
+        sortOrder: Number.isSafeInteger(Number(model.sortOrder)) && Number(model.sortOrder) >= 0 ? Number(model.sortOrder) : modelIndex,
+        isActive: model.isActive !== false,
+      };
+    }) : [],
   };
 }
 

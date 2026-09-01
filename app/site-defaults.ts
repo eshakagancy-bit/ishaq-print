@@ -141,6 +141,23 @@ export type StoredProduct = {
   specificationsVerifiedAt?: string;
   sortOrder?: number;
   homeDisplayOrder?: number;
+  models?: ProductModel[];
+};
+
+export type ProductModelAvailability = "in_stock" | "out_of_stock" | "on_request";
+
+export type ProductModel = {
+  id?: number;
+  productId?: number;
+  model: string;
+  partNumber?: string;
+  color?: string;
+  compatibility?: string;
+  availability: ProductModelAvailability;
+  price?: string;
+  image?: string;
+  sortOrder: number;
+  isActive: boolean;
 };
 
 export type HeroSlide = {

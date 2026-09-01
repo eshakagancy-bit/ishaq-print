@@ -52,6 +52,7 @@ export function GlobalSearchDrawer({ open, onClose, products, triggerRef }: Glob
     product.printerCategory,
     product.inkSpecifications?.inkType,
     product.paperSpecifications?.paperType,
+    ...(product.models ?? []).filter((model) => model.isActive).flatMap((model) => [model.model, model.partNumber, model.compatibility]),
   ]), [products, searchQuery, searchScope]);
 
   useLayoutEffect(() => {

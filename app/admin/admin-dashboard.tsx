@@ -67,7 +67,7 @@ import {
   getInkProductNameError,
   type InkSpecifications,
 } from "../ink-specifications";
-import { categoryImageDefinitions, defaultCategoryImages, defaultHeroSettings, defaultSiteSettings, type CategoryImageKey, type HeroSettings, type HeroSlide, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
+import { categoryImageDefinitions, defaultCategoryImages, defaultHeroSettings, defaultSiteSettings, type CategoryImageKey, type HeroSettings, type HeroSlide, type ProductModel, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
 import {
   createEmptyPrinterPageContent,
   type PrinterPageContent,
@@ -98,7 +98,7 @@ const emptyProduct: StoredProduct = {
   id: 0, name: "", family: "", image: "", images: undefined, category: "printers", type: "", size: "",
   printerCategory: undefined, badge: "", price: "", description: "", features: [],
   specifications: undefined, printerPageContent: createEmptyPrinterPageContent(), paperSpecifications: undefined,
-  inkSpecifications: undefined,
+  inkSpecifications: undefined, models: [],
 };
 
 const emptyHeroSlide: HeroSlide = {
@@ -351,6 +351,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     ...Object.values(nextSettings.categoryImages).map((url) => normalizeMediaUrl(url)),
     ...nextProducts.map((product) => normalizeMediaUrl(product.image)),
     ...nextProducts.flatMap((product) => product.category === "inks" ? (product.images ?? []).map((image) => normalizeMediaUrl(image)) : []),
+    ...nextProducts.flatMap((product) => (product.models ?? []).map((model) => normalizeMediaUrl(model.image ?? ""))),
     ...nextHeroSlides.map((slide) => normalizeMediaUrl(slide.imageUrl)),
   ].filter(Boolean));
 
@@ -533,6 +534,11 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     }
     if (productForm.description.length > 160) {
       setStatus("الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.");
+      return;
+    }
+    const modelNames = (productForm.models ?? []).map((model) => model.model.trim().toLocaleLowerCase());
+    if (modelNames.some((name) => !name) || new Set(modelNames).size !== modelNames.length) {
+      setStatus("يجب إدخال اسم فريد لكل موديل داخل المنتج.");
       return;
     }
     if (productForm.category === "inks") {
@@ -922,12 +928,44 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
               }}
             />
           : <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />}
+        <ProductModelsEditor product={productForm} uploading={uploadingImage} onChange={updateProductForm} onUpload={(event, index, currentUrl) => uploadImage(event, currentUrl, (url) => updateProductForm({ models: (productForm.models ?? []).map((model, modelIndex) => modelIndex === index ? { ...model, image: url } : model) }), "products")} onRemoveImage={(index, currentUrl) => removeImage(currentUrl, () => updateProductForm({ models: (productForm.models ?? []).map((model, modelIndex) => modelIndex === index ? { ...model, image: undefined } : model) }))} onDeleteModel={(index, currentUrl) => { if (currentUrl) queueMediaRemoval(currentUrl); updateProductForm({ models: (productForm.models ?? []).filter((_, modelIndex) => modelIndex !== index).map((model, modelIndex) => ({ ...model, sortOrder: modelIndex })) }); }} />
         <div className="product-editor-actions"><button type="submit" disabled={saving}>{saving ? "جاري الحفظ..." : editingId ? "حفظ التعديل" : "إضافة المنتج"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
       <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
       </section>
     </>}
   </main>;
+}
+
+function ProductModelsEditor({ product, uploading, onChange, onUpload, onRemoveImage, onDeleteModel }: {
+  product: StoredProduct;
+  uploading: boolean;
+  onChange: (patch: Partial<StoredProduct>) => void;
+  onUpload: (event: ChangeEvent<HTMLInputElement>, index: number, currentUrl: string) => void;
+  onRemoveImage: (index: number, currentUrl: string) => void;
+  onDeleteModel: (index: number, currentUrl: string) => void;
+}) {
+  const models = product.models ?? [];
+  const update = (index: number, patch: Partial<ProductModel>) => onChange({ models: models.map((model, modelIndex) => modelIndex === index ? { ...model, ...patch } : model) });
+  const move = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= models.length) return;
+    const next = [...models];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange({ models: next.map((model, modelIndex) => ({ ...model, sortOrder: modelIndex })) });
+  };
+  return <fieldset className="product-models-editor">
+    <legend>الموديلات</legend>
+    <div className="admin-dynamic-list-head"><div><b>موديلات المنتج</b><small>اترك القائمة فارغة للمنتجات التي لا تحتاج موديلات.</small></div><button type="button" onClick={() => onChange({ models: [...models, { model: "", availability: "on_request", sortOrder: models.length, isActive: true }] })}>إضافة موديل</button></div>
+    {models.map((model, index) => <div className="product-model-editor-row" key={model.id ?? index}>
+      <div className="admin-two-columns"><label>اسم الموديل<input required dir="ltr" value={model.model} maxLength={120} onChange={(event) => update(index, { model: event.target.value })} /></label><label>Part Number<input dir="ltr" value={model.partNumber ?? ""} onChange={(event) => update(index, { partNumber: event.target.value || undefined })} /></label></div>
+      <div className="admin-two-columns"><label>اللون<input value={model.color ?? ""} onChange={(event) => update(index, { color: event.target.value || undefined })} /></label><label>التوفر<select value={model.availability} onChange={(event) => update(index, { availability: event.target.value as ProductModel["availability"] })}><option value="in_stock">متوفر</option><option value="out_of_stock">غير متوفر</option><option value="on_request">حسب الطلب</option></select></label></div>
+      <label>التوافق<textarea rows={2} value={model.compatibility ?? ""} onChange={(event) => update(index, { compatibility: event.target.value || undefined })} /></label>
+      <div className="admin-two-columns"><label>السعر الاختياري<input value={model.price ?? ""} onChange={(event) => update(index, { price: event.target.value || undefined })} /></label><label className="admin-check"><input type="checkbox" checked={model.isActive} onChange={(event) => update(index, { isActive: event.target.checked })} /> موديل نشط</label></div>
+      <ImageField value={model.image ?? ""} label="صورة الموديل الاختيارية" actionText={uploading ? "جاري الرفع..." : "اختيار صورة"} disabled={uploading} onUpload={(event) => onUpload(event, index, model.image ?? "")} onRemove={() => onRemoveImage(index, model.image ?? "")} />
+      <div className="product-model-editor-actions"><button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`نقل الموديل ${model.model || index + 1} لأعلى`}>↑</button><button type="button" onClick={() => move(index, 1)} disabled={index === models.length - 1} aria-label={`نقل الموديل ${model.model || index + 1} لأسفل`}>↓</button><button type="button" className="admin-remove-item" onClick={() => onDeleteModel(index, model.image ?? "")}>حذف الموديل</button></div>
+    </div>)}
+  </fieldset>;
 }
 
 function PrinterPageContentEditor({ product, onChange }: { product: StoredProduct; onChange: (patch: Partial<StoredProduct>) => void }) {

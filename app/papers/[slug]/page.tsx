@@ -16,11 +16,12 @@ import PublicSearchControl from "../../global-search-drawer";
 import PublicTopBar from "../../public-topbar";
 import ProductShare from "../../product-share";
 import { AddToCartButton, CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
+import ProductModelSelector from "../../product-model-selector";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ slug: string }> };
+type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ model?: string }> };
 
 async function getPaperData(slug: string) {
   if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [], products: [], settings: defaultSiteSettings };
@@ -46,8 +47,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }) : {};
 }
 
-export default async function PaperDetailsPage({ params }: PageProps) {
+export default async function PaperDetailsPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const requestedModel = (await searchParams)?.model;
   const { product, papers, products, settings } = await getPaperData(slug);
   if (!product) notFound();
 
@@ -74,7 +76,7 @@ export default async function PaperDetailsPage({ params }: PageProps) {
     <header className="printer-details-header"><div className="container"><Link href="/papers" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/papers">الأوراق</Link><span>/</span><b>{title}</b></nav>
-      <div className="printer-hero-grid"><ProductGallery images={images} alt={title} /><div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}{availabilityLabel && <span className="product-availability" data-availability>{availabilityLabel}</span>}<span className="product-family">الأوراق</span><h1 dir="ltr">{title}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.filter((row) => row.key !== "availability").slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><AddToCartButton item={{ productType: "paper", productId: String(product.id), productName: title, productUrl: `/papers/${slug}`, image: images[0] || "/brand/eshak-logo.png" }} /><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={title} productUrl={`/papers/${slug}`} /><Link className="printer-page-back" href="/papers">العودة إلى قسم الأوراق</Link></div></div></div>
+      <div className="printer-hero-grid">{product.models?.some((model) => model.isActive) ? <ProductModelSelector models={product.models} requestedModel={requestedModel} productImage={images[0]} productName={title} /> : <ProductGallery images={images} alt={title} />}<div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}{availabilityLabel && <span className="product-availability" data-availability>{availabilityLabel}</span>}<span className="product-family">الأوراق</span><h1 dir="ltr">{title}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.filter((row) => row.key !== "availability").slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><AddToCartButton item={{ productType: "paper", productId: String(product.id), productName: title, productUrl: `/papers/${slug}`, image: images[0] || "/brand/eshak-logo.png" }} /><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={title} productUrl={`/papers/${slug}`} /><Link className="printer-page-back" href="/papers">العودة إلى قسم الأوراق</Link></div></div></div>
     </div></section>
     <div className="container printer-sections">
       <nav className="product-section-nav" aria-label="أقسام تفاصيل المنتج">{(content?.detailedDescription || product.description) && <a href="#description">الوصف</a>}{rows.length > 0 && <a href="#specifications">المواصفات</a>}{features.length > 0 && <a href="#features">المميزات</a>}{uses.length > 0 && <a href="#uses">الاستخدامات</a>}{content?.whyChooseThisProduct && <a href="#why-product">لماذا هذا المنتج؟</a>}{content?.faq.some((item) => item.question) && <a href="#faq">الأسئلة الشائعة</a>}</nav>

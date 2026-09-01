@@ -16,11 +16,12 @@ import PublicTopBar from "../../public-topbar";
 import ProductShare from "../../product-share";
 import InkVariantSelector from "../../ink-variant-selector";
 import { CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
+import ProductModelSelector from "../../product-model-selector";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ slug: string }> };
+type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ model?: string }> };
 
 async function getInkData(slug: string) {
   if (!isPublicCategoryEnabled("inks")) return { product: undefined, products: [], settings: defaultSiteSettings };
@@ -45,8 +46,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }) : {};
 }
 
-export default async function InkDetailsPage({ params }: PageProps) {
+export default async function InkDetailsPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const requestedModel = (await searchParams)?.model;
   const { product, products, settings } = await getInkData(slug);
   if (!product) notFound();
   const rows = buildInkSpecificationRows(product);
@@ -58,7 +60,7 @@ export default async function InkDetailsPage({ params }: PageProps) {
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/inks">الأحبار</Link><span>/</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">
-      <InkVariantSelector productId={String(product.id)} productName={product.name} productUrl={`/inks/${slug}`} variants={specifications?.variants ?? []} fallbackImages={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} />
+      {product.models?.some((model) => model.isActive) ? <ProductModelSelector models={product.models} requestedModel={requestedModel} productImage={product.image} productName={product.name} /> : <InkVariantSelector productId={String(product.id)} productName={product.name} productUrl={`/inks/${slug}`} variants={specifications?.variants ?? []} fallbackImages={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} />}
       <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={product.name} productUrl={`/inks/${slug}`} /><Link className="printer-page-back" href="/inks">العودة إلى المنتجات</Link></div></div>
     </div></div></section>
     <div className="container printer-sections">

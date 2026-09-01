@@ -17,6 +17,7 @@ import PublicSearchControl from "../../global-search-drawer";
 import ProductShare from "../../product-share";
 import { AddToCartButton, CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 import PublicTopBar from "../../public-topbar";
+import ProductModelSelector from "../../product-model-selector";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ const PRINTER_SPECIALIST_PHONE = "967778989866";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ model?: string }>;
 };
 
 async function getPrinters() {
@@ -66,8 +68,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   });
 }
 
-export default async function PrinterDetailsPage({ params }: PageProps) {
+export default async function PrinterDetailsPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const requestedModel = (await searchParams)?.model;
   const { product, printers, products, settings } = await getPrinter(slug);
   if (!product) notFound();
 
@@ -99,7 +102,7 @@ export default async function PrinterDetailsPage({ params }: PageProps) {
         <div className="container">
           <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/printers">الطابعات</Link><span>/</span><b>{product.name}</b></nav>
         <div className="printer-hero-grid">
-          <ProductGallery images={[product.image || "/brand/eshak-logo.png"]} alt={product.name} />
+          {product.models?.some((model) => model.isActive) ? <ProductModelSelector models={product.models} requestedModel={requestedModel} productImage={product.image} productName={product.name} /> : <ProductGallery images={[product.image || "/brand/eshak-logo.png"]} alt={product.name} />}
           <div className="printer-summary">
             {product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}
             {product.family?.trim() && <span className="product-family">{product.family}</span>}

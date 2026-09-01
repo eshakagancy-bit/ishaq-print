@@ -1298,3 +1298,29 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 @media (max-width:430px) {
   .homepage-product-text-panel { margin-top:2px; padding:5px 6px; }
 }
+.product-model-chips { position:relative; z-index:3; display:flex; flex-wrap:wrap; gap:5px; max-width:100%; margin-top:7px; }
+.product-model-chips a,.product-model-chips span,.product-model-options button { display:inline-flex; align-items:center; justify-content:center; min-height:30px; padding:4px 9px; border:1px solid rgba(8,167,195,.24); border-radius:999px; background:#f7fcfd; color:#176276; font-size:11px; font-weight:700; line-height:1; text-decoration:none; }
+.product-model-chips a:focus-visible,.product-model-options button:focus-visible { outline:3px solid rgba(8,167,195,.35); outline-offset:2px; }
+.product-model-selector { min-width:0; }
+.product-model-image { overflow:hidden; border-radius:18px; background:#fff; }
+.product-model-image img { display:block; width:100%; height:auto; max-height:520px; object-fit:contain; }
+.product-model-picker { margin-top:16px; padding:16px; border:1px solid rgba(8,167,195,.18); border-radius:16px; background:#fff; }
+.product-model-picker h2 { margin:0 0 12px; font-size:18px; }
+.product-model-options { display:flex; flex-wrap:wrap; gap:8px; }
+.product-model-options button { cursor:pointer; min-height:38px; font-size:13px; }
+.product-model-options button.active { border-color:#08a7c3; background:#08a7c3; color:#fff; }
+.product-model-info { display:grid; gap:0; margin:14px 0 0; }
+.product-model-info div { display:grid; grid-template-columns:minmax(90px,.7fr) 1.3fr; gap:10px; padding:8px 0; border-top:1px solid #edf2f3; }
+.product-model-info dt { color:#66777c; font-size:12px; }
+.product-model-info dd { margin:0; font-size:13px; font-weight:700; overflow-wrap:anywhere; }
+.product-models-editor { margin-top:20px; }
+.product-model-editor-row { margin-top:14px; padding:16px; border:1px solid #dfe9eb; border-radius:14px; background:#fbfdfd; }
+.product-model-editor-actions { display:flex; gap:8px; align-items:center; margin-top:10px; }
+.product-model-editor-actions button { min-width:42px; min-height:40px; }
+@media (max-width:600px) {
+  .product-model-chips { gap:4px; }
+  .product-model-chips a,.product-model-chips span { min-height:28px; padding:4px 7px; font-size:10px; }
+  .product-model-picker { margin-top:10px; padding:13px; }
+  .product-model-options button { min-height:40px; }
+  .product-model-info div { grid-template-columns:82px minmax(0,1fr); }
+}

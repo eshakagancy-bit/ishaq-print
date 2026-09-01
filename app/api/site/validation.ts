@@ -14,7 +14,8 @@ import {
   strictStringArray,
 } from "../admin-validation";
 
-const productKeys = ["id", "slug", "name", "family", "image", "images", "category", "printerCategory", "type", "size", "badge", "price", "description", "features", "specifications", "printerPageContent", "paperPageContent", "paperSpecifications", "inkSpecifications", "specificationsSourceUrl", "specificationsVerifiedAt", "sortOrder", "homeDisplayOrder"];
+const productKeys = ["id", "slug", "name", "family", "image", "images", "category", "printerCategory", "type", "size", "badge", "price", "description", "features", "specifications", "printerPageContent", "paperPageContent", "paperSpecifications", "inkSpecifications", "specificationsSourceUrl", "specificationsVerifiedAt", "sortOrder", "homeDisplayOrder", "models"];
+const productModelKeys = ["id", "productId", "model", "partNumber", "color", "compatibility", "availability", "price", "image", "sortOrder", "isActive"];
 const settingsKeys = ["logoImage", "featureEyebrow", "featureTitle", "featureDescription", "featureImage", "maintenanceTitle", "maintenanceDescription", "contactKicker", "contactTitle", "address", "salesPhone", "customerServicePhone", "generalWhatsapp", "workDays", "workHours", "workWeekdays", "workStartTime", "workEndTime", "categoryImages", "productPurchaseBenefits"];
 const pageContentKeys = ["detailedDescription", "productFeatures", "productUses", "whyChooseThisProduct", "faq"];
 const contentItemKeys = ["title", "description"];
@@ -117,6 +118,21 @@ export function validateProductPayload(value: unknown) {
   validateInkSpecifications(product.inkSpecifications);
   validatePageContent(product.printerPageContent, "محتوى صفحة الطابعة");
   validatePageContent(product.paperPageContent, "محتوى صفحة الورق");
+  if (product.models !== undefined) {
+    if (!Array.isArray(product.models) || product.models.length > 100) throw new AdminValidationError("موديلات المنتج غير صالحة");
+    const names = new Set<string>();
+    product.models.forEach((model, index) => {
+      const entry = strictObject(model, productModelKeys, `موديل المنتج ${index + 1}`);
+      const name = requiredString(entry.model, "اسم الموديل", 120).toLocaleLowerCase();
+      if (names.has(name)) throw new AdminValidationError("لا يمكن تكرار نفس الموديل داخل المنتج");
+      names.add(name);
+      for (const [key, max] of [["partNumber", 120], ["color", 120], ["compatibility", 1000], ["price", 80], ["image", 1000]] as const) optionalString(entry[key], key, max);
+      if (entry.image) safeWebOrLocalUrl(entry.image, "صورة الموديل", 1000);
+      enumValue(entry.availability, ["in_stock", "out_of_stock", "on_request"], "توفر الموديل");
+      if (typeof entry.isActive !== "boolean") throw new AdminValidationError("حالة الموديل غير صالحة");
+      nullableNonNegativeNumber(entry.sortOrder, "ترتيب الموديل");
+    });
+  }
   return wrapper;
 }
 

@@ -33,6 +33,7 @@ import {
   starterProducts,
   type HeroSettings,
   type HeroSlide,
+  type ProductModel,
   type SiteSettings,
   type StoredProduct,
 } from "../app/site-defaults";
@@ -55,6 +56,21 @@ type ProductRow = {
   specifications_verified_at: string | null;
   sort_order: number;
   home_display_order: number | null;
+  product_models?: ProductModelRow[] | null;
+};
+
+type ProductModelRow = {
+  id: number;
+  product_id: number;
+  model: string;
+  part_number: string | null;
+  color: string | null;
+  compatibility: string | null;
+  availability: ProductModel["availability"];
+  price: string | null;
+  image: string | null;
+  sort_order: number;
+  is_active: boolean;
 };
 
 type HeroSlideRow = {
@@ -117,6 +133,31 @@ function normalizeSiteSettingsMedia(settings: SiteSettings): SiteSettings {
       key,
       normalizeStoredMediaUrl(normalizedText.categoryImages?.[key] ?? ""),
     ])) as SiteSettings["categoryImages"],
+  };
+}
+
+function productModelToRow(model: ProductModel, productId: number) {
+  return {
+    product_id: productId,
+    model: model.model.trim(),
+    part_number: model.partNumber?.trim() || null,
+    color: model.color?.trim() || null,
+    compatibility: model.compatibility?.trim() || null,
+    availability: model.availability,
+    price: model.price?.trim() || null,
+    image: model.image ? normalizeStoredMediaUrl(model.image) : null,
+    sort_order: model.sortOrder,
+    is_active: model.isActive,
+  };
+}
+
+function productModelFromRow(row: ProductModelRow): ProductModel {
+  return {
+    id: Number(row.id), productId: Number(row.product_id), model: row.model,
+    partNumber: row.part_number || undefined, color: row.color || undefined,
+    compatibility: row.compatibility || undefined, availability: row.availability,
+    price: row.price || undefined, image: row.image ? normalizeStoredMediaUrl(row.image) : undefined,
+    sortOrder: row.sort_order, isActive: row.is_active,
   };
 }
 
@@ -191,7 +232,16 @@ function productFromRow(row: ProductRow): StoredProduct {
     specificationsVerifiedAt: normalizeSpecificationsVerifiedAt(row.specifications_verified_at),
     sortOrder: row.sort_order,
     homeDisplayOrder: row.home_display_order ?? undefined,
+    models: (row.product_models ?? []).map(productModelFromRow),
   };
+}
+
+async function saveProductModels(product: StoredProduct) {
+  const result = await getSupabaseAdmin().rpc("replace_product_models", {
+    p_product_id: product.id,
+    p_models: (product.models ?? []).map((model) => productModelToRow(model, product.id)),
+  });
+  databaseError("تعذر حفظ موديلات المنتج", result.error);
 }
 
 function heroSlideToRow(slide: Omit<HeroSlide, "id"> | HeroSlide) {
@@ -278,7 +328,7 @@ export async function getSiteData() {
   const client = getSupabaseAdmin();
   const [settingsResult, productsResult] = await Promise.all([
     client.from("site_settings").select("payload").eq("id", 1).single(),
-    client.from("products").select("*").order("sort_order", { ascending: true }).order("id", { ascending: true }),
+    client.from("products").select("*, product_models(*)").order("sort_order", { ascending: true }).order("id", { ascending: true }),
   ]);
   databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
   databaseError("تعذر تحميل المنتجات", productsResult.error);
@@ -297,7 +347,7 @@ export async function getHomeData() {
   const client = getSupabaseAdmin();
   const [settingsResult, productsResult] = await Promise.all([
     client.from("site_settings").select("payload").eq("id", 1).single(),
-    client.from("products").select("*")
+    client.from("products").select("*, product_models(*)")
       .order("home_display_order", { ascending: true, nullsFirst: false })
       .order("sort_order", { ascending: true })
       .order("id", { ascending: true }),
@@ -383,7 +433,8 @@ export async function updateProduct(product: StoredProduct) {
     .maybeSingle();
   databaseError("تعذر حفظ المنتج", result.error);
   if (!result.data) throw new Error("تعذر العثور على المنتج أثناء الحفظ");
-  return productFromRow(result.data as ProductRow);
+  await saveProductModels(product);
+  return { ...productFromRow(result.data as ProductRow), models: product.models ?? [] };
 }
 
 export async function createProduct(product: StoredProduct) {
@@ -413,7 +464,9 @@ export async function createProduct(product: StoredProduct) {
     .select("*")
     .single();
   databaseError("تعذر إضافة المنتج", result.error);
-  return productFromRow(result.data as ProductRow);
+  const createdProduct = { ...product, id: Number(result.data.id) };
+  await saveProductModels(createdProduct);
+  return { ...productFromRow(result.data as ProductRow), models: createdProduct.models ?? [] };
 }
 
 export async function saveHomeProductOrder(items: HomeProductOrderItem[]) {
