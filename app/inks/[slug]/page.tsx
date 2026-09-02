@@ -17,16 +17,18 @@ import ProductShare from "../../product-share";
 import InkVariantSelector from "../../ink-variant-selector";
 import { CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 import ProductModelSelector from "../../product-model-selector";
+import LaserInkModelSelector from "../../laser-ink-model-selector";
+import { isInkCategory, isLaserInkCategory } from "../../laser-inks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ model?: string }> };
+type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ model?: string; color?: string }> };
 
 async function getInkData(slug: string) {
   if (!isPublicCategoryEnabled("inks")) return { product: undefined, products: [], settings: defaultSiteSettings };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
-  const inks = data.products.filter((product) => product.category === "inks");
+  const inks = data.products.filter((product) => isInkCategory(product.category));
   return { product: inks.find((product) => getInkSlug(product) === slug), products: data.products, settings: data.settings };
 }
 
@@ -48,11 +50,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function InkDetailsPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const requestedModel = (await searchParams)?.model;
+  const requestedSelection = await searchParams;
+  const requestedModel = requestedSelection?.model;
+  const requestedColor = requestedSelection?.color;
   const { product, products, settings } = await getInkData(slug);
   if (!product) notFound();
   const rows = buildInkSpecificationRows(product);
   const specifications = product.inkSpecifications;
+  const laserInk = isLaserInkCategory(product.category);
 
   return <><main id="main-content" tabIndex={-1} className="printer-details-page">
     <PublicTopBar settings={settings}/>
@@ -60,8 +65,8 @@ export default async function InkDetailsPage({ params, searchParams }: PageProps
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/inks">الأحبار</Link><span>/</span><b>{product.name}</b></nav>
       <div className="printer-hero-grid">
-      {product.models?.some((model) => model.isActive) ? <ProductModelSelector models={product.models} requestedModel={requestedModel} productImage={product.image} productName={product.name} /> : <InkVariantSelector productId={String(product.id)} productName={product.name} productUrl={`/inks/${slug}`} variants={specifications?.variants ?? []} fallbackImages={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} />}
-      <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">الأحبار</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={product.name} productUrl={`/inks/${slug}`} /><Link className="printer-page-back" href="/inks">العودة إلى المنتجات</Link></div></div>
+      {laserInk && specifications?.colorMode && product.models?.some((model) => model.isActive) ? <LaserInkModelSelector productId={String(product.id)} productName={product.name} productUrl={`/inks/${slug}`} productImage={product.image} models={product.models} colorMode={specifications.colorMode} requestedModel={requestedModel} requestedColor={requestedColor} /> : product.models?.some((model) => model.isActive) ? <ProductModelSelector models={product.models} requestedModel={requestedModel} productImage={product.image} productName={product.name} /> : <InkVariantSelector productId={String(product.id)} productName={product.name} productUrl={`/inks/${slug}`} variants={specifications?.variants ?? []} fallbackImages={product.images?.length ? product.images : [product.image || "/brand/eshak-logo.png"]} />}
+      <div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}<span className="product-family">{laserInk ? "أحبار الليزر" : "الأحبار"}</span><h1>{product.name}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}{!laserInk && <div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>}{rows.length > 0 && <dl className="printer-key-info">{rows.slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={product.name} productUrl={`/inks/${slug}`} /><Link className="printer-page-back" href="/inks">العودة إلى المنتجات</Link></div></div>
     </div></div></section>
     <div className="container printer-sections">
       <nav className="product-section-nav" aria-label="أقسام تفاصيل المنتج">{product.description && <a href="#description">الوصف</a>}{rows.length > 0 && <a href="#specifications">المواصفات</a>}{specifications?.features.length ? <a href="#features">المميزات</a> : null}{specifications?.uses.length ? <a href="#uses">الاستخدامات</a> : null}</nav>

@@ -506,6 +506,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .order-cart-empty a { min-height:44px; margin-top:8px; padding:0 18px; border-radius:8px; display:flex; align-items:center; background:var(--cyan); color:#fff; font-weight:800; }
 .order-cart-add-wrap { width:100%; display:grid; gap:5px; }
 .order-cart-add { width:100%; min-height:50px; padding:0 18px; border:0; border-radius:9px; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--navy); color:#fff; font:inherit; font-size:13px; font-weight:850; cursor:pointer; }
+.order-cart-add:disabled { background:#a8b5b9; cursor:not-allowed; }
 .order-cart-add svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .order-cart-feedback { min-height:18px; color:#087b58; font-size:10px; font-weight:750; text-align:center; }
 .order-cart-select-color { min-height:46px; display:flex; align-items:center; justify-content:center; border:1px solid var(--cyan); border-radius:8px; color:var(--cyan-dark); font-weight:800; }
@@ -1317,10 +1318,37 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .product-model-editor-row { margin-top:14px; padding:16px; border:1px solid #dfe9eb; border-radius:14px; background:#fbfdfd; }
 .product-model-editor-actions { display:flex; gap:8px; align-items:center; margin-top:10px; }
 .product-model-editor-actions button { min-width:42px; min-height:40px; }
+.laser-ink-order-selector { min-width:0; }
+.laser-model-options { max-height:278px; padding:2px; overflow:auto; align-content:start; }
+.laser-color-picker { margin-top:18px; }
+.laser-color-picker h3 { margin:0 0 10px; font-size:15px; }
+.laser-color-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.laser-color-options button { min-width:0; min-height:72px; padding:10px; border:1px solid var(--line); border-radius:10px; display:grid; grid-template-columns:18px minmax(0,1fr); align-items:center; gap:3px 8px; background:#fff; color:var(--navy); text-align:start; cursor:pointer; }
+.laser-color-options button.active { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(12,161,193,.14); background:#f4fbfc; }
+.laser-color-options small,.laser-color-options em { grid-column:2; overflow-wrap:anywhere; font-size:10px; }
+.laser-color-options em { color:#a33232; font-style:normal; font-weight:800; }
+.laser-color-dot { width:15px; height:15px; grid-row:1/4; border:1px solid rgba(0,0,0,.18); border-radius:50%; background:#111; }
+.laser-color-dot.cyan { background:#00a8d7; }.laser-color-dot.magenta { background:#d81b60; }.laser-color-dot.yellow { background:#f3d21b; }
+.laser-order-actions { margin-top:16px; display:grid; gap:10px; }
+.laser-quantity { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.laser-quantity>span { color:var(--muted); font-size:12px; font-weight:750; }
+.laser-quantity>div { min-height:42px; display:flex; align-items:center; overflow:hidden; border:1px solid var(--line); border-radius:9px; }
+.laser-quantity button { width:44px; height:42px; border:0; background:#f2f8f9; color:var(--navy); font-size:20px; cursor:pointer; }
+.laser-quantity button:disabled { color:#aeb8bd; cursor:not-allowed; }
+.laser-quantity b { min-width:44px; text-align:center; }
+.laser-unavailable { margin:0; padding:10px 12px; border-radius:8px; background:#fff3f3; color:#8f2d2d; font-size:11px; font-weight:750; }
+.laser-model-variants-editor { margin-top:14px; padding:12px; border:1px solid #cfe2e7; border-radius:11px; display:grid; gap:10px; background:#fff; }
+.laser-model-variant-row { padding:12px; border:1px solid var(--line); border-radius:9px; display:grid; gap:10px; background:#fbfdfd; }
+.laser-ink-specifications-editor select:disabled { opacity:1; color:var(--navy); background:#f4f8f9; }
 @media (max-width:600px) {
   .product-model-chips { gap:4px; }
   .product-model-chips a,.product-model-chips span { min-height:28px; padding:4px 7px; font-size:10px; }
   .product-model-picker { margin-top:10px; padding:13px; }
   .product-model-options button { min-height:40px; }
   .product-model-info div { grid-template-columns:82px minmax(0,1fr); }
+  .laser-color-options { grid-template-columns:1fr; }
+  .laser-model-options { max-height:230px; }
+  .laser-quantity { align-items:flex-start; flex-direction:column; }
+  .laser-quantity>div { width:100%; justify-content:space-between; }
+  .laser-quantity button { flex:0 0 52px; }
 }

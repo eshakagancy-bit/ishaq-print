@@ -10,6 +10,20 @@ export const INK_FULL_SET_VARIANT_LABEL = "المجموعة الكاملة";
 export type CartProductType = "printer" | "paper" | "ink";
 
 export type CartVariant = {
+  id?: string;
+  code: string;
+  label: string;
+  partNumber?: string;
+};
+
+export type CartModel = {
+  id: string;
+  name: string;
+  partNumber?: string;
+};
+
+export type CartColor = {
+  id?: string;
   code: string;
   label: string;
 };
@@ -23,6 +37,8 @@ export type CartItem = {
   image: string;
   quantity: number;
   variant?: CartVariant;
+  model?: CartModel;
+  color?: CartColor;
 };
 
 export type CartItemInput = Omit<CartItem, "key" | "quantity"> & { quantity?: number };
@@ -36,6 +52,7 @@ type ProductCardCartInput = {
   productUrl: string;
   image: string;
   inkVariantCount?: number;
+  modelCount?: number;
 };
 
 export type ProductCardCartAction =
@@ -49,7 +66,7 @@ const productTypes: Record<CardProductCategory, CartProductType> = {
 };
 
 export function buildProductCardCartAction(input: ProductCardCartInput): ProductCardCartAction {
-  if (input.category === "inks" && (input.inkVariantCount ?? 0) > 0) {
+  if (input.category === "inks" && ((input.inkVariantCount ?? 0) > 0 || (input.modelCount ?? 0) > 0)) {
     return { kind: "choose-options", href: input.productUrl };
   }
 
@@ -79,20 +96,36 @@ function cleanText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
 
-export function buildCartItemKey(productType: CartProductType, productId: string, variantCode?: string) {
-  return `${productType}:${productId}:${variantCode?.trim().toUpperCase() ?? ""}`;
+export function buildCartItemKey(productType: CartProductType, productId: string, variantCode?: string, modelId?: string, colorId?: string) {
+  const normalizedModelId = cleanText(modelId, 40);
+  if (!normalizedModelId) return `${productType}:${productId}:${variantCode?.trim().toUpperCase() ?? ""}`;
+  return `${productType}:${productId}:${normalizedModelId}:${cleanText(colorId, 40) || variantCode?.trim().toUpperCase() || ""}`;
 }
 
 export function createCartItem(input: CartItemInput): CartItem {
   const productId = cleanText(input.productId, 160);
   const variantCode = cleanText(input.variant?.code, 20).toUpperCase();
   const variant = input.variant ? {
+    id: cleanText(input.variant.id, 40) || undefined,
     code: variantCode,
     label: variantCode === INK_FULL_SET_VARIANT_CODE
       ? INK_FULL_SET_VARIANT_LABEL
       : cleanText(input.variant.label, 80),
+    partNumber: cleanText(input.variant.partNumber, 120) || undefined,
   } : undefined;
-  if (input.productType === "ink" && (!variant?.code || !variant.label)) throw new Error("Ink cart items require a color variant");
+  const model = input.model ? {
+    id: cleanText(input.model.id, 40),
+    name: cleanText(input.model.name, 120),
+    partNumber: cleanText(input.model.partNumber, 120) || undefined,
+  } : undefined;
+  const color = input.color ? {
+    id: cleanText(input.color.id, 40) || undefined,
+    code: cleanText(input.color.code, 40).toLocaleLowerCase(),
+    label: cleanText(input.color.label, 80),
+  } : undefined;
+  if (model && (!model.id || !model.name)) throw new Error("Laser ink cart items require a valid model");
+  if (color && (!color.code || !color.label)) throw new Error("Laser ink cart items require a valid color");
+  if (input.productType === "ink" && !model && (!variant?.code || !variant.label)) throw new Error("Ink cart items require a color variant or model");
   const productName = cleanText(input.productName, 200);
   const displayProductName = input.productType === "ink"
     && variant?.code === INK_FULL_SET_VARIANT_CODE
@@ -100,7 +133,7 @@ export function createCartItem(input: CartItemInput): CartItem {
       ? `${productName} — ${INK_FULL_SET_VARIANT_LABEL}`
       : productName;
   return {
-    key: buildCartItemKey(input.productType, productId, variant?.code),
+    key: buildCartItemKey(input.productType, productId, variant?.code, model?.id, color?.id || color?.code),
     productType: input.productType,
     productId,
     productName: displayProductName,
@@ -108,6 +141,8 @@ export function createCartItem(input: CartItemInput): CartItem {
     image: cleanText(input.image, 1000),
     quantity: boundedQuantity(input.quantity),
     variant,
+    model,
+    color,
   };
 }
 
@@ -152,15 +187,27 @@ export function parseStoredCart(value: string | null): CartItem[] {
       const image = cleanText(item.image, 1000);
       if (!productId || !productName || !productUrl.startsWith("/") || productUrl.startsWith("//") || !image.startsWith("/") || image.startsWith("//")) return [];
       let variant: CartVariant | undefined;
-      if (productType === "ink") {
-        if (!item.variant || typeof item.variant !== "object" || Array.isArray(item.variant)) return [];
+      if (item.variant && typeof item.variant === "object" && !Array.isArray(item.variant)) {
         const rawVariant = item.variant as Record<string, unknown>;
         const code = cleanText(rawVariant.code, 20).toUpperCase();
         const label = cleanText(rawVariant.label, 80);
         if (!code || !label) return [];
-        variant = { code, label };
+        variant = { id: cleanText(rawVariant.id, 40) || undefined, code, label, partNumber: cleanText(rawVariant.partNumber, 120) || undefined };
       }
-      const normalized = createCartItem({ productType, productId, productName, productUrl, image, quantity: item.quantity as number, variant });
+      let model: CartModel | undefined;
+      if (item.model && typeof item.model === "object" && !Array.isArray(item.model)) {
+        const rawModel = item.model as Record<string, unknown>;
+        model = { id: cleanText(rawModel.id, 40), name: cleanText(rawModel.name, 120), partNumber: cleanText(rawModel.partNumber, 120) || undefined };
+        if (!model.id || !model.name) return [];
+      }
+      let color: CartColor | undefined;
+      if (item.color && typeof item.color === "object" && !Array.isArray(item.color)) {
+        const rawColor = item.color as Record<string, unknown>;
+        color = { id: cleanText(rawColor.id, 40) || undefined, code: cleanText(rawColor.code, 40).toLocaleLowerCase(), label: cleanText(rawColor.label, 80) };
+        if (!color.code || !color.label) return [];
+      }
+      if (productType === "ink" && !model && !variant) return [];
+      const normalized = createCartItem({ productType, productId, productName, productUrl, image, quantity: item.quantity as number, variant, model, color });
       if (seen.has(normalized.key)) return [];
       seen.add(normalized.key);
       return [normalized];
@@ -177,14 +224,18 @@ export function serializeCart(items: CartItem[]) {
 export function buildOrderMessage(items: CartItem[], origin: string) {
   const baseOrigin = origin.replace(/\/$/, "");
   const lines = items.flatMap((item, index) => [
-    `${index + 1}. ${item.productName}`,
+    `${index + 1}.`,
+    `   المنتج: ${item.productName}`,
+    ...(item.model ? [`   الموديل: ${item.model.name}`] : []),
+    ...(item.model?.partNumber || item.variant?.partNumber ? [`   Part Number: ${item.variant?.partNumber || item.model?.partNumber}`] : []),
+    ...(item.color ? [`   اللون: ${item.color.label}`] : []),
     ...(item.variant && item.variant.code !== INK_FULL_SET_VARIANT_CODE ? [`   اللون: ${item.variant.label} (${item.variant.code})`] : []),
     `   الكمية: ${item.quantity}`,
     `   الرابط: ${baseOrigin}${item.productUrl}`,
     "",
   ]);
   return [
-    "مرحبًا، أريد طلب المنتجات التالية:",
+    items.some((item) => item.model) ? "طلب أحبار ليزر" : "مرحبًا، أريد طلب المنتجات التالية:",
     "",
     ...lines,
     "أرجو التواصل معي لتأكيد السعر والتوفر وبقية تفاصيل الطلب.",

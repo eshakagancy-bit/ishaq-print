@@ -1,4 +1,6 @@
 import type { SpecificationDisplayRow } from "./printer-specifications";
+import { LASER_INK_COLOR_MODES, LASER_INK_COLOR_MODE_LABELS } from "./laser-inks-core.js";
+import type { LaserInkColorMode } from "./laser-inks";
 
 export type InkSpecifications = {
   images: string[];
@@ -6,6 +8,7 @@ export type InkSpecifications = {
   brand: string | null;
   inkType: string | null;
   colorCount: InkColorCount | null;
+  colorMode: LaserInkColorMode | null;
   capacities: string[];
   compatiblePrinters: string[];
   features: string[];
@@ -18,7 +21,7 @@ export type InkVariant = {
   image: string;
 };
 
-export const INK_TYPE_OPTIONS = ["Dye", "Pigment", "Sublimation", "Eco-Solvent", "UV Ink", "DTF", "أخرى"] as const;
+export const INK_TYPE_OPTIONS = ["Dye", "Pigment", "Sublimation", "Eco-Solvent", "UV Ink", "DTF", "ليزر", "أخرى"] as const;
 export const INK_COLOR_COUNT_OPTIONS = ["4 ألوان", "5 ألوان", "6 ألوان", "أخرى"] as const;
 export type InkColorCount = typeof INK_COLOR_COUNT_OPTIONS[number];
 export const INK_CAPACITY_OPTIONS = ["70 مل", "100 مل", "500 مل", "1000 مل"] as const;
@@ -33,7 +36,7 @@ export function getInkProductNameError(name: string, _capacities: string[]) {
 }
 
 export function createEmptyInkSpecifications(): InkSpecifications {
-  return { images: [], variants: [], brand: null, inkType: null, colorCount: null, capacities: [], compatiblePrinters: [], features: [], uses: [] };
+  return { images: [], variants: [], brand: null, inkType: null, colorCount: null, colorMode: null, capacities: [], compatiblePrinters: [], features: [], uses: [] };
 }
 
 function normalizeInkVariants(value: unknown) {
@@ -65,18 +68,23 @@ function inkColorCountOrNull(value: unknown): InkColorCount | null {
   return INK_COLOR_COUNT_OPTIONS.find((option) => option === value) ?? null;
 }
 
+function laserInkColorModeOrNull(value: unknown): LaserInkColorMode | null {
+  return LASER_INK_COLOR_MODES.find((option) => option === value) as LaserInkColorMode | undefined ?? null;
+}
+
 export function normalizeInkSpecifications(value: unknown): InkSpecifications | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const input = value as Record<string, unknown>;
   // `color` remains a recognized legacy key so existing products still load,
   // but color names are intentionally not mapped to the new count field.
-  if (!["images", "variants", "brand", "inkType", "colorCount", "color", "capacities", "compatiblePrinters", "features", "uses"].some((key) => Object.hasOwn(input, key))) return undefined;
+  if (!["images", "variants", "brand", "inkType", "colorCount", "colorMode", "color", "capacities", "compatiblePrinters", "features", "uses"].some((key) => Object.hasOwn(input, key))) return undefined;
   return {
     images: stringList(input.images, 50),
     variants: normalizeInkVariants(input.variants),
     brand: textOrNull(input.brand, 120),
     inkType: textOrNull(input.inkType, 80),
     colorCount: inkColorCountOrNull(input.colorCount),
+    colorMode: laserInkColorModeOrNull(input.colorMode),
     capacities: stringList(input.capacities),
     compatiblePrinters: stringList(input.compatiblePrinters),
     features: stringList(input.features),
@@ -101,6 +109,7 @@ export function buildInkSpecificationRows(product: InkDisplayInput): Specificati
     specifications.brand ? { key: "brand", label: "العلامة التجارية", value: specifications.brand } : null,
     specifications.inkType ? { key: "ink-type", label: "نوع الحبر", value: specifications.inkType } : null,
     specifications.colorCount ? { key: "color-count", label: "عدد الألوان", value: specifications.colorCount } : null,
+    specifications.colorMode ? { key: "laser-color-mode", label: "عدد الألوان", value: String(LASER_INK_COLOR_MODE_LABELS[specifications.colorMode]) } : null,
     specifications.capacities.length ? { key: "capacities", label: "السعات المتوفرة", value: specifications.capacities.join("، ") } : null,
     specifications.compatiblePrinters.length ? { key: "compatible-printers", label: "الطابعات المتوافقة", value: specifications.compatiblePrinters.join("، ") } : null,
     specifications.features.length ? { key: "features", label: "الخصائص", value: specifications.features.join("، ") } : null,

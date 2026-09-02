@@ -67,7 +67,8 @@ import {
   getInkProductNameError,
   type InkSpecifications,
 } from "../ink-specifications";
-import { categoryImageDefinitions, defaultCategoryImages, defaultHeroSettings, defaultSiteSettings, type CategoryImageKey, type HeroSettings, type HeroSlide, type ProductModel, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
+import { LASER_INK_CATEGORY, LASER_INK_COLOR_MODE_LABELS, LASER_INK_COLOR_MODES, LASER_INK_COLORS, LASER_INK_TYPE, isInkCategory, isLaserInkCategory, laserInkColorLabel } from "../laser-inks";
+import { categoryImageDefinitions, defaultCategoryImages, defaultHeroSettings, defaultSiteSettings, type CategoryImageKey, type HeroSettings, type HeroSlide, type ProductModel, type ProductModelVariant, type ProductPurchaseBenefits, type SiteSettings, type StoredProduct } from "../site-defaults";
 import {
   createEmptyPrinterPageContent,
   type PrinterPageContent,
@@ -83,7 +84,7 @@ import {
 
 const categories = [
   ["printers", "طابعات EPSON"], ["laptops", "اللابتوبات"], ["engraving-presses", "آلات النحت والمكابس"],
-  ["inks", "الأحبار"], ["papers", "الأوراق"], ["advertising-machines", "آلات الدعاية والإعلان"],
+  ["inks", "الأحبار"], [LASER_INK_CATEGORY, "أحبار الليزر"], ["papers", "الأوراق"], ["advertising-machines", "آلات الدعاية والإعلان"],
   ["electronics", "الملحقات الإلكترونية"], ["cameras", "الكاميرات"], ["3d-printers", "طابعات ثلاثية الأبعاد"],
   ["money-machines", "آلات عد وفحص النقود"], ["networks", "الشبكات وأجهزة الواي فاي"],
 ] as const;
@@ -142,7 +143,7 @@ function normalizeAdminProducts(products: StoredProduct[]) {
   return products.map((product) => ({
     ...product,
     image: normalizeMediaUrl(product.image),
-    images: product.category === "inks"
+    images: isInkCategory(product.category)
       ? (product.images?.length ? product.images : [product.image]).map((image) => normalizeMediaUrl(image)).filter(Boolean)
       : product.images,
     printerCategory: product.category === "printers"
@@ -290,8 +291,12 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       specifications: category === "printers" ? current.specifications : undefined,
       printerPageContent: category === "printers" ? current.printerPageContent ?? createEmptyPrinterPageContent() : undefined,
       paperSpecifications: category === "papers" ? current.paperSpecifications : undefined,
-      inkSpecifications: category === "inks" ? current.inkSpecifications : undefined,
-      images: category === "inks" ? current.images : undefined,
+      inkSpecifications: isInkCategory(category)
+        ? isLaserInkCategory(category)
+          ? { ...(current.inkSpecifications ?? createEmptyInkSpecifications()), inkType: LASER_INK_TYPE, colorMode: current.inkSpecifications?.colorMode ?? "black" }
+          : current.inkSpecifications
+        : undefined,
+      images: isInkCategory(category) ? current.images : undefined,
     }));
     setPrinterCategoryError("");
     markDirty("product-form");
@@ -350,8 +355,8 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
     normalizeMediaUrl(nextSettings.featureImage),
     ...Object.values(nextSettings.categoryImages).map((url) => normalizeMediaUrl(url)),
     ...nextProducts.map((product) => normalizeMediaUrl(product.image)),
-    ...nextProducts.flatMap((product) => product.category === "inks" ? (product.images ?? []).map((image) => normalizeMediaUrl(image)) : []),
-    ...nextProducts.flatMap((product) => (product.models ?? []).map((model) => normalizeMediaUrl(model.image ?? ""))),
+    ...nextProducts.flatMap((product) => isInkCategory(product.category) ? (product.images ?? []).map((image) => normalizeMediaUrl(image)) : []),
+    ...nextProducts.flatMap((product) => (product.models ?? []).flatMap((model) => [normalizeMediaUrl(model.image ?? ""), ...(model.variants ?? []).map((variant) => normalizeMediaUrl(variant.image ?? ""))])),
     ...nextHeroSlides.map((slide) => normalizeMediaUrl(slide.imageUrl)),
   ].filter(Boolean));
 
@@ -541,14 +546,28 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       setStatus("يجب إدخال اسم فريد لكل موديل داخل المنتج.");
       return;
     }
-    if (productForm.category === "inks") {
+    if (isInkCategory(productForm.category)) {
       const inkNameError = getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []);
       if (inkNameError) {
         setStatus(inkNameError);
         return;
       }
     }
-    const inkImages = productForm.category === "inks"
+    if (isLaserInkCategory(productForm.category)) {
+      const specifications = productForm.inkSpecifications;
+      if (!specifications?.brand?.trim() || specifications.inkType !== LASER_INK_TYPE || !specifications.colorMode) {
+        setStatus("أكمل العلامة التجارية ونوع الحبر وعدد الألوان لأحبار الليزر.");
+        return;
+      }
+      const invalidLaserModel = (productForm.models ?? []).find((model) => specifications.colorMode === "black"
+        ? !model.partNumber?.trim()
+        : !(model.variants?.length));
+      if (invalidLaserModel) {
+        setStatus(specifications.colorMode === "black" ? "Part Number مطلوب لكل موديل حبر ليزر أسود." : "أضف لونًا واحدًا على الأقل لكل موديل حبر ليزر ملون.");
+        return;
+      }
+    }
+    const inkImages = isInkCategory(productForm.category)
       ? productForm.images?.length ? productForm.images : productForm.image ? [productForm.image] : []
       : undefined;
     const next = {
@@ -557,7 +576,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       id: editingId ?? Date.now(),
       image: inkImages?.[0] ?? productForm.image,
       images: inkImages,
-      inkSpecifications: productForm.category === "inks" && productForm.inkSpecifications
+      inkSpecifications: isInkCategory(productForm.category) && productForm.inkSpecifications
         ? { ...productForm.inkSpecifications, images: inkImages ?? [] }
         : productForm.inkSpecifications,
       features: featuresText.split(",").map((item) => item.trim()).filter(Boolean),
@@ -720,7 +739,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       if (!response.ok) throw new Error(data.error || "تعذر حذف المنتج");
       const nextProducts = removeProductById(products, product.id);
       setProducts(nextProducts);
-      (product.category === "inks" && product.images?.length ? product.images : [product.image]).forEach(queueMediaRemoval);
+      (isInkCategory(product.category) && product.images?.length ? product.images : [product.image]).forEach(queueMediaRemoval);
       const activeUrls = activeMediaUrls(settings, nextProducts, heroSlides);
       const deleteFailures = await flushPendingMediaDeletes(activeUrls);
       setStatus(deleteFailures
@@ -896,23 +915,23 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
           <option value="">اختر فئة الطابعة</option>
           {PRINTER_CATEGORIES.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
         </select>{printerCategoryError && <span className="admin-field-error" id="printer-category-error" role="alert">{printerCategoryError}</span>}</label>}
-        {productForm.category !== "papers" && <label>اسم المنتج<input required value={productForm.name} aria-invalid={productForm.category === "inks" && Boolean(getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []))} onChange={(e) => updateProductForm({ name: e.target.value })} />{productForm.category === "inks" && <><small>الصيغة المعتمدة: حبر + الاسم الفني + جميع السعات، مثل: حبر Pigment 500 مل / 1000 ML</small>{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []) && <span className="admin-field-error" role="alert">{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? [])}</span>}</>}</label>}
-        {productForm.category !== "papers" && productForm.category !== "inks" && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
+        {productForm.category !== "papers" && <label>اسم المنتج<input required value={productForm.name} aria-invalid={isInkCategory(productForm.category) && Boolean(getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []))} onChange={(e) => updateProductForm({ name: e.target.value })} />{productForm.category === "inks" && <><small>الصيغة المعتمدة: حبر + الاسم الفني + جميع السعات، مثل: حبر Pigment 500 مل / 1000 ML</small>{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? []) && <span className="admin-field-error" role="alert">{getInkProductNameError(productForm.name, productForm.inkSpecifications?.capacities ?? [])}</span>}</>}</label>}
+        {productForm.category !== "papers" && !isInkCategory(productForm.category) && <><label>السلسلة أو العائلة<input list="printer-family-options" value={productForm.family} onChange={(e) => updateProductForm({ family: e.target.value })} placeholder="اختر اقتراحاً أو اكتب عائلة أخرى" /></label>
         <datalist id="printer-family-options">{PRINTER_FAMILY_OPTIONS.map((family) => <option key={family} value={family} />)}</datalist></>}
         {productForm.category === "printers" && <PrinterSpecificationsEditor product={productForm} onChange={updateProductForm} />}
         {productForm.category === "printers" && <PrinterPageContentEditor product={productForm} onChange={updateProductForm} />}
         {productForm.category === "papers" && <PaperSpecificationsEditor product={productForm} onChange={updateProductForm} />}
-        {productForm.category === "inks" && <InkSpecificationsEditor product={productForm} printers={products.filter((product) => product.category === "printers")} onChange={updateProductForm} />}
-        <div className="admin-two-columns">{productForm.category === "papers" && <label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label>}<label>نمط السعر<select value={priceMode} onChange={(event) => {
+        {isInkCategory(productForm.category) && <InkSpecificationsEditor product={productForm} printers={products.filter((product) => product.category === "printers")} onChange={updateProductForm} />}
+        {!isLaserInkCategory(productForm.category) && <div className="admin-two-columns">{productForm.category === "papers" && <label>الشارة<select value={productForm.badge ?? ""} onChange={(e) => updateProductForm({ badge: e.target.value })}>{productForm.badge && !PRODUCT_BADGE_OPTIONS.includes(productForm.badge as typeof PRODUCT_BADGE_OPTIONS[number]) && <option value={productForm.badge}>{productForm.badge} (قيمة حالية)</option>}{PRODUCT_BADGE_OPTIONS.map((badge) => <option key={badge || "none"} value={badge}>{badge || "بدون شارة"}</option>)}</select></label>}<label>نمط السعر<select value={priceMode} onChange={(event) => {
           const mode = event.target.value as PriceMode;
           setPriceMode(mode);
           if (mode === "quote") updateProductForm({ price: "" });
           else markDirty("product-form");
-        }}>{PRICE_MODE_OPTIONS.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label></div>
-        {priceMode === "fixed" && <label>السعر المحدد<input value={productForm.price ?? ""} onChange={(e) => updateProductForm({ price: e.target.value })} placeholder="أدخل السعر كما سيظهر للزبون" /></label>}
+        }}>{PRICE_MODE_OPTIONS.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>)}</select></label></div>}
+        {!isLaserInkCategory(productForm.category) && priceMode === "fixed" && <label>السعر المحدد<input value={productForm.price ?? ""} onChange={(e) => updateProductForm({ price: e.target.value })} placeholder="أدخل السعر كما سيظهر للزبون" /></label>}
         <label>الوصف القصير<textarea value={productForm.description} aria-invalid={productForm.description.length > 160} onChange={(e) => updateProductForm({ description: e.target.value })} /><span className={productForm.description.length > 160 ? "description-counter over-limit" : "description-counter"}>{productForm.description.length} / 160 حرفاً</span>{productForm.description.length > 160 && <span className="admin-field-error" role="alert">الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.</span>}</label>
-        {productForm.category !== "inks" && <label>المميزات القديمة، افصل بفاصلة <small>للتوافق مع المنتجات الحالية فقط</small><input value={featuresText} onChange={(e) => updateProductFeatures(e.target.value)} /></label>}
-        {productForm.category === "inks"
+        {!isInkCategory(productForm.category) && <label>المميزات القديمة، افصل بفاصلة <small>للتوافق مع المنتجات الحالية فقط</small><input value={featuresText} onChange={(e) => updateProductFeatures(e.target.value)} /></label>}
+        {isInkCategory(productForm.category)
           ? <InkImagesEditor
               images={productForm.images?.length ? productForm.images : productForm.image ? [productForm.image] : []}
               uploading={uploadingImage}
@@ -928,7 +947,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
               }}
             />
           : <ImageField value={productForm.image} onUpload={(event) => uploadImage(event, productForm.image, (url) => updateProductForm({ image: url }), "products")} onRemove={() => removeImage(productForm.image, () => updateProductForm({ image: "" }))} />}
-        <ProductModelsEditor product={productForm} uploading={uploadingImage} onChange={updateProductForm} onUpload={(event, index, currentUrl) => uploadImage(event, currentUrl, (url) => updateProductForm({ models: (productForm.models ?? []).map((model, modelIndex) => modelIndex === index ? { ...model, image: url } : model) }), "products")} onRemoveImage={(index, currentUrl) => removeImage(currentUrl, () => updateProductForm({ models: (productForm.models ?? []).map((model, modelIndex) => modelIndex === index ? { ...model, image: undefined } : model) }))} onDeleteModel={(index, currentUrl) => { if (currentUrl) queueMediaRemoval(currentUrl); updateProductForm({ models: (productForm.models ?? []).filter((_, modelIndex) => modelIndex !== index).map((model, modelIndex) => ({ ...model, sortOrder: modelIndex })) }); }} />
+        <ProductModelsEditor product={productForm} uploading={uploadingImage} onChange={updateProductForm} onUpload={(event, index, currentUrl) => uploadImage(event, currentUrl, (url) => updateProductForm({ models: (productForm.models ?? []).map((model, modelIndex) => modelIndex === index ? { ...model, image: url } : model) }), "products")} onUploadVariant={(event, modelIndex, variantIndex, currentUrl) => uploadImage(event, currentUrl, (url) => updateProductForm({ models: (productForm.models ?? []).map((model, index) => index === modelIndex ? { ...model, variants: (model.variants ?? []).map((variant, childIndex) => childIndex === variantIndex ? { ...variant, image: url } : variant) } : model) }), "products")} onRemoveImage={(index, currentUrl) => removeImage(currentUrl, () => updateProductForm({ models: (productForm.models ?? []).map((model, modelIndex) => modelIndex === index ? { ...model, image: undefined } : model) }))} onRemoveVariantImage={(modelIndex, variantIndex, currentUrl) => removeImage(currentUrl, () => updateProductForm({ models: (productForm.models ?? []).map((model, index) => index === modelIndex ? { ...model, variants: (model.variants ?? []).map((variant, childIndex) => childIndex === variantIndex ? { ...variant, image: undefined } : variant) } : model) }))} onDeleteVariant={(modelIndex, variantIndex, currentUrl) => { if (currentUrl) queueMediaRemoval(currentUrl); updateProductForm({ models: (productForm.models ?? []).map((model, index) => index === modelIndex ? { ...model, variants: (model.variants ?? []).filter((_, childIndex) => childIndex !== variantIndex).map((variant, childIndex) => ({ ...variant, sortOrder: childIndex })) } : model) }); }} onDeleteModel={(index, currentUrl) => { if (currentUrl) queueMediaRemoval(currentUrl); updateProductForm({ models: (productForm.models ?? []).filter((_, modelIndex) => modelIndex !== index).map((model, modelIndex) => ({ ...model, sortOrder: isLaserInkCategory(productForm.category) ? modelIndex + 1 : modelIndex })) }); }} />
         <div className="product-editor-actions"><button type="submit" disabled={saving}>{saving ? "جاري الحفظ..." : editingId ? "حفظ التعديل" : "إضافة المنتج"}</button><button type="button" onClick={() => { setEditingId(null); setProductForm(emptyProduct); setFeaturesText(""); setPriceMode("quote"); setPrinterCategoryError(""); clearDirty("product-form"); }}>تفريغ</button></div>
       </form>
       <div className="real-admin-card products-manager"><h2>المنتجات الحالية ({products.length})</h2>{products.map((product) => <article key={product.id}><img src={normalizeMediaUrl(product.image) || "/brand/eshak-logo.png"} alt="" /><div><b>{product.name}</b><span>{categories.find(([value]) => value === product.category)?.[1]}{product.category === "printers" && getPrinterCategoryLabel(product.printerCategory) ? ` — ${getPrinterCategoryLabel(product.printerCategory)}` : ""}</span></div><button type="button" onClick={() => editProduct(product)}>تعديل</button><button type="button" className="delete-product" onClick={() => deleteProduct(product)}>حذف</button></article>)}</div>
@@ -937,32 +956,56 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
   </main>;
 }
 
-function ProductModelsEditor({ product, uploading, onChange, onUpload, onRemoveImage, onDeleteModel }: {
+function ProductModelsEditor({ product, uploading, onChange, onUpload, onUploadVariant, onRemoveImage, onRemoveVariantImage, onDeleteVariant, onDeleteModel }: {
   product: StoredProduct;
   uploading: boolean;
   onChange: (patch: Partial<StoredProduct>) => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>, index: number, currentUrl: string) => void;
+  onUploadVariant: (event: ChangeEvent<HTMLInputElement>, modelIndex: number, variantIndex: number, currentUrl: string) => void;
   onRemoveImage: (index: number, currentUrl: string) => void;
+  onRemoveVariantImage: (modelIndex: number, variantIndex: number, currentUrl: string) => void;
+  onDeleteVariant: (modelIndex: number, variantIndex: number, currentUrl: string) => void;
   onDeleteModel: (index: number, currentUrl: string) => void;
 }) {
   const models = product.models ?? [];
+  const laserInk = isLaserInkCategory(product.category);
+  const colorMode = product.inkSpecifications?.colorMode;
   const update = (index: number, patch: Partial<ProductModel>) => onChange({ models: models.map((model, modelIndex) => modelIndex === index ? { ...model, ...patch } : model) });
+  const updateVariant = (modelIndex: number, variantIndex: number, patch: Partial<ProductModelVariant>) => update(modelIndex, {
+    variants: (models[modelIndex].variants ?? []).map((variant, index) => index === variantIndex ? { ...variant, ...patch } : variant),
+  });
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
     if (target < 0 || target >= models.length) return;
     const next = [...models];
     [next[index], next[target]] = [next[target], next[index]];
-    onChange({ models: next.map((model, modelIndex) => ({ ...model, sortOrder: modelIndex })) });
+    onChange({ models: next.map((model, modelIndex) => ({ ...model, sortOrder: laserInk ? modelIndex + 1 : modelIndex })) });
   };
+  const addModel = () => onChange({ models: [...models, {
+    model: "", availability: "on_request", sortOrder: laserInk ? Math.max(0, ...models.map((model) => model.sortOrder)) + 1 : models.length,
+    isActive: true, variants: [],
+  }] });
+  const addVariant = (modelIndex: number) => update(modelIndex, {
+    variants: [...(models[modelIndex].variants ?? []), { color: "black", partNumber: "", availability: "on_request", sortOrder: models[modelIndex].variants?.length ?? 0, isActive: true }],
+  });
   return <fieldset className="product-models-editor">
     <legend>الموديلات</legend>
-    <div className="admin-dynamic-list-head"><div><b>موديلات المنتج</b><small>اترك القائمة فارغة للمنتجات التي لا تحتاج موديلات.</small></div><button type="button" onClick={() => onChange({ models: [...models, { model: "", availability: "on_request", sortOrder: models.length, isActive: true }] })}>إضافة موديل</button></div>
+    <div className="admin-dynamic-list-head"><div><b>موديلات المنتج</b><small>اترك القائمة فارغة للمنتجات التي لا تحتاج موديلات.</small></div><button type="button" onClick={addModel}>إضافة موديل</button></div>
     {models.map((model, index) => <div className="product-model-editor-row" key={model.id ?? index}>
-      <div className="admin-two-columns"><label>اسم الموديل<input required dir="ltr" value={model.model} maxLength={120} onChange={(event) => update(index, { model: event.target.value })} /></label><label>Part Number<input dir="ltr" value={model.partNumber ?? ""} onChange={(event) => update(index, { partNumber: event.target.value || undefined })} /></label></div>
-      <div className="admin-two-columns"><label>اللون<input value={model.color ?? ""} onChange={(event) => update(index, { color: event.target.value || undefined })} /></label><label>التوفر<select value={model.availability} onChange={(event) => update(index, { availability: event.target.value as ProductModel["availability"] })}><option value="in_stock">متوفر</option><option value="out_of_stock">غير متوفر</option><option value="on_request">حسب الطلب</option></select></label></div>
+      <div className="admin-two-columns"><label>اسم الموديل<input required dir="ltr" value={model.model} maxLength={120} onChange={(event) => update(index, { model: event.target.value })} /></label>{(!laserInk || colorMode === "black") && <label>Part Number<input required={laserInk} dir="ltr" value={model.partNumber ?? ""} onChange={(event) => update(index, { partNumber: event.target.value || undefined })} /></label>}</div>
+      {laserInk && colorMode === "black" ? <div className="admin-two-columns"><label>اللون<input value="أسود" readOnly aria-readonly="true" /></label><label>التوفر<select value={model.availability} onChange={(event) => update(index, { availability: event.target.value as ProductModel["availability"] })}><option value="in_stock">متوفر</option><option value="out_of_stock">غير متوفر</option><option value="on_request">حسب الطلب</option></select></label></div> : !laserInk ? <div className="admin-two-columns"><label>اللون<input value={model.color ?? ""} onChange={(event) => update(index, { color: event.target.value || undefined })} /></label><label>التوفر<select value={model.availability} onChange={(event) => update(index, { availability: event.target.value as ProductModel["availability"] })}><option value="in_stock">متوفر</option><option value="out_of_stock">غير متوفر</option><option value="on_request">حسب الطلب</option></select></label></div> : null}
       <label>التوافق<textarea rows={2} value={model.compatibility ?? ""} onChange={(event) => update(index, { compatibility: event.target.value || undefined })} /></label>
-      <div className="admin-two-columns"><label>السعر الاختياري<input value={model.price ?? ""} onChange={(event) => update(index, { price: event.target.value || undefined })} /></label><label className="admin-check"><input type="checkbox" checked={model.isActive} onChange={(event) => update(index, { isActive: event.target.checked })} /> موديل نشط</label></div>
+      <div className="admin-two-columns">{!laserInk && <label>السعر الاختياري<input value={model.price ?? ""} onChange={(event) => update(index, { price: event.target.value || undefined })} /></label>}<label className="admin-check"><input type="checkbox" checked={model.isActive} onChange={(event) => update(index, { isActive: event.target.checked })} /> موديل نشط</label></div>
       <ImageField value={model.image ?? ""} label="صورة الموديل الاختيارية" actionText={uploading ? "جاري الرفع..." : "اختيار صورة"} disabled={uploading} onUpload={(event) => onUpload(event, index, model.image ?? "")} onRemove={() => onRemoveImage(index, model.image ?? "")} />
+      {laserInk && colorMode === "color" && <div className="laser-model-variants-editor">
+        <div className="admin-dynamic-list-head"><div><b>ألوان الموديل</b><small>لكل لون رقم قطعة وتوفر مستقلان.</small></div><button type="button" onClick={() => addVariant(index)}>+ إضافة لون</button></div>
+        {(model.variants ?? []).map((variant, variantIndex) => <div className="laser-model-variant-row" key={variant.id ?? variantIndex}>
+          <div className="admin-two-columns"><label>اللون<select required value={variant.color} onChange={(event) => updateVariant(index, variantIndex, { color: event.target.value })}>{LASER_INK_COLORS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><label>Part Number<input required dir="ltr" value={variant.partNumber} onChange={(event) => updateVariant(index, variantIndex, { partNumber: event.target.value })} /></label></div>
+          <div className="admin-two-columns"><label>التوفر<select value={variant.availability} onChange={(event) => updateVariant(index, variantIndex, { availability: event.target.value as ProductModelVariant["availability"] })}><option value="in_stock">متوفر</option><option value="out_of_stock">غير متوفر</option><option value="on_request">حسب الطلب</option></select></label><label className="admin-check"><input type="checkbox" checked={variant.isActive} onChange={(event) => updateVariant(index, variantIndex, { isActive: event.target.checked })} /> لون نشط</label></div>
+          <ImageField value={variant.image ?? ""} label={`صورة ${laserInkColorLabel(variant.color)} الاختيارية`} actionText={uploading ? "جاري الرفع..." : "اختيار صورة"} disabled={uploading} onUpload={(event) => onUploadVariant(event, index, variantIndex, variant.image ?? "")} onRemove={() => onRemoveVariantImage(index, variantIndex, variant.image ?? "")} />
+          <button type="button" className="admin-remove-item" onClick={() => onDeleteVariant(index, variantIndex, variant.image ?? "")}>حذف اللون</button>
+        </div>)}
+      </div>}
       <div className="product-model-editor-actions"><button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`نقل الموديل ${model.model || index + 1} لأعلى`}>↑</button><button type="button" onClick={() => move(index, 1)} disabled={index === models.length - 1} aria-label={`نقل الموديل ${model.model || index + 1} لأسفل`}>↓</button><button type="button" className="admin-remove-item" onClick={() => onDeleteModel(index, model.image ?? "")}>حذف الموديل</button></div>
     </div>)}
   </fieldset>;
@@ -1075,6 +1118,16 @@ function InkSpecificationsEditor({
   const updateVariant = (index: number, patch: Partial<InkSpecifications["variants"][number]>) => update({
     variants: specifications.variants.map((variant, variantIndex) => variantIndex === index ? { ...variant, ...patch } : variant),
   });
+
+  if (isLaserInkCategory(product.category)) return <fieldset className="printer-specifications-editor laser-ink-specifications-editor">
+    <legend>مواصفات أحبار الليزر</legend>
+    <p className="admin-help-text">تُحفظ موديلات المنتج الحالية كما هي. تغيير أسود إلى ملون لا يحذف البيانات، لكنه يتطلب إضافة لون واحد على الأقل لكل موديل قبل الحفظ.</p>
+    <div className="admin-two-columns">
+      <label>العلامة التجارية<input required value={specifications.brand ?? ""} onChange={(event) => update({ brand: event.target.value || null })} placeholder="HP" /></label>
+      <label>نوع الحبر<select value={LASER_INK_TYPE} disabled aria-readonly="true"><option value={LASER_INK_TYPE}>{LASER_INK_TYPE}</option></select></label>
+      <label>عدد الألوان<select required value={specifications.colorMode ?? "black"} onChange={(event) => update({ inkType: LASER_INK_TYPE, colorCount: null, colorMode: event.target.value as InkSpecifications["colorMode"] })}>{LASER_INK_COLOR_MODES.map((mode) => <option key={mode} value={mode}>{LASER_INK_COLOR_MODE_LABELS[mode]}</option>)}</select></label>
+    </div>
+  </fieldset>;
 
   return <fieldset className="printer-specifications-editor">
     <legend>مواصفات الأحبار المنظمة</legend>

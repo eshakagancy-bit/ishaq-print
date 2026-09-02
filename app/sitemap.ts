@@ -6,20 +6,21 @@ import { getPrinterSlug } from "./printers/product-slug";
 import { isPublicCategoryEnabled } from "./public-categories";
 import { SITE_URL } from "./seo";
 import { starterProducts } from "./site-defaults";
+import { isInkCategory } from "./laser-inks";
 
 const publicPages = ["", "/categories", "/printers", "/papers", "/inks", "/maintenance"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const data = await getSiteData().catch(() => ({ products: starterProducts }));
   const productPages = data.products
-    .filter((product) => isPublicCategoryEnabled(product.category))
+    .filter((product) => isPublicCategoryEnabled(product.category) || isInkCategory(product.category))
     .map((product) => {
       const slug = product.category === "printers"
         ? getPrinterSlug(product)
         : product.category === "papers"
           ? getPaperSlug(product)
           : getInkSlug(product);
-      return `${SITE_URL}/${product.category}/${slug}`;
+      return `${SITE_URL}/${isInkCategory(product.category) ? "inks" : product.category}/${slug}`;
     });
 
   return [

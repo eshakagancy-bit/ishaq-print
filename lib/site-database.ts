@@ -12,6 +12,7 @@ import {
 } from "../app/printer-specifications";
 import { normalizePaperSpecifications } from "../app/paper-specifications";
 import { normalizeInkSpecifications } from "../app/ink-specifications";
+import { isInkCategory, isLaserInkCategory } from "../app/laser-inks";
 import {
   hasPrinterPageContent,
   normalizePrinterPageContent,
@@ -34,6 +35,7 @@ import {
   type HeroSettings,
   type HeroSlide,
   type ProductModel,
+  type ProductModelVariant,
   type SiteSettings,
   type StoredProduct,
 } from "../app/site-defaults";
@@ -68,6 +70,18 @@ type ProductModelRow = {
   compatibility: string | null;
   availability: ProductModel["availability"];
   price: string | null;
+  image: string | null;
+  sort_order: number;
+  is_active: boolean;
+  product_model_variants?: ProductModelVariantRow[] | null;
+};
+
+type ProductModelVariantRow = {
+  id: number;
+  product_model_id: number;
+  color: string;
+  part_number: string;
+  availability: ProductModelVariant["availability"];
   image: string | null;
   sort_order: number;
   is_active: boolean;
@@ -138,6 +152,7 @@ function normalizeSiteSettingsMedia(settings: SiteSettings): SiteSettings {
 
 function productModelToRow(model: ProductModel, productId: number) {
   return {
+    id: model.id,
     product_id: productId,
     model: model.model.trim(),
     part_number: model.partNumber?.trim() || null,
@@ -148,6 +163,25 @@ function productModelToRow(model: ProductModel, productId: number) {
     image: model.image ? normalizeStoredMediaUrl(model.image) : null,
     sort_order: model.sortOrder,
     is_active: model.isActive,
+    variants: (model.variants ?? []).map((variant) => ({
+      id: variant.id,
+      product_model_id: model.id,
+      color: variant.color.trim(),
+      part_number: variant.partNumber.trim(),
+      availability: variant.availability,
+      image: variant.image ? normalizeStoredMediaUrl(variant.image) : null,
+      sort_order: variant.sortOrder,
+      is_active: variant.isActive,
+    })),
+  };
+}
+
+function productModelVariantFromRow(row: ProductModelVariantRow): ProductModelVariant {
+  return {
+    id: Number(row.id), productModelId: Number(row.product_model_id), color: row.color,
+    partNumber: row.part_number, availability: row.availability,
+    image: row.image ? normalizeStoredMediaUrl(row.image) : undefined,
+    sortOrder: row.sort_order, isActive: row.is_active,
   };
 }
 
@@ -158,6 +192,7 @@ function productModelFromRow(row: ProductModelRow): ProductModel {
     compatibility: row.compatibility || undefined, availability: row.availability,
     price: row.price || undefined, image: row.image ? normalizeStoredMediaUrl(row.image) : undefined,
     sortOrder: row.sort_order, isActive: row.is_active,
+    variants: (row.product_model_variants ?? []).map(productModelVariantFromRow),
   };
 }
 
@@ -169,7 +204,7 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     id: product.id,
     name: normalizeProductBrandName(product.name),
     family: product.family,
-    image: normalizeStoredMediaUrl(product.category === "inks" || product.category === "papers" ? product.images?.[0] || product.image : product.image),
+    image: normalizeStoredMediaUrl(isInkCategory(product.category) || product.category === "papers" ? product.images?.[0] || product.image : product.image),
     category: printerCategory ?? product.category,
     type: product.type,
     size: product.size,
@@ -179,7 +214,7 @@ function productToRow(product: StoredProduct, index: number): ProductRow {
     features: product.features,
     specifications: product.category === "papers"
       ? { ...(product.paperSpecifications ?? {}), images: product.images ?? product.paperSpecifications?.images ?? (product.image ? [product.image] : []) }
-      : product.category === "inks"
+      : isInkCategory(product.category)
         ? { ...(product.inkSpecifications ?? {}), images: product.images ?? product.inkSpecifications?.images ?? (product.image ? [product.image] : []) }
         : product.specifications ?? null,
     printer_page_content: product.category === "printers"
@@ -197,8 +232,8 @@ function productFromRow(row: ProductRow): StoredProduct {
   const storedPrinterCategory = isPrinterCategory(row.category) ? row.category : undefined;
   const category = storedPrinterCategory ? "printers" : row.category;
   const storedPrinterPageContent = normalizePrinterPageContent(row.printer_page_content);
-  const inkSpecifications = category === "inks" ? normalizeInkSpecifications(row.specifications) : undefined;
-  const inkImages = category === "inks"
+  const inkSpecifications = isInkCategory(category) ? normalizeInkSpecifications(row.specifications) : undefined;
+  const inkImages = isInkCategory(category)
     ? (inkSpecifications?.images.length ? inkSpecifications.images : row.image ? [normalizeStoredMediaUrl(row.image)] : [])
     : undefined;
   return {
@@ -237,7 +272,7 @@ function productFromRow(row: ProductRow): StoredProduct {
 }
 
 async function saveProductModels(product: StoredProduct) {
-  const result = await getSupabaseAdmin().rpc("replace_product_models", {
+  const result = await getSupabaseAdmin().rpc("sync_product_models", {
     p_product_id: product.id,
     p_models: (product.models ?? []).map((model) => productModelToRow(model, product.id)),
   });
@@ -328,7 +363,7 @@ export async function getSiteData() {
   const client = getSupabaseAdmin();
   const [settingsResult, productsResult] = await Promise.all([
     client.from("site_settings").select("payload").eq("id", 1).single(),
-    client.from("products").select("*, product_models(*)").order("sort_order", { ascending: true }).order("id", { ascending: true }),
+    client.from("products").select("*, product_models(*, product_model_variants(*))").order("sort_order", { ascending: true }).order("id", { ascending: true }),
   ]);
   databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
   databaseError("تعذر تحميل المنتجات", productsResult.error);
@@ -347,7 +382,7 @@ export async function getHomeData() {
   const client = getSupabaseAdmin();
   const [settingsResult, productsResult] = await Promise.all([
     client.from("site_settings").select("payload").eq("id", 1).single(),
-    client.from("products").select("*, product_models(*)")
+    client.from("products").select("*, product_models(*, product_model_variants(*))")
       .order("home_display_order", { ascending: true, nullsFirst: false })
       .order("sort_order", { ascending: true })
       .order("id", { ascending: true }),
@@ -383,7 +418,7 @@ export async function replaceSiteData(settings: SiteSettings, products: StoredPr
     .update({
       specifications: product.category === "papers"
         ? { ...(product.paperSpecifications ?? {}), images: product.images ?? product.paperSpecifications?.images ?? (product.image ? [product.image] : []) }
-        : product.category === "inks"
+        : isInkCategory(product.category)
           ? { ...(product.inkSpecifications ?? {}), images: product.images ?? product.inkSpecifications?.images ?? (product.image ? [product.image] : []) }
           : product.specifications ?? null,
       specifications_source_url: product.specificationsSourceUrl || null,
@@ -440,10 +475,10 @@ export async function updateProduct(product: StoredProduct) {
 export async function createProduct(product: StoredProduct) {
   const client = getSupabaseAdmin();
   let homeDisplayOrder = product.homeDisplayOrder;
-  if (isHomeProductCategory(product.category) && homeDisplayOrder === undefined) {
+  if ((isHomeProductCategory(product.category) || isLaserInkCategory(product.category)) && homeDisplayOrder === undefined) {
     const databaseCategories = product.category === "printers"
       ? ["printers", ...PRINTER_CATEGORIES.map((category) => category.value)]
-      : [product.category];
+      : isLaserInkCategory(product.category) ? ["inks", "laser_inks"] : [product.category];
     const orderResult = await client
       .from("products")
       .select("home_display_order")

@@ -1,4 +1,5 @@
 import type { StoredProduct } from "./site-defaults";
+import { isInkCategory } from "./laser-inks-core.js";
 
 export const HOME_PRODUCT_CATEGORIES = ["printers", "papers", "inks"] as const;
 
@@ -6,7 +7,7 @@ export type HomeProductCategory = typeof HOME_PRODUCT_CATEGORIES[number];
 
 export type HomeProductOrderItem = {
   id: number;
-  category: HomeProductCategory;
+  category: string;
   homeDisplayOrder: number;
 };
 
@@ -34,7 +35,7 @@ export function compareHomeProductOrder(left: StoredProduct, right: StoredProduc
 }
 
 export function homeProductsForCategory(products: StoredProduct[], category: HomeProductCategory) {
-  return products.filter((product) => product.category === category).sort(compareHomeProductOrder);
+  return products.filter((product) => category === "inks" ? isInkCategory(product.category) : product.category === category).sort(compareHomeProductOrder);
 }
 
 export function moveHomeProduct(
@@ -50,12 +51,12 @@ export function moveHomeProduct(
 
   [ordered[currentIndex], ordered[destinationIndex]] = [ordered[destinationIndex], ordered[currentIndex]];
   const orderById = new Map(ordered.map((product, index) => [product.id, index]));
-  return products.map((product) => product.category === category
+  return products.map((product) => (category === "inks" ? isInkCategory(product.category) : product.category === category)
     ? { ...product, homeDisplayOrder: orderById.get(product.id) }
     : product);
 }
 
 export function buildHomeProductOrder(products: StoredProduct[]): HomeProductOrderItem[] {
   return HOME_PRODUCT_CATEGORIES.flatMap((category) => homeProductsForCategory(products, category)
-    .map((product, homeDisplayOrder) => ({ id: product.id, category, homeDisplayOrder })));
+    .map((product, homeDisplayOrder) => ({ id: product.id, category: product.category, homeDisplayOrder })));
 }

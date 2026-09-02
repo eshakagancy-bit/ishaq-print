@@ -1,3 +1,5 @@
+import { isInkCategory } from "./laser-inks-core.js";
+
 export type ProductSearchScope = "all" | "printers" | "inks" | "papers";
 
 type SearchableProduct = {
@@ -30,7 +32,7 @@ export function searchProducts<T extends SearchableProduct>(
   const queryTokens = normalizedQuery.split(" ");
 
   return products.filter((product) => {
-    if (scope !== "all" && product.category !== scope) return false;
+    if (scope !== "all" && (scope === "inks" ? !isInkCategory(product.category) : product.category !== scope)) return false;
     const haystack = normalizeProductSearchText(getSearchValues(product).filter(Boolean).join(" "));
     return queryTokens.every((token) => haystack.includes(token));
   });

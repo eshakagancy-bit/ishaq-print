@@ -16,14 +16,14 @@ export function CartHeaderButton({ compact = false }: { compact?: boolean }) {
   return <button type="button" className={compact ? "cart-header-button compact" : "cart-header-button"} onClick={openCart} aria-label={totalQuantity ? `فتح سلة الطلبات، إجمالي الكمية ${totalQuantity}` : "فتح سلة الطلبات"} aria-controls="order-cart-drawer" aria-expanded={drawerOpen} aria-haspopup="dialog"><CartIcon/>{hydrated && totalQuantity > 0 ? <b>{totalQuantity}</b> : null}</button>;
 }
 
-export function AddToCartButton({ item, className = "order-cart-add" }: { item: CartItemInput; className?: string }) {
+export function AddToCartButton({ item, className = "order-cart-add", disabled = false }: { item: CartItemInput; className?: string; disabled?: boolean }) {
   const { addItem } = useOrderCart();
   const [feedback, setFeedback] = useState("");
   const add = () => {
     addItem(item);
     setFeedback(item.variant ? `تمت إضافة ${item.variant.label} (${item.variant.code}) إلى سلة الطلبات` : "تمت الإضافة إلى سلة الطلبات");
   };
-  return <div className="order-cart-add-wrap"><button type="button" className={className} onClick={add}><CartIcon/><span>أضف إلى سلة الطلبات</span></button><span className="order-cart-feedback" role="status" aria-live="polite">{feedback}</span></div>;
+  return <div className="order-cart-add-wrap"><button type="button" className={className} onClick={add} disabled={disabled}><CartIcon/><span>أضف إلى سلة الطلبات</span></button><span className="order-cart-feedback" role="status" aria-live="polite">{feedback}</span></div>;
 }
 
 export function CartDrawerOverlay() {
@@ -85,7 +85,7 @@ export function CartDrawerOverlay() {
       {items.length ? <>
         <div className="order-cart-list">{items.map((item) => <article className="order-cart-item" key={item.key}>
           <Image src={item.image} alt="" width={92} height={92} sizes="72px" />
-          <div className="order-cart-item-copy"><Link href={item.productUrl} onClick={closeDrawer}>{item.productName}</Link>{item.variant && item.variant.code !== INK_FULL_SET_VARIANT_CODE ? <span>اللون: {item.variant.label} ({item.variant.code})</span> : null}<div className="order-cart-item-actions"><div className="order-cart-quantity" aria-label={`كمية ${item.productName}`}><button type="button" onClick={() => decrement(item.key)} disabled={item.quantity === 1} aria-label={`تقليل كمية ${item.productName}`}>−</button><b>{item.quantity}</b><button type="button" onClick={() => increment(item.key)} aria-label={`زيادة كمية ${item.productName}`}>+</button></div><button type="button" className="order-cart-remove" onClick={() => removeItem(item.key)} aria-label={`إزالة ${item.productName} من السلة`}>حذف</button></div></div>
+          <div className="order-cart-item-copy"><Link href={item.productUrl} onClick={closeDrawer}>{item.productName}</Link>{item.model ? <span>الموديل: <b dir="ltr">{item.model.name}</b></span> : null}{item.model?.partNumber || item.variant?.partNumber ? <span>Part Number: <b dir="ltr">{item.variant?.partNumber || item.model?.partNumber}</b></span> : null}{item.color ? <span>اللون: {item.color.label}</span> : null}{item.variant && item.variant.code !== INK_FULL_SET_VARIANT_CODE ? <span>اللون: {item.variant.label} ({item.variant.code})</span> : null}<div className="order-cart-item-actions"><div className="order-cart-quantity" aria-label={`كمية ${item.productName}`}><button type="button" onClick={() => decrement(item.key)} disabled={item.quantity === 1} aria-label={`تقليل كمية ${item.productName}`}>−</button><b>{item.quantity}</b><button type="button" onClick={() => increment(item.key)} aria-label={`زيادة كمية ${item.productName}`}>+</button></div><button type="button" className="order-cart-remove" onClick={() => removeItem(item.key)} aria-label={`إزالة ${item.productName} من السلة`}>حذف</button></div></div>
         </article>)}</div>
         <footer className="order-cart-footer">
           <a className="order-cart-whatsapp" href={whatsappUrl} target="_blank" rel="noopener noreferrer">إرسال الطلب عبر واتساب</a>

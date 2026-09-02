@@ -10,6 +10,7 @@ import {
 } from "../../printer-specifications";
 import { normalizePaperSpecifications } from "../../paper-specifications";
 import { getInkProductNameError, normalizeInkSpecifications } from "../../ink-specifications";
+import { isInkCategory, isLaserInkCategory } from "../../laser-inks";
 import { normalizePrinterPageContent } from "../../printer-page-content";
 import { validationResponse } from "../admin-validation";
 import { validateDeletePayload, validateProductPayload, validateSettingsPayload } from "./validation";
@@ -89,20 +90,20 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
   const name = String(input.name ?? "").trim().slice(0, 180);
   const category = String(input.category ?? "").trim().slice(0, 80);
   if (!name || !category) return null;
-  const inkSpecifications = category === "inks"
+  const inkSpecifications = isInkCategory(category)
     ? normalizeInkSpecifications(input.inkSpecifications ?? input.specifications)
     : undefined;
   const legacyImage = normalizeMediaUrl(
     String(input.image ?? "/brand/eshak-logo.png").trim().slice(0, 1000),
     process.env.SUPABASE_STORAGE_BUCKET?.trim() || DEFAULT_SUPABASE_STORAGE_BUCKET,
   );
-  const images = category === "inks" || category === "papers"
+  const images = isInkCategory(category) || category === "papers"
     ? [...new Set((Array.isArray(input.images) ? input.images : inkSpecifications?.images ?? [])
       .map(String)
       .map((image) => normalizeMediaUrl(image.trim().slice(0, 1000)))
       .filter(Boolean))]
     : undefined;
-  if ((category === "inks" || category === "papers") && images && !images.length && legacyImage) images.push(legacyImage);
+  if ((isInkCategory(category) || category === "papers") && images && !images.length && legacyImage) images.push(legacyImage);
   return {
     id: Number.isSafeInteger(Number(input.id)) && Number(input.id) > 0 ? Number(input.id) : Date.now() + index,
     slug: String(input.slug ?? "").trim().slice(0, 200) || undefined,
@@ -151,10 +152,23 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
         color: String(model.color ?? "").trim().slice(0, 120) || undefined,
         compatibility: String(model.compatibility ?? "").trim().slice(0, 1000) || undefined,
         availability: ["in_stock", "out_of_stock", "on_request"].includes(String(model.availability)) ? model.availability as "in_stock" | "out_of_stock" | "on_request" : "on_request",
-        price: String(model.price ?? "").trim().slice(0, 80) || undefined,
+        price: isLaserInkCategory(category) ? undefined : String(model.price ?? "").trim().slice(0, 80) || undefined,
         image: model.image ? normalizeMediaUrl(String(model.image).trim().slice(0, 1000)) : undefined,
         sortOrder: Number.isSafeInteger(Number(model.sortOrder)) && Number(model.sortOrder) >= 0 ? Number(model.sortOrder) : modelIndex,
         isActive: model.isActive !== false,
+        variants: Array.isArray(model.variants) ? model.variants.map((value, variantIndex) => {
+          const variant = value as Record<string, unknown>;
+          return {
+            id: Number.isSafeInteger(Number(variant.id)) && Number(variant.id) > 0 ? Number(variant.id) : undefined,
+            productModelId: Number.isSafeInteger(Number(model.id)) && Number(model.id) > 0 ? Number(model.id) : undefined,
+            color: String(variant.color ?? "").trim().slice(0, 80).toLocaleLowerCase(),
+            partNumber: String(variant.partNumber ?? "").trim().slice(0, 120),
+            availability: ["in_stock", "out_of_stock", "on_request"].includes(String(variant.availability)) ? variant.availability as "in_stock" | "out_of_stock" | "on_request" : "on_request",
+            image: variant.image ? normalizeMediaUrl(String(variant.image).trim().slice(0, 1000)) : undefined,
+            sortOrder: Number.isSafeInteger(Number(variant.sortOrder)) && Number(variant.sortOrder) >= 0 ? Number(variant.sortOrder) : variantIndex,
+            isActive: variant.isActive !== false,
+          };
+        }) : [],
       };
     }) : [],
   };
@@ -194,7 +208,7 @@ export async function POST(request: Request) {
     const payload = validateProductPayload(await request.json());
     const product = normalizeProduct(payload.product, 0);
     if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
-    if (product.category === "inks") {
+    if (isInkCategory(product.category)) {
       const nameError = getInkProductNameError(product.name, product.inkSpecifications?.capacities ?? []);
       if (nameError) return Response.json({ error: nameError }, { status: 400 });
     }
@@ -214,7 +228,7 @@ export async function PATCH(request: Request) {
     const payload = validateProductPayload(await request.json());
     const product = normalizeProduct(payload.product, 0);
     if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
-    if (product.category === "inks") {
+    if (isInkCategory(product.category)) {
       const nameError = getInkProductNameError(product.name, product.inkSpecifications?.capacities ?? []);
       if (nameError) return Response.json({ error: nameError }, { status: 400 });
     }

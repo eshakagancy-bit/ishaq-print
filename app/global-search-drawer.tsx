@@ -9,13 +9,14 @@ import { getPaperSlug } from "./papers/product-slug";
 import { getPrinterSlug } from "./printers/product-slug";
 import type { StoredProduct } from "./site-defaults";
 import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from "./order-cart-provider";
+import { isInkCategory } from "./laser-inks";
 
 function SearchIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
 }
 
 function productDetailsHref(product: StoredProduct) {
-  if (product.category === "inks") return `/inks/${getInkSlug(product)}`;
+  if (isInkCategory(product.category)) return `/inks/${getInkSlug(product)}`;
   if (product.category === "papers") return `/papers/${getPaperSlug(product)}`;
   return `/printers/${getPrinterSlug(product)}`;
 }
@@ -25,7 +26,7 @@ function productDisplayName(product: StoredProduct) {
 }
 
 function productCategoryLine(product: StoredProduct) {
-  if (product.category === "inks") return "الأحبار";
+  if (isInkCategory(product.category)) return "الأحبار";
   if (product.category === "papers") return "الأوراق";
   return "الطابعات";
 }
@@ -52,7 +53,7 @@ export function GlobalSearchDrawer({ open, onClose, products, triggerRef }: Glob
     product.printerCategory,
     product.inkSpecifications?.inkType,
     product.paperSpecifications?.paperType,
-    ...(product.models ?? []).filter((model) => model.isActive).flatMap((model) => [model.model, model.partNumber, model.compatibility]),
+    ...(product.models ?? []).filter((model) => model.isActive).flatMap((model) => [model.model, model.partNumber, model.compatibility, ...(model.variants ?? []).filter((variant) => variant.isActive).flatMap((variant) => [variant.partNumber, variant.color])]),
   ]), [products, searchQuery, searchScope]);
 
   useLayoutEffect(() => {

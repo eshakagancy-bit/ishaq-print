@@ -48,6 +48,7 @@ import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from
 import ProductCardCartButton from "./product-card-cart-button";
 import ProductModelChips from "./product-model-chips";
 import StorefrontCategoryLinks, { STOREFRONT_CATEGORY_ORDER } from "./storefront-category-links";
+import { isInkCategory } from "./laser-inks";
 
 const HERO_IMAGE_SIZES = "100vw";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -250,7 +251,7 @@ function ProductImage({ src, alt, modal = false }: { src: string; alt: string; m
 }
 
 function normalizeInitialProduct(product: StoredProduct): Product {
-  const category = isCategoryId(product.category) ? product.category : "printers";
+  const category = isInkCategory(product.category) ? "inks" : isCategoryId(product.category) ? product.category : "printers";
   const inkImages = category === "inks"
     ? (product.images?.length ? product.images : product.inkSpecifications?.images?.length ? product.inkSpecifications.images : [product.image])
       .map((image) => safeImageSrc(image))
@@ -431,7 +432,7 @@ export default function HomeClient({
       product.printerCategory,
       product.inkSpecifications?.inkType,
       product.paperSpecifications?.paperType,
-      ...(product.models ?? []).filter((model) => model.isActive).flatMap((model) => [model.model, model.partNumber, model.compatibility]),
+      ...(product.models ?? []).filter((model) => model.isActive).flatMap((model) => [model.model, model.partNumber, model.compatibility, ...(model.variants ?? []).flatMap((variant) => [variant.partNumber, variant.color])]),
     ],
   ), [products, searchQuery, searchScope]);
 
@@ -809,7 +810,7 @@ export default function HomeClient({
     const brandLine = getHomeProductBrandLine(product);
     return <article className="product-card" data-category={product.category} data-product-id={product.id} key={product.id}>
       <Link className="product-card-link" href={detailsHref} aria-label={`عرض صفحة ${getProductDisplayName(product)}`} />
-      <div className="product-image">{product.category !== "printers" && product.badge?.trim() && <span className="product-badge">{product.badge}</span>}{product.category === "printers" || product.category === "papers" || product.category === "inks" ? <ProductCardCartButton category={product.category} productId={String(product.id)} productName={getProductDisplayName(product)} productUrl={detailsHref} image={product.image || DEFAULT_IMAGE_SRC} inkVariantCount={product.inkSpecifications?.variants.length}/> : null}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button><div className="product-image-link">{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} variant="home-static" /> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</div><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${getProductDisplayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
+      <div className="product-image">{product.category !== "printers" && product.badge?.trim() && <span className="product-badge">{product.badge}</span>}{product.category === "printers" || product.category === "papers" || product.category === "inks" ? <ProductCardCartButton category={product.category} productId={String(product.id)} productName={getProductDisplayName(product)} productUrl={detailsHref} image={product.image || DEFAULT_IMAGE_SRC} inkVariantCount={product.inkSpecifications?.variants.length} modelCount={(product.models ?? []).filter((model) => model.isActive).length}/> : null}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button><div className="product-image-link">{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} variant="home-static" /> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</div><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${getProductDisplayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
       <div className="product-body">{brandLine && <span className="product-family" dir="auto">{brandLine}</span>}<div className="homepage-product-text-panel"><h3>{getProductDisplayName(product)}</h3>{categoryLine && <span className="product-category-line" dir="auto">{categoryLine}</span>}<ProductModelChips product={product} detailsHref={detailsHref} /></div></div>
     </article>;
   };
@@ -1013,7 +1014,7 @@ export default function HomeClient({
           return <button key={section} type="button" className={mobileNavSection === section ? "active" : ""} aria-current={mobileNavSection === section ? "page" : undefined} onClick={() => openMobileSection(section)}><MobileNavIcon section={section} /><span>{label}</span></button>;
         })}
       </nav>
-      {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} models={selected.models} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
+      {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.inkSpecifications?.colorMode ? undefined : selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} models={selected.models} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
       <CartDrawerOverlay/>
     </main>
   );

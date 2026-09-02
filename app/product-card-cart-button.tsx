@@ -13,6 +13,7 @@ type ProductCardCartButtonProps = {
   productUrl: string;
   image: string;
   inkVariantCount?: number;
+  modelCount?: number;
 };
 
 export default function ProductCardCartButton(props: ProductCardCartButtonProps) {
@@ -38,8 +39,8 @@ export default function ProductCardCartButton(props: ProductCardCartButtonProps)
       type="button"
       className="product-card-cart"
       onClick={activate}
-      aria-label={requiresOptions ? `اختر لون أو متغير ${props.productName}` : `أضف ${props.productName} إلى سلة الطلبات`}
-      title={requiresOptions ? "اختر اللون أو المتغير" : "أضف إلى سلة الطلبات"}
+      aria-label={requiresOptions ? `اختر الموديل أو اللون لـ ${props.productName}` : `أضف ${props.productName} إلى سلة الطلبات`}
+      title={requiresOptions ? "اختر الموديل أو اللون" : "أضف إلى سلة الطلبات"}
     ><CartIcon/></button>
     {feedback ? <span className="product-card-cart-feedback" role="status" aria-live="polite" onAnimationEnd={() => setFeedback("")}>{feedback}</span> : null}
   </>;

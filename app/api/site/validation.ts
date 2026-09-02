@@ -1,5 +1,6 @@
 import { categoryImageDefinitions } from "../../site-defaults";
 import { isPrinterCategory } from "../../printer-categories";
+import { LASER_INK_CATEGORY, LASER_INK_COLOR_MODES, LASER_INK_TYPE } from "../../laser-inks";
 import {
   AdminValidationError,
   enumValue,
@@ -15,17 +16,18 @@ import {
 } from "../admin-validation";
 
 const productKeys = ["id", "slug", "name", "family", "image", "images", "category", "printerCategory", "type", "size", "badge", "price", "description", "features", "specifications", "printerPageContent", "paperPageContent", "paperSpecifications", "inkSpecifications", "specificationsSourceUrl", "specificationsVerifiedAt", "sortOrder", "homeDisplayOrder", "models"];
-const productModelKeys = ["id", "productId", "model", "partNumber", "color", "compatibility", "availability", "price", "image", "sortOrder", "isActive"];
+const productModelKeys = ["id", "productId", "model", "partNumber", "color", "compatibility", "availability", "price", "image", "sortOrder", "isActive", "variants"];
+const productModelVariantKeys = ["id", "productModelId", "color", "partNumber", "availability", "image", "sortOrder", "isActive"];
 const settingsKeys = ["logoImage", "featureEyebrow", "featureTitle", "featureDescription", "featureImage", "maintenanceTitle", "maintenanceDescription", "contactKicker", "contactTitle", "address", "salesPhone", "customerServicePhone", "generalWhatsapp", "workDays", "workHours", "workWeekdays", "workStartTime", "workEndTime", "categoryImages", "productPurchaseBenefits"];
 const pageContentKeys = ["detailedDescription", "productFeatures", "productUses", "whyChooseThisProduct", "faq"];
 const contentItemKeys = ["title", "description"];
 const faqKeys = ["question", "answer"];
 const printerSpecificationKeys = ["paperSize", "printerType", "functions", "printTechnology", "colorCount", "colorMode", "wifi", "wifiAvailability", "wifiDirect", "nfc", "ethernet", "usb", "parallel", "serial", "optionalInterface", "scanner", "fax", "faxMode", "duplex", "duplexMode", "adf", "adfCapacity", "duplexScanning", "adfDuplexType", "printSpeed", "speedUnit", "inkType", "inkSystem", "borderless", "mobilePrinting", "cdDvdPrinting", "plasticCardPrinting", "photoPrintTimeSeconds", "usage", "printLanguages", "standardPaperCapacity", "maximumPaperCapacity", "finisherSupport", "dotMatrixPins", "printColumns", "multipartCopies", "ribbonYield"];
 const paperSpecificationKeys = ["images", "nameAr", "nameEn", "brand", "series", "paperType", "surface", "size", "dimensions", "weightGsm", "sheetCount", "printSides", "printerCompatibility", "selfAdhesive", "thermalTransfer", "inkCompatibility", "quickDry", "uses", "availability"];
-const inkSpecificationKeys = ["images", "variants", "brand", "inkType", "colorCount", "capacities", "compatiblePrinters", "features", "uses"];
+const inkSpecificationKeys = ["images", "variants", "brand", "inkType", "colorCount", "colorMode", "capacities", "compatiblePrinters", "features", "uses"];
 const inkVariantKeys = ["code", "label", "image"];
 const stringSettingsKeys = settingsKeys.slice(0, 18);
-const validCategories = categoryImageDefinitions.map(({ key }) => key).filter((key) => key !== "all-products");
+const validCategories = [...categoryImageDefinitions.map(({ key }) => key).filter((key) => key !== "all-products"), LASER_INK_CATEGORY];
 const printerBooleanKeys = ["wifi", "wifiDirect", "nfc", "ethernet", "usb", "parallel", "serial", "optionalInterface", "scanner", "fax", "duplex", "adf", "duplexScanning", "borderless", "mobilePrinting", "cdDvdPrinting", "plasticCardPrinting", "finisherSupport"];
 const printerNumberKeys = ["colorCount", "adfCapacity", "printSpeed", "photoPrintTimeSeconds", "standardPaperCapacity", "maximumPaperCapacity", "dotMatrixPins", "printColumns", "multipartCopies", "ribbonYield"];
 const printerArrayKeys = ["functions", "usage", "printLanguages"];
@@ -54,7 +56,7 @@ function validatePaperSpecifications(value: unknown) {
 function validateInkSpecifications(value: unknown) {
   if (value === undefined || value === null) return;
   const input = strictObject(value, inkSpecificationKeys, "مواصفات الحبر");
-  ["brand", "inkType", "colorCount"].forEach((key) => nullableString(input[key], `مواصفات الحبر.${key}`, 160));
+  ["brand", "inkType", "colorCount", "colorMode"].forEach((key) => nullableString(input[key], `مواصفات الحبر.${key}`, 160));
   ["images", "capacities", "compatiblePrinters", "features", "uses"].forEach((key) => strictStringArray(input[key] ?? [], `مواصفات الحبر.${key}`, 50, 1000));
   const verifiedImages = new Set((input.images ?? []) as string[]);
   if (!Array.isArray(input.variants) || input.variants.length > 12) throw new AdminValidationError("ألوان الحبر غير صالحة");
@@ -116,6 +118,12 @@ export function validateProductPayload(value: unknown) {
   validatePrinterSpecifications(product.specifications);
   validatePaperSpecifications(product.paperSpecifications);
   validateInkSpecifications(product.inkSpecifications);
+  if (category === LASER_INK_CATEGORY) {
+    const laserSpecifications = strictObject(product.inkSpecifications, inkSpecificationKeys, "مواصفات أحبار الليزر");
+    requiredString(laserSpecifications.brand, "العلامة التجارية", 120);
+    if (laserSpecifications.inkType !== LASER_INK_TYPE) throw new AdminValidationError("نوع حبر الليزر يجب أن يكون ليزر");
+    enumValue(laserSpecifications.colorMode, LASER_INK_COLOR_MODES, "عدد ألوان حبر الليزر");
+  }
   validatePageContent(product.printerPageContent, "محتوى صفحة الطابعة");
   validatePageContent(product.paperPageContent, "محتوى صفحة الورق");
   if (product.models !== undefined) {
@@ -131,6 +139,27 @@ export function validateProductPayload(value: unknown) {
       enumValue(entry.availability, ["in_stock", "out_of_stock", "on_request"], "توفر الموديل");
       if (typeof entry.isActive !== "boolean") throw new AdminValidationError("حالة الموديل غير صالحة");
       nullableNonNegativeNumber(entry.sortOrder, "ترتيب الموديل");
+      if (entry.variants !== undefined && !Array.isArray(entry.variants)) throw new AdminValidationError("ألوان الموديل غير صالحة");
+      const variants = Array.isArray(entry.variants) ? entry.variants : [];
+      if (variants.length > 20) throw new AdminValidationError("عدد ألوان الموديل يتجاوز الحد المسموح");
+      const colors = new Set<string>();
+      variants.forEach((variant, variantIndex) => {
+        const variantEntry = strictObject(variant, productModelVariantKeys, `لون الموديل ${variantIndex + 1}`);
+        const color = requiredString(variantEntry.color, "لون الموديل", 80).toLocaleLowerCase();
+        if (colors.has(color)) throw new AdminValidationError("لا يمكن تكرار اللون داخل نفس الموديل");
+        colors.add(color);
+        requiredString(variantEntry.partNumber, "Part Number للون", 120);
+        enumValue(variantEntry.availability, ["in_stock", "out_of_stock", "on_request"], "توفر لون الموديل");
+        if (typeof variantEntry.isActive !== "boolean") throw new AdminValidationError("حالة لون الموديل غير صالحة");
+        nullableNonNegativeNumber(variantEntry.sortOrder, "ترتيب لون الموديل");
+        optionalString(variantEntry.image, "صورة لون الموديل", 1000);
+        if (variantEntry.image) safeWebOrLocalUrl(variantEntry.image, "صورة لون الموديل", 1000);
+      });
+      if (category === LASER_INK_CATEGORY) {
+        const laserSpecifications = product.inkSpecifications as Record<string, unknown>;
+        if (laserSpecifications.colorMode === "black" && !String(entry.partNumber ?? "").trim()) throw new AdminValidationError("Part Number مطلوب لكل موديل حبر ليزر أسود");
+        if (laserSpecifications.colorMode === "color" && variants.length === 0) throw new AdminValidationError("يجب إضافة لون واحد على الأقل لكل موديل حبر ليزر ملون");
+      }
     });
   }
   return wrapper;

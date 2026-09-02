@@ -66,7 +66,7 @@ test("printer admin hides verification fields while preserving stored data and o
   assert.doesNotMatch(admin, /onChange\(\{ specificationsSourceUrl:/);
   assert.doesNotMatch(admin, /onChange\(\{ specificationsVerifiedAt:/);
   assert.match(admin, /productForm\.category === "printers" && <PrinterSpecificationsEditor/);
-  assert.match(admin, /productForm\.category === "inks" && <InkSpecificationsEditor/);
+  assert.match(admin, /isInkCategory\(productForm\.category\) && <InkSpecificationsEditor/);
   assert.match(admin, /productForm\.category === "papers" && <PaperSpecificationsEditor/);
   assert.match(validation, /\["specificationsSourceUrl", 1000\], \["specificationsVerifiedAt", 80\][\s\S]+optionalString/);
   assert.match(database, /specifications_source_url: product\.specificationsSourceUrl \|\| null/);

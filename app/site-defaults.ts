@@ -3,6 +3,7 @@ import type { PrinterSpecifications } from "./printer-specifications";
 import type { PaperSpecifications } from "./paper-specifications";
 import type { InkSpecifications } from "./ink-specifications";
 import type { PrinterPageContent } from "./printer-page-content";
+import type { LaserInkColorMode } from "./laser-inks";
 
 export type SiteSettings = {
   logoImage: string;
@@ -158,6 +159,22 @@ export type ProductModel = {
   image?: string;
   sortOrder: number;
   isActive: boolean;
+  variants?: ProductModelVariant[];
+};
+
+export type ProductModelVariant = {
+  id?: number;
+  productModelId?: number;
+  color: string;
+  partNumber: string;
+  availability: ProductModelAvailability;
+  image?: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type LaserInkSpecifications = {
+  colorMode: LaserInkColorMode | null;
 };
 
 export type HeroSlide = {
