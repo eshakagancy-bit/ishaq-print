@@ -39,7 +39,7 @@ import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
 import QuickViewModal from "./quick-view-modal";
 import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS } from "./public-categories";
-import { searchProducts, type ProductSearchScope } from "./global-product-search";
+import { searchProductResults, type ProductSearchScope } from "./global-product-search";
 import { maintenanceContacts, maintenanceServices, maintenanceWhatsappHref } from "./maintenance-data";
 import StorefrontFooter from "./storefront-footer";
 import Image from "./storefront-image";
@@ -47,6 +47,7 @@ import { CartDrawerOverlay, CartHeaderButton } from "./order-cart-ui";
 import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from "./order-cart-provider";
 import ProductCardCartButton from "./product-card-cart-button";
 import ProductModelChips from "./product-model-chips";
+import SearchResultModelMatches from "./search-result-model-matches";
 import StorefrontCategoryLinks, { STOREFRONT_CATEGORY_ORDER } from "./storefront-category-links";
 import { isInkCategory } from "./laser-inks";
 
@@ -417,7 +418,7 @@ export default function HomeClient({
     return () => window.removeEventListener(HEADER_DRAWER_EVENT, closeForCart);
   }, []);
   const normalizedSearchQuery = searchQuery.trim();
-  const matchingSearchProducts = useMemo(() => searchProducts(
+  const matchingSearchProducts = useMemo(() => searchProductResults(
     products,
     searchQuery,
     searchScope,
@@ -432,7 +433,6 @@ export default function HomeClient({
       product.printerCategory,
       product.inkSpecifications?.inkType,
       product.paperSpecifications?.paperType,
-      ...(product.models ?? []).filter((model) => model.isActive).flatMap((model) => [model.model, model.partNumber, model.compatibility, ...(model.variants ?? []).flatMap((variant) => [variant.partNumber, variant.color])]),
     ],
   ), [products, searchQuery, searchScope]);
 
@@ -879,7 +879,15 @@ export default function HomeClient({
             <label className="global-search-field" htmlFor="global-search-input"><span className="sr-only">البحث عن منتج</span><input ref={searchInputRef} id="global-search-input" type="search" dir="auto" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="ابحث عن منتج..." autoComplete="off"/><DrawerIcon name="search"/>{searchQuery && <button type="button" onClick={() => setSearchQuery("")} aria-label="مسح البحث"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>}</label>
           </div>
           <div className="search-drawer-results" aria-live="polite">
-            {!normalizedSearchQuery ? <div className="search-drawer-state"><DrawerIcon name="search"/><p>ابدأ بالبحث عن منتج</p><span>ابحث بالاسم أو الموديل أو النوع.</span></div> : matchingSearchProducts.length ? <><p className="search-result-count">{matchingSearchProducts.length} {matchingSearchProducts.length === 1 ? "نتيجة" : "نتائج"}</p><div className="search-results-list">{matchingSearchProducts.map((product) => <Link key={`${product.category}-${product.id}`} href={getProductDetailsHref(product)} className="search-result-item" onClick={() => setActiveHeaderDrawer("closed")}><span className="search-result-image"><Image src={imageSrcOrFallback(product.image)} alt="" width={88} height={88} sizes="72px" draggable={false}/></span><span className="search-result-copy"><strong dir="auto">{getProductDisplayName(product)}</strong><small dir="auto">{getHomeProductCategoryLine(product)}</small></span><svg className="search-result-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></Link>)}</div></> : <div className="search-drawer-state no-results" role="status"><h3>لا توجد نتائج مطابقة</h3><p>جرّب كلمة بحث أخرى أو اختر فئة مختلفة.</p></div>}
+            {!normalizedSearchQuery ? <div className="search-drawer-state"><DrawerIcon name="search"/><p>ابدأ بالبحث عن منتج</p><span>ابحث بالاسم أو الموديل أو النوع.</span></div> : matchingSearchProducts.length ? <><p className="search-result-count">{matchingSearchProducts.length} {matchingSearchProducts.length === 1 ? "نتيجة" : "نتائج"}</p><div className="search-results-list">{matchingSearchProducts.map((result) => {
+              const product = result.product;
+              const href = getProductDetailsHref(product);
+              const name = getProductDisplayName(product);
+              return <article className="search-result-entry" key={`${product.category}-${product.id}`}>
+                <Link href={href} className="search-result-item" onClick={() => setActiveHeaderDrawer("closed")}><span className="search-result-image"><Image src={imageSrcOrFallback(product.image)} alt="" width={88} height={88} sizes="72px" draggable={false}/></span><span className="search-result-copy"><strong dir="auto">{name}</strong><small dir="auto">{getHomeProductCategoryLine(product)}</small></span><svg className="search-result-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></Link>
+                {product.inkSpecifications?.colorMode ? <SearchResultModelMatches matches={result.matchedModels} productHref={href} productName={name} query={searchQuery} onNavigate={() => setActiveHeaderDrawer("closed")}/> : null}
+              </article>;
+            })}</div></> : <div className="search-drawer-state no-results" role="status"><h3>لا توجد نتائج مطابقة</h3><p>جرّب كلمة بحث أخرى أو اختر فئة مختلفة.</p></div>}
           </div>
         </aside>
       </div>

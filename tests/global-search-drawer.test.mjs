@@ -29,23 +29,25 @@ test("category selector exposes only the four requested effective scopes", async
   assert.match(selector, /value="inks">الأحبار/);
   assert.match(selector, /value="papers">الأوراق/);
   assert.equal((selector.match(/<option/g) ?? []).length, 4);
-  assert.match(home, /searchProducts\([\s\S]*?searchScope/);
+  assert.match(home, /searchProductResults\([\s\S]*?searchScope/);
 });
 
 test("search uses real loaded products and normalized name, brand, type and category values", async () => {
   const [home, helper] = await Promise.all([read("app/home-client.tsx"), read("app/global-product-search.ts")]);
-  assert.match(home, /searchProducts\(\s*products,/);
+  assert.match(home, /searchProductResults\(\s*products,/);
   assert.match(home, /getProductDisplayName\(product\)/);
   assert.match(home, /getHomeProductBrandLine\(product\)/);
   assert.match(home, /getHomeProductCategoryLine\(product\)/);
-  assert.match(helper, /const WORD_SEPARATORS = \/\[-_–—\/\\\\\]\+\/g/);
-  assert.match(helper, /queryTokens\.every\(\(token\) => haystack\.includes\(token\)\)/);
+  assert.match(helper, /const WORD_SEPARATORS =/);
+  assert.match(helper, /\\u2013\\u2014/);
+  assert.match(helper, /queryTokens\.every\(\(token\) => normalizedValue\.includes\(token\)\)/);
+  assert.match(helper, /compactSearchText\(normalizedValue\)\.includes/);
   assert.doesNotMatch(home, /mockSearch|searchMock|fakeResult/);
 });
 
 test("search results remain compact semantic links with states and complete focus handling", async () => {
   const home = await read("app/home-client.tsx");
-  assert.match(home, /href=\{getProductDetailsHref\(product\)\} className="search-result-item"/);
+  assert.match(home, /href=\{href\} className="search-result-item"/);
   assert.match(home, /getHomeProductCategoryLine\(product\)/);
   assert.match(home, /ابدأ بالبحث عن منتج/);
   assert.match(home, /لا توجد نتائج مطابقة/);

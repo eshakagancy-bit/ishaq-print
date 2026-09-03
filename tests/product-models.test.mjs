@@ -48,7 +48,8 @@ test("search, admin CRUD, image fallback and all three detail routes are wired",
     "app/admin/admin-dashboard.tsx", "app/product-model-selector.tsx", "lib/site-database.ts",
     "app/printers/[slug]/page.tsx", "app/inks/[slug]/page.tsx", "app/papers/[slug]/page.tsx",
   ].map((path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")));
-  assert.match(search, /model\.model, model\.partNumber, model\.compatibility/);
+  assert.match(search, /searchProductResults/);
+  assert.match(search, /SearchResultModelMatches/);
   assert.match(home, /<ProductModelChips product=\{product\}/);
   assert.match(category, /<ProductModelChips product=\{product\}/);
   assert.match(admin, /إضافة موديل/);
