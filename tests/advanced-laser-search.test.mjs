@@ -147,6 +147,7 @@ test("laser result context uses semantic deep links and visible non-color-only m
   assert.match(source, /productSearchMatchHref\(productHref, match\.model, variant\)/);
   assert.match(source, /laserInkColorLabel\(variant\.color\)/);
   assert.match(source, /variant\.partNumber/);
+  assert.match(source, /match\.model\.partNumber \? <small dir="ltr">\{match\.model\.partNumber\}<\/small>/);
   assert.match(source, /متوافق مع بحثك/);
   assert.match(source, /className="search-result-model-chip"/);
 });
