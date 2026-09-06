@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = publicMetadata({
   title: "الفئات | وكالة إسحاق العالمية",
-  description: "تصفح فئات الطابعات والأوراق والأحبار المتاحة لدى وكالة إسحاق العالمية.",
+  description: "تصفح فئات الطابعات والأوراق والأحبار وأحبار الليزر المتاحة لدى وكالة إسحاق العالمية.",
   path: "/categories",
 });
 
@@ -26,7 +26,7 @@ export default async function CategoriesPage() {
     <section className="container categories-index-content">
       <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>الفئات</b></nav>
       <div className="categories-index-title"><span>أقسام المنتجات</span><h1>تسوق حسب الفئة</h1><p>اختر القسم الذي تريد تصفحه</p></div>
-      <StorefrontCategoryLinks/>
+      <StorefrontCategoryLinks products={data.products}/>
     </section>
     <CartDrawerOverlay/><StorefrontFooter settings={data.settings} /></main></>;
 }

@@ -11,8 +11,9 @@ const artifactDir = process.env.ARTIFACT_DIR || "test-artifacts";
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const expected = [
   { category: "printers", href: "/printers", image: "/categories/printers-unified.png" },
-  { category: "inks", href: "/inks", image: "/categories/inks-unified.png" },
   { category: "papers", href: "/papers", image: "/categories/papers-unified.png" },
+  { category: "inks", href: "/inks", image: "/categories/inks-unified.png" },
+  { category: "laser_inks", href: "/laser-inks", image: null },
 ];
 
 const target = await fetch(`${cdpBase}/json/new?${encodeURIComponent("about:blank")}`, { method: "PUT" }).then((response) => response.json());
@@ -54,7 +55,7 @@ const navigate = async ({ width, height }) => {
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width <= 760, screenWidth: width, screenHeight: height });
   await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "no-preference" }] });
   await send("Page.navigate", { url: appUrl });
-  await waitFor("document.readyState === 'complete' && document.querySelectorAll('.storefront-category-card').length === 3");
+  await waitFor("document.readyState === 'complete' && document.querySelectorAll('.storefront-category-card').length === 4");
   await evaluate("document.querySelector('.storefront-categories').scrollIntoView({ block: 'center' })");
   await waitFor("[...document.querySelectorAll('.storefront-category-image img')].every((image) => image.complete && image.naturalWidth > 0)");
 };
@@ -88,12 +89,12 @@ const inspect = () => evaluate(`(() => ({
 }))()`);
 const assertLayout = (result, viewport) => {
   assert.equal(result.overflow, false, `${viewport} horizontal overflow`);
-  assert.equal(result.cards.length, 3);
+  assert.equal(result.cards.length, 4);
   result.cards.forEach((card, index) => {
     assert.equal(card.category, expected[index].category);
     assert.equal(card.href, expected[index].href);
-    assert.equal(card.image, expected[index].image);
-    assert.equal(card.naturalWidth, card.naturalHeight);
+    if (expected[index].image) assert.equal(card.image, expected[index].image);
+    else assert.match(card.image, /^\/api\/media\/products\/.+\.webp$/);
     assert.ok(card.naturalWidth >= card.width * 0.95, `${viewport} ${card.category} responsive source size`);
     assert.ok(Math.abs(card.width - card.height) < 0.5, `${viewport} ${card.category} square`);
     assert.equal(card.objectFit, "contain");
@@ -118,7 +119,7 @@ for (const viewport of [{ name: "desktop-1440", width: 1440, height: 1000 }, { n
   await navigate(viewport);
   assertLayout(await inspect(), viewport.name);
   const statuses = await evaluate(`Promise.all(${JSON.stringify(expected.map(({ href }) => href))}.map(async (path) => (await fetch(path, { method: 'HEAD' })).status))`);
-  assert.deepEqual(statuses, [200, 200, 200]);
+  assert.deepEqual(statuses, [200, 200, 200, 200]);
   await screenshotSection(`category-artwork-${viewport.name}.png`);
   results[viewport.name] = "PASS";
 }

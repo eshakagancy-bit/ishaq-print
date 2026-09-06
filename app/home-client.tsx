@@ -38,7 +38,7 @@ import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
 import InkImageCarousel from "./ink-image-carousel";
 import QuickViewModal from "./quick-view-modal";
-import { isPublicCategoryEnabled, PUBLIC_CATEGORY_DETAILS } from "./public-categories";
+import { isPublicCategoryEnabled, productBelongsToPublicCategory, PUBLIC_CATEGORY_DETAILS } from "./public-categories";
 import { searchProductResults, type ProductSearchScope } from "./global-product-search";
 import { maintenanceContacts, maintenanceServices, maintenanceWhatsappHref } from "./maintenance-data";
 import StorefrontFooter from "./storefront-footer";
@@ -194,6 +194,7 @@ const allCategories = [
   { id: "engraving-presses", name: "آلات النحت والمكابس", icon: "⚙️", description: "حلول النحت والكبس للمشاريع والورش" },
   { id: "inks", name: PUBLIC_CATEGORY_DETAILS.inks.label, icon: "💧", description: PUBLIC_CATEGORY_DETAILS.inks.description },
   { id: "papers", name: PUBLIC_CATEGORY_DETAILS.papers.label, icon: "📄", description: PUBLIC_CATEGORY_DETAILS.papers.description },
+  { id: "laser_inks", name: PUBLIC_CATEGORY_DETAILS.laser_inks.label, icon: "💧", description: PUBLIC_CATEGORY_DETAILS.laser_inks.description },
   { id: "advertising-machines", name: "آلات الدعاية والإعلان", icon: "✦", description: "معدات الطباعة والقص والإنتاج الإعلاني" },
   { id: "electronics", name: "الملحقات الإلكترونية", icon: "🔌", description: "ملحقات إلكترونية عملية للأجهزة والمكاتب" },
   { id: "cameras", name: "الكاميرات", icon: "📷", description: "كاميرات ومعدات تصوير للاستخدامات المختلفة" },
@@ -252,7 +253,7 @@ function ProductImage({ src, alt, modal = false }: { src: string; alt: string; m
 }
 
 function normalizeInitialProduct(product: StoredProduct): Product {
-  const category = isInkCategory(product.category) ? "inks" : isCategoryId(product.category) ? product.category : "printers";
+  const category = isCategoryId(product.category) ? product.category : "printers";
   const inkImages = category === "inks"
     ? (product.images?.length ? product.images : product.inkSpecifications?.images?.length ? product.inkSpecifications.images : [product.image])
       .map((image) => safeImageSrc(image))
@@ -293,13 +294,13 @@ function getHomeProductCategoryLine(product: Product) {
   if (product.category === "printers" && product.printerCategory) {
     return HOME_PRINTER_LABELS[product.printerCategory] ?? product.type;
   }
-  if (product.category === "inks") return product.inkSpecifications?.inkType?.trim() || product.type;
+  if (isInkCategory(product.category)) return product.inkSpecifications?.inkType?.trim() || product.type;
   if (product.category === "papers") return product.paperSpecifications?.paperType?.trim() || product.type;
   return product.type;
 }
 
 function getHomeProductBrandLine(product: Product) {
-  if (product.category === "inks") return product.inkSpecifications?.brand?.trim() || product.family;
+  if (isInkCategory(product.category)) return product.inkSpecifications?.brand?.trim() || product.family;
   if (product.category === "papers") return product.paperSpecifications?.brand?.trim() || product.family;
   return product.family;
 }
@@ -307,6 +308,7 @@ function getHomeProductBrandLine(product: Product) {
 const categoryContacts: Record<CategoryId, string> = {
   printers: "967778989866",
   inks: "967778989866",
+  laser_inks: "967778989866",
   papers: "967778989866",
   laptops: "967772233043",
   electronics: "967772233043",
@@ -797,7 +799,7 @@ export default function HomeClient({
   }, []);
   const closeQuickView = useCallback(() => setSelected(null), []);
   const selectedSpecificationRows = selected
-    ? selected.category === "inks"
+    ? isInkCategory(selected.category)
       ? buildInkSpecificationRows(selected)
       : selected.category === "papers"
       ? buildPaperSpecificationRows(selected)
@@ -810,7 +812,7 @@ export default function HomeClient({
     const brandLine = getHomeProductBrandLine(product);
     return <article className="product-card" data-category={product.category} data-product-id={product.id} key={product.id}>
       <Link className="product-card-link" href={detailsHref} aria-label={`عرض صفحة ${getProductDisplayName(product)}`} />
-      <div className="product-image">{product.category !== "printers" && product.badge?.trim() && <span className="product-badge">{product.badge}</span>}{product.category === "printers" || product.category === "papers" || product.category === "inks" ? <ProductCardCartButton category={product.category} productId={String(product.id)} productName={getProductDisplayName(product)} productUrl={detailsHref} image={product.image || DEFAULT_IMAGE_SRC} inkVariantCount={product.inkSpecifications?.variants.length} modelCount={(product.models ?? []).filter((model) => model.isActive).length}/> : null}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button><div className="product-image-link">{product.category === "inks" ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} variant="home-static" /> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</div><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${getProductDisplayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
+      <div className="product-image">{product.category !== "printers" && product.badge?.trim() && <span className="product-badge">{product.badge}</span>}{product.category === "printers" || product.category === "papers" || isInkCategory(product.category) ? <ProductCardCartButton category={product.category === "printers" ? "printers" : product.category === "papers" ? "papers" : "inks"} productId={String(product.id)} productName={getProductDisplayName(product)} productUrl={detailsHref} image={product.image || DEFAULT_IMAGE_SRC} inkVariantCount={product.inkSpecifications?.variants.length} modelCount={(product.models ?? []).filter((model) => model.isActive).length}/> : null}<button type="button" className={favorites.includes(product.id) ? "heart active" : "heart"} onClick={() => toggleFavorite(product.id)} aria-label={favorites.includes(product.id) ? "إزالة من المفضلة" : "إضافة إلى المفضلة"} aria-pressed={favorites.includes(product.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z" /></svg></button><div className="product-image-link">{isInkCategory(product.category) ? <InkImageCarousel key={product.id} images={product.images?.length ? product.images : [product.image]} alt={getProductDisplayName(product)} variant="home-static" /> : <ProductImage src={product.image} alt={getProductDisplayName(product)} />}</div><button type="button" className="quick-view" onClick={(event) => openQuickView(product, event.currentTarget)} aria-label={`تفاصيل سريعة لـ ${getProductDisplayName(product)}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.6"/></svg><span>تفاصيل سريعة</span></button></div>
       <div className="product-body">{brandLine && <span className="product-family" dir="auto">{brandLine}</span>}<div className="homepage-product-text-panel"><h3>{getProductDisplayName(product)}</h3>{categoryLine && <span className="product-category-line" dir="auto">{categoryLine}</span>}<ProductModelChips product={product} detailsHref={detailsHref} /></div></div>
     </article>;
   };
@@ -938,7 +940,7 @@ export default function HomeClient({
 
       <section className="storefront-categories" id="categories" aria-labelledby="storefront-categories-title"><div className="container">
         <div className="storefront-section-heading"><h2 id="storefront-categories-title">تسوق حسب الفئة</h2></div>
-        <StorefrontCategoryLinks/>
+        <StorefrontCategoryLinks products={products}/>
       </div></section>
 
       </>}
@@ -946,7 +948,7 @@ export default function HomeClient({
       {pageView === "home" && <>
       <section className="products-section" id="products"><div className="container">
         <div className="home-category-sections">{STOREFRONT_CATEGORY_ORDER.map((categoryId) => {
-          const categoryProducts = products.filter((product) => product.category === categoryId);
+          const categoryProducts = products.filter((product) => productBelongsToPublicCategory(product.category, categoryId));
           const productCards = categoryProducts.map(renderProductCard);
           return <section className="home-category-section" id={`home-category-${categoryId}`} key={categoryId}><div className="home-category-heading"><h2>{PUBLIC_CATEGORY_DETAILS[categoryId].label}</h2><a href={PUBLIC_CATEGORY_DETAILS[categoryId].href}>عرض الكل <span aria-hidden="true">←</span></a></div>{categoryProducts.length ? <HomeProductSlider products={productCards} label={PUBLIC_CATEGORY_DETAILS[categoryId].label} /> : <p className="home-category-empty">لا توجد منتجات في هذا القسم حاليًا.</p>}</section>;
         })}</div>

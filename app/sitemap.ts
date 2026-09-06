@@ -8,7 +8,7 @@ import { SITE_URL } from "./seo";
 import { starterProducts } from "./site-defaults";
 import { isInkCategory } from "./laser-inks";
 
-const publicPages = ["", "/categories", "/printers", "/papers", "/inks", "/maintenance"];
+const publicPages = ["", "/categories", "/printers", "/papers", "/inks", "/laser-inks", "/maintenance"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const data = await getSiteData().catch(() => ({ products: starterProducts }));

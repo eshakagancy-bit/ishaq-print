@@ -166,8 +166,8 @@ button { cursor:pointer; }
 .home-category-heading h2 { margin:5px 0 0; font-size:clamp(22px,3vw,31px); }
 .home-category-heading>a { border:1px solid var(--line); border-radius:20px; padding:8px 16px; background:#fff; color:var(--navy); font-size:11px; font-weight:900; }
 .home-category-products .product-card { width:auto; min-width:0; }
-.home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image { height:auto; flex:0 0 auto; aspect-ratio:4/5; }
-.home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image img { width:94%; height:94%; object-fit:contain; object-position:center; }
+.home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image { height:auto; flex:0 0 auto; aspect-ratio:4/5; }
+.home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image img { width:94%; height:94%; object-fit:contain; object-position:center; }
 .home-category-empty { margin:0; padding:24px; border:1px dashed var(--line); border-radius:12px; color:var(--muted); text-align:center; }
 .search-empty { width:min(620px,100%); margin:10px auto 40px; padding:38px 22px; border:1px dashed #b9d7dd; border-radius:14px; background:#f7fbfc; text-align:center; }
 .search-empty b { display:block; font-size:18px; }
@@ -937,11 +937,11 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .storefront-categories { padding:44px 0 40px; }
 .storefront-section-heading { display:flex; justify-content:center; margin-bottom:26px; text-align:center; }
 .storefront-section-heading h2 { font-size:clamp(28px,3vw,38px); letter-spacing:-.025em; }
-.storefront-category-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(24px,5vw,72px); align-items:start; }
+.storefront-category-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:clamp(20px,4vw,56px); align-items:start; }
 .storefront-category-card { min-width:0; display:flex; flex-direction:column; align-items:center; cursor:pointer; transition:transform 250ms ease; }
 @media (hover:hover) and (pointer:fine) { .storefront-category-card:hover { transform:translateY(-4px) scale(1.03); } }
 .storefront-category-card:focus-visible { outline:3px solid rgba(8,167,195,.34); outline-offset:7px; border-radius:8px; }
-.storefront-category-image { width:clamp(220px,23vw,320px); max-width:100%; aspect-ratio:1; overflow:visible; background:transparent; }
+.storefront-category-image { width:clamp(190px,20vw,270px); max-width:100%; aspect-ratio:1; overflow:visible; background:transparent; }
 .storefront-category-image img { width:100%; height:100%; object-fit:contain; object-position:center; }
 .storefront-category-card h3 { margin:14px 0 0; color:var(--store-navy); text-align:center; font-size:clamp(18px,2vw,24px); font-weight:700; }
 @media (prefers-reduced-motion:reduce) { .storefront-category-card,.storefront-category-card:hover { transition:none; transform:none; } }
@@ -1053,11 +1053,11 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .nav-links { gap:13px; font-size:11px; } .category-products-list { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .storefront-categories { padding-top:24px; }
   .storefront-section-heading { margin-bottom:16px; }
-  .storefront-category-image { width:clamp(190px,21vw,230px); }
+  .storefront-category-image { width:clamp(160px,19vw,210px); }
   .printer-hero-grid { grid-template-columns:minmax(0,1fr) minmax(360px,.9fr); gap:34px; }
 }
 @media (max-width:820px) {
-  .storefront-category-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+  .storefront-category-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; }
   .category-products-header .container,.categories-index-header .container { grid-template-columns:auto 1fr; min-height:68px; gap:16px; }
   .category-products-header nav,.categories-index-header nav { display:none; } .collection-header-actions,.categories-contact { justify-self:end; }
   .category-products-list { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; } .category-product-image { height:190px; flex-basis:190px; }
@@ -1087,9 +1087,9 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   .drawer-contact-area { padding:14px 16px 18px; }
   .hero-slide:after { background:linear-gradient(0deg,rgba(3,15,28,.18),transparent 55%); }
   .storefront-categories { padding:32px 0 28px; } .storefront-section-heading { margin-bottom:20px; } .storefront-section-heading h2 { font-size:26px; }
-  .storefront-category-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-  .storefront-category-image { width:min(100%,108px); }
-  .storefront-category-card h3 { margin-top:9px; font-size:14px; white-space:nowrap; }
+  .storefront-category-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 12px; }
+  .storefront-category-image { width:min(100%,150px); }
+  .storefront-category-card h3 { margin-top:9px; font-size:14px; }
   .storefront-quick-categories { display:block; }
   .products-section { padding:18px 0 38px; } .home-category-sections { gap:34px; } .home-category-heading h2 { font-size:25px; }
   .product-image { height:170px; flex-basis:170px; }
@@ -1193,7 +1193,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .home-category-products .product-card-link { border-radius:5px; }
 .home-category-products .product-card-link:focus-visible { outline-offset:3px; }
 .home-category-products .product-image,
-.home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image {
+.home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image {
   width:100%;
   height:auto;
   flex:0 0 auto;
@@ -1203,7 +1203,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
   background:#fff;
 }
 .home-category-products .product-image img,
-.home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image img {
+.home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image img {
   width:88%;
   height:88%;
   padding:0;
@@ -1266,9 +1266,9 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
     width:min(74vw,286px);
   }
   .home-category-products .product-image,
-  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image { aspect-ratio:1/1.05; }
+  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image { aspect-ratio:1/1.05; }
   .home-category-products .product-image img,
-  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image img { width:86%; height:86%; }
+  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image img { width:86%; height:86%; }
   .home-category-products .heart { left:9px; top:9px; width:32px; height:32px; }
   .home-category-products .product-image .quick-view { right:9px; bottom:9px; width:32px; height:32px; min-height:32px; }
   .home-category-products .product-body { min-height:96px; padding:11px 1px 0; }
@@ -1284,9 +1284,9 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
     width:calc((100vw - 56px)/3);
   }
   .home-category-products .product-image,
-  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image { aspect-ratio:1/1.04; }
+  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image { aspect-ratio:1/1.04; }
   .home-category-products .product-image img,
-  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"]) .product-image img { width:84%; height:84%; }
+  .home-category-section .product-card:is([data-category="papers"],[data-category="inks"],[data-category="laser_inks"]) .product-image img { width:84%; height:84%; }
   .home-category-products .heart { left:5px; top:5px; width:25px; height:25px; }
   .home-category-products .product-image .quick-view { right:5px; bottom:5px; width:25px; height:25px; min-height:25px; }
   .home-category-products .product-body { min-height:78px; padding:7px 1px 0; }

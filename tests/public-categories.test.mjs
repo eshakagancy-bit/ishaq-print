@@ -10,7 +10,7 @@ test("public categories are centrally limited without filtering the shared admin
     readFile(new URL("../app/api/site/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/admin/admin-dashboard.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(config, /PUBLIC_ENABLED_CATEGORIES\s*=\s*\[\s*"printers",\s*"papers",\s*"inks",?\s*\]/s);
+  assert.match(config, /PUBLIC_ENABLED_CATEGORIES\s*=\s*\[\s*"printers",\s*"papers",\s*"inks",\s*"laser_inks",?\s*\]/s);
   assert.match(page, /siteData\.products\.filter\(\(product\) => isPublicCategoryEnabled\(product\.category\)\)/);
   assert.match(page, /heroData\.slides\.filter/);
   assert.match(page, /isPublicCategoryUrl\(slide\.primaryButtonUrl\)/);

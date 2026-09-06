@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("the three public category index routes use one vertical list and category-only data", async () => {
-  const categories = ["printers", "inks", "papers"];
+test("the four public category index routes use one vertical list and category-only data", async () => {
+  const categories = ["printers", "inks", "papers", "laser-inks"];
   for (const category of categories) {
     const page = await readFile(new URL(`../app/${category}/page.tsx`, import.meta.url), "utf8");
-    assert.match(page, new RegExp(`isPublicCategoryEnabled\\("${category}"\\)`));
-    if (category === "inks") assert.match(page, /isInkCategory\(product\.category\)/);
+    const categoryId = category === "laser-inks" ? "laser_inks" : category;
+    assert.match(page, new RegExp(`isPublicCategoryEnabled\\("${categoryId}"\\)`));
+    if (category === "laser-inks") assert.match(page, /isLaserInkCategory\(product\.category\)/);
     else assert.match(page, new RegExp(`product\\.category === "${category}"`));
-    assert.match(page, new RegExp(`category="${category}"`));
+    assert.match(page, new RegExp(`category="${categoryId}"`));
     assert.match(page, /getSiteData\(\)/);
   }
 });
@@ -42,22 +43,22 @@ test("category collection cards use the storefront grid and preserve independent
   assert.match(styles, /\.home-category-products \.product-card \{[\s\S]*?flex:0 0 clamp/);
 });
 
-test("home printers, papers and inks share one fixed image-first card ratio", async () => {
+test("home printers, papers, inks and laser inks share one fixed image-first card ratio", async () => {
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  const portraitCards = String.raw`\.home-category-section \.product-card:is\(\[data-category="papers"\],\[data-category="inks"\]\)`;
+  const portraitCards = String.raw`\.home-category-section \.product-card:is\(\[data-category="papers"\],\[data-category="inks"\],\[data-category="laser_inks"\]\)`;
 
   assert.match(styles, new RegExp(`\\.home-category-products \\.product-image,[\\s\\S]*?${portraitCards} \\.product-image \\{[\\s\\S]*?aspect-ratio:4/5;`));
   assert.match(styles, /\.home-category-products \.product-image img,[\s\S]*?object-fit:contain;[\s\S]*?object-position:center;/);
   assert.match(styles, /@media \(max-width:760px\)[\s\S]*?aspect-ratio:1\/1\.05;/);
 });
 
-test("the public home renders only three independent category rows without the legacy storefront", async () => {
+test("the public home renders four independent category rows without the legacy storefront", async () => {
   const [home, styles] = await Promise.all([
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.match(home, /id={`home-category-\$\{categoryId\}`}/);
-  assert.match(home, /product\.category === categoryId/);
+  assert.match(home, /productBelongsToPublicCategory\(product\.category, categoryId\)/);
   assert.match(home, /data-product-id=\{product\.id\}/);
   assert.match(home, /data-product-slider=\{label\}/);
   assert.doesNotMatch(home, /home-category-(?:desktop|mobile)-products|desktopGroups|mobileGroups/);

@@ -12,7 +12,7 @@ test("ink carousels omit pagination dots while arrows and swipe stay interactive
     read("app/ink-image-carousel.tsx"),
   ]);
 
-  assert.match(home, /product\.category === "inks" \? <InkImageCarousel[\s\S]*?variant="home-static"/);
+  assert.match(home, /isInkCategory\(product\.category\) \? <InkImageCarousel[\s\S]*?variant="home-static"/);
   assert.doesNotMatch(categories, /variant="home-static"/);
   assert.match(modal, /variant="quick"/);
   assert.doesNotMatch(carousel, /setInterval|setTimeout|autoPlay|autoplay/);

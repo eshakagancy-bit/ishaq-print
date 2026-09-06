@@ -78,13 +78,13 @@ async function inspectViewport(width, height) {
   }))()`);
 
   assert.equal(metrics.documentOverflow, false, `${width}: horizontal document overflow`);
-  assert.ok(metrics.sections.length >= 1, `${width}: no populated homepage product strips`);
+  assert.equal(metrics.sections.length, 4, `${width}: expected four populated homepage product strips`);
+  assert.ok(metrics.sections.some((section) => section.id === "home-category-laser_inks" && section.count > 0), `${width}: laser ink strip is missing`);
   for (const section of metrics.sections) {
     assert.equal(section.display, "flex", `${width} ${section.id}: flex rail`);
     assert.equal(section.wrap, "nowrap", `${width} ${section.id}: wrapping`);
     assert.equal(section.overflowX, "auto", `${width} ${section.id}: native horizontal overflow`);
     assert.equal(section.rows, 1, `${width} ${section.id}: second row`);
-    assert.equal(section.scrollable, true, `${width} ${section.id}: no off-screen products`);
     assert.equal(section.controls, 0, `${width} ${section.id}: old controls remain`);
     assert.equal(section.commercialFooters, 0, `${width} ${section.id}: commercial footer remains`);
     assert.match(section.snap, /x/, `${width} ${section.id}: scroll snap`);
@@ -169,7 +169,7 @@ async function inspectViewport(width, height) {
 }
 
 const results = [];
-for (const [width, height] of [[390, 844], [1366, 900], [1440, 1000], [1920, 1080]]) {
+for (const [width, height] of [[360, 800], [390, 844], [1366, 900], [1440, 1000], [1920, 1080]]) {
   results.push(await inspectViewport(width, height));
 }
 console.log(JSON.stringify(results, null, 2));

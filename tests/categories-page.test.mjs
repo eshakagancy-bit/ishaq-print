@@ -12,12 +12,14 @@ test("categories and homepage reuse the exact shared category artwork links", as
     read("app/globals.css"),
   ]);
 
-  assert.match(page, /<StorefrontCategoryLinks\/>/);
-  assert.match(home, /<StorefrontCategoryLinks\/>/);
-  assert.match(component, /STOREFRONT_CATEGORY_ORDER: PublicEnabledCategory\[\] = \["printers", "inks", "papers"\]/);
+  assert.match(page, /<StorefrontCategoryLinks products=\{data\.products\}\/>/);
+  assert.match(home, /<StorefrontCategoryLinks products=\{products\}\/>/);
+  assert.match(component, /STOREFRONT_CATEGORY_ORDER: PublicEnabledCategory\[\] = \["printers", "papers", "inks", "laser_inks"\]/);
   assert.match(component, /printers:\s*"\/categories\/printers-unified\.png"/);
   assert.match(component, /inks:\s*"\/categories\/inks-unified\.png"/);
   assert.match(component, /papers:\s*"\/categories\/papers-unified\.png"/);
+  assert.match(component, /isLaserInkCategory\(product\.category\)/);
+  assert.match(component, /categoryId === "laser_inks" && laserInkArtwork/);
   assert.match(component, /className="storefront-category-card"/);
   assert.match(component, /className="storefront-category-image"/);
   assert.match(component, /href=\{PUBLIC_CATEGORY_DETAILS\[categoryId\]\.href\}/);
@@ -35,8 +37,8 @@ test("categories keeps its heading while shared links retain homepage responsive
 
   assert.match(page, /className="collection-breadcrumb"/);
   assert.match(page, /<div className="categories-index-title"><span>أقسام المنتجات<\/span><h1>تسوق حسب الفئة<\/h1><p>اختر القسم الذي تريد تصفحه<\/p><\/div>/);
-  assert.match(component, /sizes="\(max-width: 760px\) 28vw/);
-  assert.match(styles, /\.storefront-category-grid \{ display:grid; grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
-  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.storefront-category-image \{ width:min\(100%,108px\); \}/);
+  assert.match(component, /sizes="\(max-width: 760px\) 42vw/);
+  assert.match(styles, /\.storefront-category-grid \{ display:grid; grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(styles, /@media \(max-width:760px\)[\s\S]*?\.storefront-category-image \{ width:min\(100%,150px\); \}/);
   assert.match(styles, /@media \(hover:hover\) and \(pointer:fine\) \{ \.storefront-category-card:hover/);
 });

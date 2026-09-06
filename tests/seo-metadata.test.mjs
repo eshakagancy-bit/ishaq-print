@@ -32,7 +32,7 @@ test("product metadata is dynamic and uses real product content", () => {
 
 test("sitemap contains public lists and products but never admin", () => {
   const sitemap = read("app/sitemap.ts");
-  for (const path of ["/categories", "/printers", "/papers", "/inks", "/maintenance"]) assert.match(sitemap, new RegExp(path));
+  for (const path of ["/categories", "/printers", "/papers", "/inks", "/laser-inks", "/maintenance"]) assert.match(sitemap, new RegExp(path));
   assert.match(sitemap, /getPrinterSlug/);
   assert.match(sitemap, /getPaperSlug/);
   assert.match(sitemap, /getInkSlug/);

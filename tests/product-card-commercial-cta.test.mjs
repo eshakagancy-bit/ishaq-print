@@ -36,7 +36,7 @@ test("printers, papers and inks keep their specialist WhatsApp route and non-com
   }
   assert.match(categoryClient, /className=\{favorites\.includes\(product\.id\) \? "heart active" : "heart"\}/);
   assert.match(categoryClient, />تفاصيل سريعة<\/span>/);
-  assert.match(categoryClient, /detailsHref=\{`\/\$\{category\}\/\$\{productSlug\(selected\)\}`\}/);
+  assert.match(categoryClient, /detailsHref=\{`\/\$\{isInkCategory\(selected\.category\) \? "inks" : category\}\/\$\{productSlug\(selected\)\}`\}/);
   assert.match(home, /className=\{favorites\.includes\(product\.id\) \? "heart active" : "heart"\}/);
   assert.match(home, />تفاصيل سريعة<\/span>/);
 });
