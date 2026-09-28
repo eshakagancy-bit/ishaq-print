@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Image from "../../storefront-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,6 +19,7 @@ import ProductShare from "../../product-share";
 import { AddToCartButton, CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 import PublicTopBar from "../../public-topbar";
 import ProductModelSelector from "../../product-model-selector";
+import { buildBreadcrumbStructuredData, buildProductStructuredData, jsonLdScriptProps } from "../../structured-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +41,7 @@ async function getPrinters() {
   };
 }
 
-async function getPrinter(slug: string) {
+const getPrinter = cache(async (slug: string) => {
   const { printers, products, settings } = await getPrinters();
   return {
     product: printers.find((printer) => getPrinterSlug(printer) === slug),
@@ -47,7 +49,7 @@ async function getPrinter(slug: string) {
     products,
     settings,
   };
-}
+});
 
 function getWhatsappLink(product: StoredProduct, request: "quote" | "specialist") {
   const message = request === "quote"
@@ -84,9 +86,26 @@ export default async function PrinterDetailsPage({ params, searchParams }: PageP
   const purchaseBenefits = settings.productPurchaseBenefits;
   const visiblePurchaseBenefitItems = purchaseBenefits.items.filter((item) => item.title || item.description);
   const showPurchaseBenefits = Boolean(purchaseBenefits.title || purchaseBenefits.description || visiblePurchaseBenefitItems.length);
+  const productPath = `/printers/${slug}`;
+  const productDescription = product.description || `تفاصيل ومواصفات ${product.name}`;
+  const structuredData = [
+    buildProductStructuredData({
+      product,
+      name: product.name,
+      description: productDescription,
+      path: productPath,
+      category: "الطابعات",
+      images: [product.image],
+    }),
+    buildBreadcrumbStructuredData([
+      { name: "الرئيسية", path: "/" },
+      { name: "الطابعات", path: "/printers" },
+      { name: product.name, path: productPath },
+    ]),
+  ];
 
   return (
-    <><main id="main-content" tabIndex={-1} className="printer-details-page">
+    <><script {...jsonLdScriptProps(structuredData)} /><main id="main-content" tabIndex={-1} className="printer-details-page">
       <PublicTopBar settings={settings}/>
       <header className="printer-details-header">
         <div className="container">

@@ -61,6 +61,13 @@ type ProductRow = {
   product_models?: ProductModelRow[] | null;
 };
 
+type SitemapProductRow = {
+  id: number;
+  name: string;
+  category: string;
+  updated_at: string | null;
+};
+
 type ProductModelRow = {
   id: number;
   product_id: number;
@@ -375,6 +382,22 @@ export async function getSiteData() {
     }),
     products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
   };
+}
+
+export async function getSitemapProducts() {
+  await ensureSiteDefaults();
+  const result = await getSupabaseAdmin()
+    .from("products")
+    .select("id,name,category,updated_at")
+    .order("id", { ascending: true });
+  databaseError("تعذر تحميل منتجات خريطة الموقع", result.error);
+
+  return ((result.data ?? []) as SitemapProductRow[]).map((row) => ({
+    id: Number(row.id),
+    name: normalizeProductBrandName(row.name),
+    category: isPrinterCategory(row.category) ? "printers" : row.category,
+    updatedAt: row.updated_at || undefined,
+  }));
 }
 
 export async function getHomeData() {

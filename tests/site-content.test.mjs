@@ -74,16 +74,17 @@ test("protects every administrative mutation route with the shared Arabic respon
 });
 
 test("defines Arabic SEO, robots, sitemap and not-found content", async () => {
-  const [layout, seo, robots, sitemap, notFound, adminPage] = await Promise.all([
+  const [layout, seo, seoConstants, robots, sitemap, notFound, adminPage] = await Promise.all([
     read("app/layout.tsx"),
     read("app/seo.ts"),
+    read("app/seo-constants.js"),
     read("app/robots.ts"),
     read("app/sitemap.ts"),
     read("app/not-found.tsx"),
     read("app/admin/page.tsx"),
   ]);
   assert.match(layout, /Engineer Ai \/ Adeeb Mohammed Ali/);
-  assert.match(seo, /https:\/\/ishaq-print-zeta\.vercel\.app/);
+  assert.match(seoConstants, /https:\/\/ishaq-print-zeta\.vercel\.app/);
   assert.match(seo, /locale: "ar_YE"/);
   for (const path of ["/admin", "/api/admin/", "/api/upload"]) assert.match(robots, new RegExp(path.replaceAll("/", "\\/")));
   assert.match(robots, /sitemap\.xml/);

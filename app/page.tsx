@@ -8,6 +8,7 @@ import {
   defaultSiteSettings,
   starterProducts,
 } from "./site-defaults";
+import { buildHomeStructuredData, jsonLdScriptProps } from "./structured-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,12 +31,13 @@ export default async function Home() {
     isPublicCategoryUrl(slide.primaryButtonUrl) && isPublicCategoryUrl(slide.secondaryButtonUrl)
   );
 
-  return (
+  return <>
+    <script {...jsonLdScriptProps(buildHomeStructuredData())} />
     <HomeClient
       initialSettings={siteData.settings}
       initialProducts={siteData.products.filter((product) => isPublicCategoryEnabled(product.category))}
       initialHeroSlides={publicHeroSlides.length ? publicHeroSlides : fallbackHeroSlides}
       initialHeroSettings={heroData.settings}
     />
-  );
+  </>;
 }

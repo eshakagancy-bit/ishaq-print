@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Image from "../../storefront-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,18 +18,19 @@ import PublicTopBar from "../../public-topbar";
 import ProductShare from "../../product-share";
 import { AddToCartButton, CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 import ProductModelSelector from "../../product-model-selector";
+import { buildBreadcrumbStructuredData, buildProductStructuredData, jsonLdScriptProps } from "../../structured-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ model?: string }> };
 
-async function getPaperData(slug: string) {
+const getPaperData = cache(async (slug: string) => {
   if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [], products: [], settings: defaultSiteSettings };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   const papers = data.products.filter((item) => item.category === "papers");
   return { product: papers.find((item) => getPaperSlug(item) === slug), papers, products: data.products, settings: data.settings };
-}
+});
 
 function whatsappLink(product: StoredProduct) {
   const message = `مرحبًا مجموعة إسحاق العالمية، أريد معرفة السعر والتوفر للورق: ${product.name}.`;
@@ -70,8 +72,25 @@ export default async function PaperDetailsPage({ params, searchParams }: PagePro
     ? product.images
     : product.paperSpecifications?.images?.length ? product.paperSpecifications.images : [product.image || "/brand/eshak-logo.png"];
   const availabilityLabel = getPaperAvailabilityLabel(product);
+  const productPath = `/papers/${slug}`;
+  const productDescription = product.description || `تفاصيل ومواصفات ${title}`;
+  const structuredData = [
+    buildProductStructuredData({
+      product,
+      name: title,
+      description: productDescription,
+      path: productPath,
+      category: "الأوراق",
+      images,
+    }),
+    buildBreadcrumbStructuredData([
+      { name: "الرئيسية", path: "/" },
+      { name: "الأوراق", path: "/papers" },
+      { name: title, path: productPath },
+    ]),
+  ];
 
-  return <><main id="main-content" tabIndex={-1} className="printer-details-page">
+  return <><script {...jsonLdScriptProps(structuredData)} /><main id="main-content" tabIndex={-1} className="printer-details-page">
     <PublicTopBar settings={settings}/>
     <header className="printer-details-header"><div className="container"><Link href="/papers" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div></div></header>
     <section className="printer-hero"><div className="container">

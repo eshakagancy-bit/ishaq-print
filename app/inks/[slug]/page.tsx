@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Image from "../../storefront-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,18 +20,19 @@ import { CartDrawerOverlay, CartHeaderButton } from "../../order-cart-ui";
 import ProductModelSelector from "../../product-model-selector";
 import LaserInkModelSelector from "../../laser-ink-model-selector";
 import { isInkCategory, isLaserInkCategory } from "../../laser-inks";
+import { buildBreadcrumbStructuredData, buildProductStructuredData, jsonLdScriptProps } from "../../structured-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ model?: string; color?: string }> };
 
-async function getInkData(slug: string) {
+const getInkData = cache(async (slug: string) => {
   if (!isPublicCategoryEnabled("inks")) return { product: undefined, products: [], settings: defaultSiteSettings };
   const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
   const inks = data.products.filter((product) => isInkCategory(product.category));
   return { product: inks.find((product) => getInkSlug(product) === slug), products: data.products, settings: data.settings };
-}
+});
 
 function whatsappLink(product: StoredProduct) {
   const message = `مرحبًا وكالة إسحاق العالمية، أريد معرفة السعر والتوفر للحبر: ${product.name}.`;
@@ -60,8 +62,29 @@ export default async function InkDetailsPage({ params, searchParams }: PageProps
   const laserInk = isLaserInkCategory(product.category);
   const collectionHref = laserInk ? "/laser-inks" : "/inks";
   const collectionLabel = laserInk ? "أحبار الليزر" : "الأحبار";
+  const activeModels = (product.models ?? [])
+    .filter((model) => model.isActive)
+    .toSorted((a, b) => a.sortOrder - b.sortOrder || a.model.localeCompare(b.model));
+  const productPath = `/inks/${slug}`;
+  const productDescription = product.description || `تفاصيل ومواصفات ${product.name}`;
+  const productImages = product.images?.length ? product.images : [product.image];
+  const structuredData = [
+    buildProductStructuredData({
+      product,
+      name: product.name,
+      description: productDescription,
+      path: productPath,
+      category: collectionLabel,
+      images: productImages,
+    }),
+    buildBreadcrumbStructuredData([
+      { name: "الرئيسية", path: "/" },
+      { name: collectionLabel, path: collectionHref },
+      { name: product.name, path: productPath },
+    ]),
+  ];
 
-  return <><main id="main-content" tabIndex={-1} className="printer-details-page">
+  return <><script {...jsonLdScriptProps(structuredData)} /><main id="main-content" tabIndex={-1} className="printer-details-page">
     <PublicTopBar settings={settings}/>
     <header className="printer-details-header"><div className="container"><Link href={collectionHref} className="printer-back-link">العودة إلى {collectionLabel}</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div></div></header>
     <section className="printer-hero"><div className="container">
@@ -76,6 +99,7 @@ export default async function InkDetailsPage({ params, searchParams }: PageProps
       {product.description && <section id="description"><h2>الوصف</h2><div className="printer-long-copy"><p>{product.description}</p></div></section>}
       {specifications?.features.length ? <section id="features"><h2>المميزات الرئيسية</h2><div className="printer-content-cards">{specifications.features.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
       {specifications?.uses.length ? <section id="uses"><h2>الاستخدامات المناسبة</h2><div className="printer-content-cards">{specifications.uses.map((item, index) => <article key={`${item}-${index}`}><p>{item}</p></article>)}</div></section> : null}
+      {laserInk && activeModels.length > 0 ? <section id="compatible-models" aria-labelledby="compatible-models-title"><h2 id="compatible-models-title">موديلات أحبار الليزر والتوافق</h2><div className="printer-content-cards">{activeModels.map((model) => <article key={model.id ?? model.model}><h3 dir="ltr">{model.model}</h3>{model.partNumber?.trim() ? <p>Part Number: <b dir="ltr">{model.partNumber}</b></p> : null}{model.compatibility?.trim() ? <p>التوافق: {model.compatibility}</p> : null}</article>)}</div></section> : null}
     </div>
     <CartDrawerOverlay/><StorefrontFooter settings={settings} /></main></>;
 }

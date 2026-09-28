@@ -40,9 +40,20 @@ test("sitemap contains public lists and products but never admin", () => {
 });
 
 test("robots blocks admin and no commercial schema is invented", () => {
-  assert.match(read("app/robots.ts"), /disallow: \["\/admin"/);
+  const robots = read("app/robots.ts");
+  assert.match(robots, /disallow: \["\/admin"/);
+  for (const bot of ["Googlebot", "Bingbot", "OAI-SearchBot", "GPTBot"]) {
+    assert.match(robots, new RegExp(`userAgent: "${bot}"`));
+  }
   const application = ["app/layout.tsx", "app/page.tsx", "app/seo.ts"].map(read).join("\n");
   assert.doesNotMatch(application, /AggregateRating|offers|priceCurrency|availability/);
+});
+
+test("sitemap uses real product update timestamps when available", () => {
+  assert.match(read("app/sitemap.ts"), /product\.updatedAt/);
+  const database = read("lib/site-database.ts");
+  assert.match(database, /export async function getSitemapProducts/);
+  assert.match(database, /updatedAt: row\.updated_at/);
 });
 
 test("tested public page shells expose one intentional h1 per rendered route", () => {

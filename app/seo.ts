@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
+import { SITE_NAME, SITE_URL } from "./seo-constants.js";
 
-export const SITE_URL = "https://ishaq-print-zeta.vercel.app";
-export const SITE_NAME = "وكالة إسحاق العالمية";
+export { SITE_NAME, SITE_URL } from "./seo-constants.js";
 export const DEFAULT_SOCIAL_IMAGE = "/brand/eshak-logo.png";
 
 type PublicMetadataInput = {
