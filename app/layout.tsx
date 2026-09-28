@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   ...publicMetadata({ title, description, path: "/" }),
   authors: [{ name: "Engineer Ai / Adeeb Mohammed Ali" }],
   applicationName: SITE_NAME,
+  verification: {
+    google: "4oT6WsQIBgEQw0rofunLh8bRT5vR1BYz0RXOVBJhqi0",
+  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
