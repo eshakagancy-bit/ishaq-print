@@ -422,6 +422,16 @@ export async function getHomeData() {
   };
 }
 
+export async function getProductById(id: number) {
+  const result = await getSupabaseAdmin()
+    .from("products")
+    .select("*, product_models(*, product_model_variants(*))")
+    .eq("id", id)
+    .maybeSingle();
+  databaseError("تعذر تحميل المنتج", result.error);
+  return result.data ? productFromRow(result.data as ProductRow) : null;
+}
+
 export async function replaceSiteData(settings: SiteSettings, products: StoredProduct[]) {
   const client = getSupabaseAdmin();
   const result = await client.rpc("replace_site_data", {

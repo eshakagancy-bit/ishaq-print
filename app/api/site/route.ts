@@ -1,4 +1,5 @@
-import { createProduct, getSiteData, removeProduct, saveSiteSettings, updateProduct } from "../../../lib/site-database";
+import { createProduct, getProductById, getSiteData, removeProduct, saveSiteSettings, updateProduct } from "../../../lib/site-database";
+import { getIndexNowProductUrl, submitIndexNowUrlsSafely } from "../../../lib/indexnow";
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "../../../lib/media-url";
 import { ADMIN_UNAUTHORIZED_MESSAGE, requireAdminApi } from "../../admin-auth";
 import { normalizeBusinessTime, normalizeBusinessWeekdays, sanitizePhoneNumber } from "../../business-hours";
@@ -29,6 +30,13 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+async function notifyIndexNow(products: Array<StoredProduct | null>) {
+  const urls = products
+    .map((product) => product ? getIndexNowProductUrl(product) : null)
+    .filter((url): url is string => Boolean(url));
+  if (urls.length) await submitIndexNowUrlsSafely(urls);
+}
 
 function normalizeSettings(value: unknown): SiteSettings {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
@@ -213,6 +221,7 @@ export async function POST(request: Request) {
       if (nameError) return Response.json({ error: nameError }, { status: 400 });
     }
     const savedProduct = await createProduct(product);
+    await notifyIndexNow([savedProduct]);
     return Response.json({ ok: true, product: savedProduct }, { status: 201 });
   } catch (error) {
     const invalid = validationResponse(error);
@@ -232,7 +241,9 @@ export async function PATCH(request: Request) {
       const nameError = getInkProductNameError(product.name, product.inkSpecifications?.capacities ?? []);
       if (nameError) return Response.json({ error: nameError }, { status: 400 });
     }
+    const previousProduct = await getProductById(product.id);
     const savedProduct = await updateProduct(product);
+    await notifyIndexNow([previousProduct, savedProduct]);
     return Response.json({ ok: true, product: savedProduct });
   } catch (error) {
     const invalid = validationResponse(error);
@@ -248,6 +259,7 @@ export async function DELETE(request: Request) {
     const payload = validateDeletePayload(await request.json());
     const id = payload.id as number;
     const deletedProduct = await removeProduct(id);
+    await notifyIndexNow([deletedProduct]);
     return Response.json({ ok: true, product: deletedProduct });
   } catch (error) {
     const invalid = validationResponse(error);
