@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSiteData } from "../../../lib/site-database";
 import { buildInkSpecificationRows } from "../../ink-specifications";
-import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
+import { defaultSiteSettings, type StoredProduct } from "../../site-defaults";
 import { getInkSlug } from "../product-slug";
 import { isPublicCategoryEnabled } from "../../public-categories";
 import { publicMetadata } from "../../seo";
@@ -29,7 +29,7 @@ type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ m
 
 const getInkData = cache(async (slug: string) => {
   if (!isPublicCategoryEnabled("inks")) return { product: undefined, products: [], settings: defaultSiteSettings };
-  const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
+  const data = await getSiteData();
   const inks = data.products.filter((product) => isInkCategory(product.category));
   return { product: inks.find((product) => getInkSlug(product) === slug), products: data.products, settings: data.settings };
 });

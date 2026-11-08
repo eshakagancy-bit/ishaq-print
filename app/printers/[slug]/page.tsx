@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { getSiteData } from "../../../lib/site-database";
 import { getPrinterCategoryLabel } from "../../printer-categories";
 import { buildQuickViewSpecificationRows } from "../../printer-specifications";
-import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
+import { defaultSiteSettings, type StoredProduct } from "../../site-defaults";
 import { getPrinterSlug } from "../product-slug";
 import ProductGallery from "../../product-gallery";
 import { isPublicCategoryEnabled } from "../../public-categories";
@@ -33,7 +33,7 @@ type PageProps = {
 
 async function getPrinters() {
   if (!isPublicCategoryEnabled("printers")) return { printers: [], products: [], settings: defaultSiteSettings };
-  const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
+  const data = await getSiteData();
   return {
     printers: data.products.filter((product) => product.category === "printers"),
     products: data.products,

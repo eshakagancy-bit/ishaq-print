@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { getSiteData } from "../../../lib/site-database";
 import { buildPaperSpecificationRows, getPaperAvailabilityLabel } from "../../paper-specifications";
 import ProductGallery from "../../product-gallery";
-import { defaultSiteSettings, starterProducts, type StoredProduct } from "../../site-defaults";
+import { defaultSiteSettings, type StoredProduct } from "../../site-defaults";
 import { getPaperSlug } from "../product-slug";
 import { isPublicCategoryEnabled } from "../../public-categories";
 import { publicMetadata } from "../../seo";
@@ -27,7 +27,7 @@ type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ m
 
 const getPaperData = cache(async (slug: string) => {
   if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [], products: [], settings: defaultSiteSettings };
-  const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
+  const data = await getSiteData();
   const papers = data.products.filter((item) => item.category === "papers");
   return { product: papers.find((item) => getPaperSlug(item) === slug), papers, products: data.products, settings: data.settings };
 });

@@ -31,7 +31,6 @@ import {
   type SiteSettings,
   type StoredProduct,
   normalizeProductBrandName,
-  starterProducts as defaultStarterProducts,
 } from "./site-defaults";
 import { getPrinterSlug } from "./printers/product-slug";
 import { getInkSlug } from "./inks/product-slug";
@@ -320,8 +319,6 @@ const categoryContacts: Record<CategoryId, string> = {
   "advertising-machines": "967777000725",
 };
 
-const starterProducts: Product[] = defaultStarterProducts.map(normalizeInitialProduct);
-
 const whatsapp = "967777000725";
 function generalWaLink(phone: string) {
   const text = "مرحبًا وكالة إسحاق العالمية، أريد المساعدة في اختيار المنتج المناسب.";
@@ -364,13 +361,7 @@ export default function HomeClient({
     }));
   });
   const [heroSettings] = useState<HeroSettings>(() => ({ ...defaultHeroSettings, ...initialHeroSettings }));
-  const [products] = useState<Product[]>(() => {
-    const nextProducts = initialProducts.map(normalizeInitialProduct);
-    return nextProducts.length ? nextProducts : starterProducts.map((product) => ({
-      ...product,
-      name: normalizeProductBrandName(product.name),
-    }));
-  });
+  const [products] = useState<Product[]>(() => initialProducts.map(normalizeInitialProduct));
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<ProductSearchScope>("all");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("printers");

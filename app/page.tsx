@@ -5,8 +5,6 @@ import { isPublicCategoryEnabled, isPublicCategoryUrl } from "./public-categorie
 import {
   defaultHeroSettings,
   defaultHeroSlides,
-  defaultSiteSettings,
-  starterProducts,
 } from "./site-defaults";
 import { buildHomeStructuredData, jsonLdScriptProps } from "./structured-data";
 
@@ -15,10 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const [siteData, heroData] = await Promise.all([
-    getHomeData().catch(() => ({
-      settings: defaultSiteSettings,
-      products: starterProducts,
-    })),
+    getHomeData(),
     getHeroData(true).catch(() => ({
       slides: defaultHeroSlides,
       settings: defaultHeroSettings,

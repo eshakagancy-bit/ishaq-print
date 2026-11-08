@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getSiteData } from "../../lib/site-database";
 import CategoryProductsClient from "../category-products-client";
 import { isPublicCategoryEnabled } from "../public-categories";
-import { defaultSiteSettings, starterProducts } from "../site-defaults";
 import { publicMetadata } from "../seo";
 
 export const metadata = publicMetadata({
@@ -14,6 +13,6 @@ export const metadata = publicMetadata({
 export const dynamic = "force-dynamic";
 export default async function InksPage() {
   if (!isPublicCategoryEnabled("inks")) notFound();
-  const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
+  const data = await getSiteData();
   return <CategoryProductsClient category="inks" products={data.products.filter((product) => product.category === "inks")} allProducts={data.products} settings={data.settings} />;
 }

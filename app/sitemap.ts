@@ -5,16 +5,12 @@ import { getPaperSlug } from "./papers/product-slug";
 import { getPrinterSlug } from "./printers/product-slug";
 import { isPublicCategoryEnabled } from "./public-categories";
 import { SITE_URL } from "./seo";
-import { starterProducts } from "./site-defaults";
 import { isInkCategory } from "./laser-inks";
 
 const publicPages = ["", "/categories", "/printers", "/papers", "/inks", "/laser-inks", "/maintenance"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const products = await getSitemapProducts().catch(() => starterProducts.map((product) => ({
-    ...product,
-    updatedAt: undefined,
-  })));
+  const products = await getSitemapProducts().catch(() => []);
   const productPages = products
     .filter((product) => isPublicCategoryEnabled(product.category) || isInkCategory(product.category))
     .map((product) => {

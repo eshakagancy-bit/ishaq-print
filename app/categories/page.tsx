@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "../storefront-image";
 import Link from "next/link";
 import { getSiteData } from "../../lib/site-database";
-import { defaultSiteSettings, starterProducts } from "../site-defaults";
 import { publicMetadata } from "../seo";
 import StorefrontFooter from "../storefront-footer";
 import PublicSearchControl from "../global-search-drawer";
@@ -19,7 +18,7 @@ export const metadata: Metadata = publicMetadata({
 });
 
 export default async function CategoriesPage() {
-  const data = await getSiteData().catch(() => ({ settings: defaultSiteSettings, products: starterProducts }));
+  const data = await getSiteData();
   return <><main id="main-content" tabIndex={-1} className="categories-index-page" dir="rtl">
     <PublicTopBar settings={data.settings}/>
     <header className="categories-index-header"><div className="container"><Link className="collection-brand" href="/"><Image src={data.settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl products={data.products}/><Link className="categories-contact" href="/#contact">استشارات ومبيعات</Link></div></div></header>

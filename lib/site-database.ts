@@ -119,8 +119,75 @@ type HeroSettingsRow = {
   pause_on_hover: boolean;
 };
 
-function databaseError(message: string, error: { message: string } | null) {
-  if (error) throw new Error(`${message}: ${error.message}`);
+type DatabaseErrorLike = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  status?: number;
+};
+
+class DatabaseOperationError extends Error {
+  code?: string;
+  status?: number;
+
+  constructor(prefix: string, error: DatabaseErrorLike) {
+    super(`${prefix}: ${error.message}`);
+    this.name = "DatabaseOperationError";
+    this.code = error.code;
+    this.status = error.status;
+  }
+}
+
+function databaseError(message: string, error: DatabaseErrorLike | null) {
+  if (error) throw new DatabaseOperationError(message, error);
+}
+
+function isTransientDatabaseError(error: unknown): boolean {
+  if (!error) return false;
+
+  if (error instanceof DatabaseOperationError) {
+    const code = error.code;
+    const status = error.status;
+    if (status === 401 || status === 403 || code === "42501" || code === "PGRST301") return false;
+    if (code && (code.startsWith("42") || code.startsWith("22") || code.startsWith("23"))) return false;
+    if (status && (status >= 500 || status === 408 || status === 429)) return true;
+    if (code && (code.startsWith("08") || code.startsWith("57") || code === "53300")) return true;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("غير مضبوط") || message.includes("غير صالح")) return false;
+  if (/permission|unauthorized|forbidden|jwt|syntax/i.test(message)) return false;
+
+  if (/fetch failed|econnreset|etimedout|econnrefused|socket|timeout|network|502|503|504/i.test(message)) {
+    return true;
+  }
+
+  if (error instanceof Error && "cause" in error && error.cause) {
+    const causeMsg = String(error.cause);
+    if (/econnreset|etimedout|econnrefused|socket|timeout|network/i.test(causeMsg)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function withDatabaseRetry<T>(operation: () => Promise<T>, maxRetries = 2, delayMs = 150): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries && isTransientDatabaseError(error)) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
 }
 
 function normalizeFeatures(value: unknown) {
@@ -345,7 +412,19 @@ function heroSettingsFromRow(row: HeroSettingsRow | null): HeroSettings {
   };
 }
 
-export async function ensureSiteDefaults() {
+export type SiteData = {
+  settings: SiteSettings;
+  products: StoredProduct[];
+};
+
+export type HeroData = {
+  slides: HeroSlide[];
+  settings: HeroSettings;
+};
+
+let siteDefaultsEnsured = false;
+export async function ensureSiteDefaults(force = false) {
+  if (siteDefaultsEnsured && !force) return;
   const client = getSupabaseAdmin();
   const settingsResult = await client.from("site_settings").select("id").eq("id", 1).maybeSingle();
   databaseError("تعذر فحص إعدادات الموقع", settingsResult.error);
@@ -363,73 +442,79 @@ export async function ensureSiteDefaults() {
     );
     databaseError("تعذر إضافة المنتجات الافتراضية", result.error);
   }
+  siteDefaultsEnsured = true;
 }
 
-export async function getSiteData() {
-  await ensureSiteDefaults();
-  const client = getSupabaseAdmin();
-  const [settingsResult, productsResult] = await Promise.all([
-    client.from("site_settings").select("payload").eq("id", 1).single(),
-    client.from("products").select("*, product_models(*, product_model_variants(*))").order("sort_order", { ascending: true }).order("id", { ascending: true }),
-  ]);
-  databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
-  databaseError("تعذر تحميل المنتجات", productsResult.error);
+export async function getSiteData(): Promise<SiteData> {
+  return withDatabaseRetry(async () => {
+    const client = getSupabaseAdmin();
+    const [settingsResult, productsResult] = await Promise.all([
+      client.from("site_settings").select("payload").eq("id", 1).maybeSingle(),
+      client.from("products").select("*, product_models(*, product_model_variants(*))").order("sort_order", { ascending: true }).order("id", { ascending: true }),
+    ]);
+    databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
+    databaseError("تعذر تحميل المنتجات", productsResult.error);
 
-  return {
-    settings: normalizeSiteSettingsMedia({
-      ...defaultSiteSettings,
-      ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
-    }),
-    products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
-  };
+    return {
+      settings: normalizeSiteSettingsMedia({
+        ...defaultSiteSettings,
+        ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
+      }),
+      products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
+    };
+  });
 }
 
 export async function getSitemapProducts() {
-  await ensureSiteDefaults();
-  const result = await getSupabaseAdmin()
-    .from("products")
-    .select("id,name,category,updated_at")
-    .order("id", { ascending: true });
-  databaseError("تعذر تحميل منتجات خريطة الموقع", result.error);
+  return withDatabaseRetry(async () => {
+    const result = await getSupabaseAdmin()
+      .from("products")
+      .select("id,name,category,updated_at")
+      .order("id", { ascending: true });
+    databaseError("تعذر تحميل منتجات خريطة الموقع", result.error);
 
-  return ((result.data ?? []) as SitemapProductRow[]).map((row) => ({
-    id: Number(row.id),
-    name: normalizeProductBrandName(row.name),
-    category: isPrinterCategory(row.category) ? "printers" : row.category,
-    updatedAt: row.updated_at || undefined,
-  }));
+    return ((result.data ?? []) as SitemapProductRow[]).map((row) => ({
+      id: Number(row.id),
+      name: normalizeProductBrandName(row.name),
+      category: isPrinterCategory(row.category) ? "printers" : row.category,
+      updatedAt: row.updated_at || undefined,
+    }));
+  });
 }
 
-export async function getHomeData() {
-  await ensureSiteDefaults();
-  const client = getSupabaseAdmin();
-  const [settingsResult, productsResult] = await Promise.all([
-    client.from("site_settings").select("payload").eq("id", 1).single(),
-    client.from("products").select("*, product_models(*, product_model_variants(*))")
-      .order("home_display_order", { ascending: true, nullsFirst: false })
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true }),
-  ]);
-  databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
-  databaseError("تعذر تحميل منتجات الصفحة الرئيسية", productsResult.error);
+export async function getHomeData(): Promise<SiteData> {
+  return withDatabaseRetry(async () => {
+    const client = getSupabaseAdmin();
+    const [settingsResult, productsResult] = await Promise.all([
+      client.from("site_settings").select("payload").eq("id", 1).maybeSingle(),
+      client.from("products").select("*, product_models(*, product_model_variants(*))")
+        .order("home_display_order", { ascending: true, nullsFirst: false })
+        .order("sort_order", { ascending: true })
+        .order("id", { ascending: true }),
+    ]);
+    databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
+    databaseError("تعذر تحميل منتجات الصفحة الرئيسية", productsResult.error);
 
-  return {
-    settings: normalizeSiteSettingsMedia({
-      ...defaultSiteSettings,
-      ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
-    }),
-    products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
-  };
+    return {
+      settings: normalizeSiteSettingsMedia({
+        ...defaultSiteSettings,
+        ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
+      }),
+      products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
+    };
+  });
 }
 
 export async function getProductById(id: number) {
-  const result = await getSupabaseAdmin()
-    .from("products")
-    .select("*, product_models(*, product_model_variants(*))")
-    .eq("id", id)
-    .maybeSingle();
-  databaseError("تعذر تحميل المنتج", result.error);
-  return result.data ? productFromRow(result.data as ProductRow) : null;
+  return withDatabaseRetry(async () => {
+    const result = await getSupabaseAdmin()
+      .from("products")
+      .select("*, product_models(*, product_model_variants(*))")
+      .eq("id", id)
+      .maybeSingle();
+    databaseError("تعذر تحميل المنتج", result.error);
+    return result.data ? productFromRow(result.data as ProductRow) : null;
+  });
 }
 
 export async function replaceSiteData(settings: SiteSettings, products: StoredProduct[]) {
@@ -625,7 +710,9 @@ export async function applyPaperSpecificationsUpdate() {
   };
 }
 
-export async function ensureHeroDefaults() {
+let heroDefaultsEnsured = false;
+export async function ensureHeroDefaults(force = false) {
+  if (heroDefaultsEnsured && !force) return;
   const client = getSupabaseAdmin();
   const [settingsResult, slidesResult] = await Promise.all([
     client.from("hero_settings").select("id").eq("id", 1).maybeSingle(),
@@ -647,25 +734,27 @@ export async function ensureHeroDefaults() {
     );
     databaseError("تعذر إضافة شرائح البانر الافتراضية", result.error);
   }
+  heroDefaultsEnsured = true;
 }
 
-export async function getHeroData(activeOnly: boolean) {
-  await ensureHeroDefaults();
-  const client = getSupabaseAdmin();
-  let slidesQuery = client.from("hero_slides").select("*");
-  if (activeOnly) slidesQuery = slidesQuery.eq("is_active", true);
+export async function getHeroData(activeOnly: boolean): Promise<HeroData> {
+  return withDatabaseRetry(async () => {
+    const client = getSupabaseAdmin();
+    let slidesQuery = client.from("hero_slides").select("*");
+    if (activeOnly) slidesQuery = slidesQuery.eq("is_active", true);
 
-  const [slidesResult, settingsResult] = await Promise.all([
-    slidesQuery.order("display_order", { ascending: true }).order("id", { ascending: true }),
-    client.from("hero_settings").select("*").eq("id", 1).maybeSingle(),
-  ]);
-  databaseError("تعذر تحميل شرائح البانر", slidesResult.error);
-  databaseError("تعذر تحميل إعدادات البانر", settingsResult.error);
+    const [slidesResult, settingsResult] = await Promise.all([
+      slidesQuery.order("display_order", { ascending: true }).order("id", { ascending: true }),
+      client.from("hero_settings").select("*").eq("id", 1).maybeSingle(),
+    ]);
+    databaseError("تعذر تحميل شرائح البانر", slidesResult.error);
+    databaseError("تعذر تحميل إعدادات البانر", settingsResult.error);
 
-  return {
-    slides: ((slidesResult.data ?? []) as HeroSlideRow[]).map(heroSlideFromRow),
-    settings: heroSettingsFromRow(settingsResult.data as HeroSettingsRow | null),
-  };
+    return {
+      slides: ((slidesResult.data ?? []) as HeroSlideRow[]).map(heroSlideFromRow),
+      settings: heroSettingsFromRow(settingsResult.data as HeroSettingsRow | null),
+    };
+  });
 }
 
 export async function createHeroSlide(input: Omit<HeroSlide, "id">) {

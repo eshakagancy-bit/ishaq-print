@@ -6,8 +6,6 @@ import { publicMetadata } from "../seo";
 import {
   defaultHeroSettings,
   defaultHeroSlides,
-  defaultSiteSettings,
-  starterProducts,
 } from "../site-defaults";
 
 export const runtime = "nodejs";
@@ -20,10 +18,7 @@ export const metadata: Metadata = publicMetadata({
 });
 
 export default async function MaintenancePage() {
-  const siteData = await getHomeData().catch(() => ({
-    settings: defaultSiteSettings,
-    products: starterProducts,
-  }));
+  const siteData = await getHomeData();
 
   return <HomeClient
     initialSettings={siteData.settings}

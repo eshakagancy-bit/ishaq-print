@@ -3,7 +3,6 @@ import { getSiteData } from "../../lib/site-database";
 import CategoryProductsClient from "../category-products-client";
 import { isLaserInkCategory } from "../laser-inks";
 import { isPublicCategoryEnabled } from "../public-categories";
-import { defaultSiteSettings, starterProducts } from "../site-defaults";
 import { publicMetadata } from "../seo";
 
 export const metadata = publicMetadata({
@@ -16,6 +15,6 @@ export const dynamic = "force-dynamic";
 
 export default async function LaserInksPage() {
   if (!isPublicCategoryEnabled("laser_inks")) notFound();
-  const data = await getSiteData().catch(() => ({ products: starterProducts, settings: defaultSiteSettings }));
+  const data = await getSiteData();
   return <CategoryProductsClient category="laser_inks" products={data.products.filter((product) => isLaserInkCategory(product.category))} allProducts={data.products} settings={data.settings} />;
 }
