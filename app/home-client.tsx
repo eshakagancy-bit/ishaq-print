@@ -49,6 +49,7 @@ import ProductModelChips from "./product-model-chips";
 import SearchResultModelMatches from "./search-result-model-matches";
 import StorefrontCategoryLinks, { STOREFRONT_CATEGORY_ORDER } from "./storefront-category-links";
 import { isInkCategory } from "./laser-inks";
+import { getProductDetailsHref } from "./product-details-href";
 
 const HERO_IMAGE_SIZES = "100vw";
 const PRODUCT_CARD_IMAGE_SIZES = "(max-width: 430px) 145px, (max-width: 760px) 175px, (max-width: 1000px) 30vw, 280px";
@@ -281,12 +282,6 @@ function getProductDisplayName(product: Product) {
   return product.category === "papers"
     ? product.paperSpecifications?.nameEn?.trim() || product.name
     : product.name;
-}
-
-function getProductDetailsHref(product: Product) {
-  if (product.category === "inks") return `/inks/${getInkSlug(product)}`;
-  if (product.category === "papers") return `/papers/${getPaperSlug(product)}`;
-  return `/printers/${getPrinterSlug(product)}`;
 }
 
 function getHomeProductCategoryLine(product: Product) {
@@ -1015,7 +1010,7 @@ export default function HomeClient({
           return <button key={section} type="button" className={mobileNavSection === section ? "active" : ""} aria-current={mobileNavSection === section ? "page" : undefined} onClick={() => openMobileSection(section)}><MobileNavIcon section={section} /><span>{label}</span></button>;
         })}
       </nav>
-      {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.inkSpecifications?.colorMode ? undefined : selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : selected.category === "inks" ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} models={selected.models} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
+      {selected && <QuickViewModal id={selected.id} title={getProductDisplayName(selected)} categoryLabel={categories.find((category) => category.id === selected.category)?.name ?? selected.family} family={selected.family} badge={selected.badge} availabilityLabel={selected.category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={selected.inkSpecifications?.colorMode ? undefined : selected.price} images={selected.images?.length ? selected.images : [selected.image]} rows={selectedSpecificationRows} detailsHref={selected.category === "printers" ? `/printers/${getPrinterSlug(selected)}` : isInkCategory(selected.category) ? `/inks/${getInkSlug(selected)}` : `/papers/${getPaperSlug(selected)}`} models={selected.models} whatsappHref={specialistWaLink(selected.category, selected)} whatsappLabel="اعرف السعر والتوفر" footerNote="سيرد عليك مختص القسم لتأكيد المواصفات والسعر الحالي." trigger={quickViewTrigger} onClose={closeQuickView} />}
       <CartDrawerOverlay/>
     </main>
   );

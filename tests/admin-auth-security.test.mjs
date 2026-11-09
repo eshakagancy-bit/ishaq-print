@@ -17,7 +17,8 @@ test("session tokens are random, signed and expire after twelve hours", async ()
   assert.notEqual(first, second);
   assert.equal(await validateAdminSessionToken(first, testSecret, now + ADMIN_SESSION_MAX_AGE_SECONDS * 1000), true);
   assert.equal(await validateAdminSessionToken(first, testSecret, now + ADMIN_SESSION_MAX_AGE_SECONDS * 1000 + 1), false);
-  assert.equal(await validateAdminSessionToken(`${first.slice(0, -1)}0`, testSecret, now), false);
+  const tampered = first.endsWith("0") ? `${first.slice(0, -1)}1` : `${first.slice(0, -1)}0`;
+  assert.equal(await validateAdminSessionToken(tampered, testSecret, now), false);
 });
 
 test("origin validation rejects cross-site state-changing requests", () => {

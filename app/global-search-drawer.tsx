@@ -4,9 +4,7 @@ import Image from "./storefront-image";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { searchProductResults, type ProductSearchScope } from "./global-product-search";
-import { getInkSlug } from "./inks/product-slug";
-import { getPaperSlug } from "./papers/product-slug";
-import { getPrinterSlug } from "./printers/product-slug";
+import { getProductDetailsHref } from "./product-details-href";
 import type { StoredProduct } from "./site-defaults";
 import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from "./order-cart-provider";
 import { isInkCategory, isLaserInkCategory } from "./laser-inks";
@@ -16,11 +14,7 @@ function SearchIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
 }
 
-function productDetailsHref(product: StoredProduct) {
-  if (isInkCategory(product.category)) return `/inks/${getInkSlug(product)}`;
-  if (product.category === "papers") return `/papers/${getPaperSlug(product)}`;
-  return `/printers/${getPrinterSlug(product)}`;
-}
+const productDetailsHref = getProductDetailsHref;
 
 function productDisplayName(product: StoredProduct) {
   return product.category === "papers" ? product.paperSpecifications?.nameEn?.trim() || product.name : product.name;
