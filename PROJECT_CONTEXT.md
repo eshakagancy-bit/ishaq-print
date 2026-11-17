@@ -20,11 +20,11 @@
 | التقنية / المكتبة | الإصدار | الغرض |
 | :--- | :--- | :--- |
 | **Node.js** | `24.x` (Engine) | بيئة التشغيل الأساسية |
-| **Next.js** | `16.2.6` (App Router) | إطار العمل الكامل (Server Components, Route Handlers, SSR/SSG) |
+| **Next.js** | `16.4.5` (App Router) | إطار العمل الكامل (Server Components, Route Handlers, SSR/SSG) |
 | **React / React DOM** | `19.2.6` | واجهة المستخدم التفاعلية |
 | **TypeScript** | `5.9.3` | كتابة كود منضبط وخالٍ من أخطاء الأنواع |
 | **@supabase/supabase-js**| `^2.110.6` | العميل الخادمي للاتصال بقاعدة بيانات Supabase ومساحة التخزين |
-| **ESLint** | `9.39.4` + `eslint-config-next 16.2.6` | فحص جودة الكود والالتزام بالمعايير |
+| **ESLint** | `9.39.4` + `eslint-config-next 16.4.5` | فحص جودة الكود والالتزام بالمعايير |
 | **Node Test Runner** | مدمج (`node --test`) | تشغيل الاختبارات الآلية الشاملة (305+ اختبار) |
 | **التصميم والأنماط** | Pure CSS (`app/globals.css`) | نظام تصميم مخصص، سريع وخفيف بدون أطر عمل خارجية ضخمة |
 
