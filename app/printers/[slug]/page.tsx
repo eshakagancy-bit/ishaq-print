@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { cache } from "react";
 import Image from "../../storefront-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getSiteData } from "../../../lib/site-database";
+import { getProductSummaries, getSiteSettings } from "../../../lib/site-database";
+import { getProductDetails } from "../../../lib/product-details-data";
 import { getPrinterCategoryLabel } from "../../printer-categories";
 import { buildQuickViewSpecificationRows } from "../../printer-specifications";
-import { defaultSiteSettings, type StoredProduct } from "../../site-defaults";
+import type { StoredProduct } from "../../site-defaults";
 import { getPrinterSlug } from "../product-slug";
 import ProductGallery from "../../product-gallery";
 import { isPublicCategoryEnabled } from "../../public-categories";
@@ -31,25 +31,7 @@ type PageProps = {
   searchParams?: Promise<{ model?: string }>;
 };
 
-async function getPrinters() {
-  if (!isPublicCategoryEnabled("printers")) return { printers: [], products: [], settings: defaultSiteSettings };
-  const data = await getSiteData();
-  return {
-    printers: data.products.filter((product) => product.category === "printers"),
-    products: data.products,
-    settings: data.settings,
-  };
-}
-
-const getPrinter = cache(async (slug: string) => {
-  const { printers, products, settings } = await getPrinters();
-  return {
-    product: printers.find((printer) => getPrinterSlug(printer) === slug),
-    printers,
-    products,
-    settings,
-  };
-});
+const getPrinter = (slug: string) => isPublicCategoryEnabled("printers") ? getProductDetails("printers", slug) : null;
 
 function getWhatsappLink(product: StoredProduct, request: "quote" | "specialist") {
   const message = request === "quote"
@@ -60,7 +42,7 @@ function getWhatsappLink(product: StoredProduct, request: "quote" | "specialist"
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const { product } = await getPrinter(slug);
+  const product = await getPrinter(slug);
   if (!product) return {};
   return publicMetadata({
     title: `${product.name} | وكالة إسحاق العالمية`,
@@ -73,8 +55,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function PrinterDetailsPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const requestedModel = (await searchParams)?.model;
-  const { product, printers, products, settings } = await getPrinter(slug);
+  const product = await getPrinter(slug);
   if (!product) notFound();
+  const [settings, printers] = await Promise.all([getSiteSettings(), getProductSummaries("printers", product.id)]);
 
   const specificationRows = buildQuickViewSpecificationRows(product);
   const technicalRows = specificationRows.filter((row) => row.key !== "usage");
@@ -113,7 +96,7 @@ export default async function PrinterDetailsPage({ params, searchParams }: PageP
           <Link href="/" aria-label="الصفحة الرئيسية">
             <Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" />
           </Link>
-          <div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div>
+          <div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl variant="icon"/></div>
         </div>
       </header>
 

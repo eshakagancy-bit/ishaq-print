@@ -7,10 +7,14 @@ import { isPublicCategoryEnabled } from "./public-categories";
 import { SITE_URL } from "./seo";
 import { isInkCategory } from "./laser-inks";
 
+// Read the current catalog at request time; a build without Supabase credentials
+// must not bake a static-only sitemap into the deployment.
+export const dynamic = "force-dynamic";
+
 const publicPages = ["", "/categories", "/printers", "/papers", "/inks", "/laser-inks", "/maintenance"];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const products = await getSitemapProducts().catch(() => []);
+  const products = await getSitemapProducts();
   const productPages = products
     .filter((product) => isPublicCategoryEnabled(product.category) || isInkCategory(product.category))
     .map((product) => {

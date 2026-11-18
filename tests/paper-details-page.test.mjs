@@ -8,7 +8,8 @@ test("paper cards and details use the shared site data with safe slugs and Next.
     readFile(new URL("../app/home-client.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/papers/product-slug.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(page, /getSiteData\(\)/);
+  assert.match(page, /getProductDetails\("papers", slug\)/);
+  assert.doesNotMatch(page, /getSiteData/);
   assert.match(page, /if \(!product\) notFound\(\)/);
   assert.match(page, /buildPaperSpecificationRows\(product\)/);
   assert.match(page, /product\.images\?\.length/);

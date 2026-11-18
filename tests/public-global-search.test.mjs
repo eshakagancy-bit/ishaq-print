@@ -13,12 +13,13 @@ test("public collection search buttons open the shared drawer without navigation
     read("app/papers/page.tsx"),
   ]);
   assert.doesNotMatch(client, /href="\/#general-search"/);
-  assert.match(client, /<PublicSearchControl products=\{allProducts\}\/>/);
-  assert.match(drawer, /const openSearch = \(\) => \{ announceHeaderDrawer\("search"\); setOpen\(true\); \}/);
+  assert.match(client, /<PublicSearchControl\/>/);
+  assert.match(drawer, /const openSearch = \(\) => \{ announceHeaderDrawer\("search"\);[^}]*setOpen\(true\);/);
   assert.match(drawer, /id="search-drawer"[\s\S]*?id="global-search-scope"[\s\S]*?id="global-search-input"/);
   assert.match(drawer, /event\.key === "Escape"/);
   assert.match(drawer, /event\.target === event\.currentTarget\) close\(\)/);
-  for (const source of [printers, inks, papers]) assert.match(source, /allProducts=\{data\.products\}/);
+  for (const source of [printers, inks, papers]) assert.doesNotMatch(source, /allProducts=/);
+  assert.match(drawer, /if \(!open\) return;[\s\S]*?fetch\("\/api\/product-search", \{ cache: "no-store"/);
 });
 
 test("categories and product details expose the same public search control", async () => {
@@ -28,5 +29,5 @@ test("categories and product details expose the same public search control", asy
     read("app/inks/[slug]/page.tsx"),
     read("app/papers/[slug]/page.tsx"),
   ]);
-  for (const source of sources) assert.match(source, /<PublicSearchControl products=\{/);
+  for (const source of sources) assert.match(source, /<PublicSearchControl(?:\s+variant="icon")?\/>/);
 });

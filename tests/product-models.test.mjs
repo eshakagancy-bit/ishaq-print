@@ -56,7 +56,7 @@ test("search, admin CRUD, image fallback and all three detail routes are wired",
   assert.match(admin, /حذف الموديل/);
   assert.match(admin, /new Set\(modelNames\)\.size/);
   assert.match(selector, /selected\.image \|\| productImage/);
-  assert.match(database, /select\("\*, product_models\(\*, product_model_variants\(\*\)\)"\)/);
+  assert.match(database, /PRODUCT_SELECT = "\*, product_models\(\*, product_model_variants\(\*\)\)"/);
   details.forEach((source, index) => {
     assert.match(source, index === 1 ? /searchParams\?: Promise<\{ model\?: string; color\?: string \}>/ : /searchParams\?: Promise<\{ model\?: string \}>/);
     assert.match(source, /<ProductModelSelector/);

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "../storefront-image";
 import Link from "next/link";
-import { getSiteData } from "../../lib/site-database";
+import { getProductSummaries, getSiteSettings } from "../../lib/site-database";
 import { publicMetadata } from "../seo";
 import StorefrontFooter from "../storefront-footer";
 import PublicSearchControl from "../global-search-drawer";
@@ -18,14 +18,14 @@ export const metadata: Metadata = publicMetadata({
 });
 
 export default async function CategoriesPage() {
-  const data = await getSiteData();
+  const [settings, products] = await Promise.all([getSiteSettings(), getProductSummaries("laser_inks")]);
   return <><main id="main-content" tabIndex={-1} className="categories-index-page" dir="rtl">
-    <PublicTopBar settings={data.settings}/>
-    <header className="categories-index-header"><div className="container"><Link className="collection-brand" href="/"><Image src={data.settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl products={data.products}/><Link className="categories-contact" href="/#contact">استشارات ومبيعات</Link></div></div></header>
+    <PublicTopBar settings={settings}/>
+    <header className="categories-index-header"><div className="container"><Link className="collection-brand" href="/"><Image src={settings.logoImage || "/brand/eshak-logo.png"} alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl/><Link className="categories-contact" href="/#contact">استشارات ومبيعات</Link></div></div></header>
     <section className="container categories-index-content">
       <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>الفئات</b></nav>
       <div className="categories-index-title"><span>أقسام المنتجات</span><h1>تسوق حسب الفئة</h1><p>اختر القسم الذي تريد تصفحه</p></div>
-      <StorefrontCategoryLinks products={data.products}/>
+      <StorefrontCategoryLinks products={products}/>
     </section>
-    <CartDrawerOverlay/><StorefrontFooter settings={data.settings} /></main></>;
+    <CartDrawerOverlay/><StorefrontFooter settings={settings} /></main></>;
 }

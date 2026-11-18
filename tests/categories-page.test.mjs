@@ -12,7 +12,8 @@ test("categories and homepage reuse the exact shared category artwork links", as
     read("app/globals.css"),
   ]);
 
-  assert.match(page, /<StorefrontCategoryLinks products=\{data\.products\}\/>/);
+  assert.match(page, /getProductSummaries\("laser_inks"\)/);
+  assert.match(page, /<StorefrontCategoryLinks products=\{products\}\/>/);
   assert.match(home, /<StorefrontCategoryLinks products=\{products\}\/>/);
   assert.match(component, /STOREFRONT_CATEGORY_ORDER: PublicEnabledCategory\[\] = \["printers", "papers", "inks", "laser_inks"\]/);
   assert.match(component, /printers:\s*"\/categories\/printers-unified\.png"/);

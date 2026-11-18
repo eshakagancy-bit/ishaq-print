@@ -44,7 +44,7 @@ function filterProductsByCurrentFields(products: StoredProduct[], normalizedQuer
   return products.filter((product) => `${product.name} ${product.family} ${product.description}`.toLocaleLowerCase("ar").includes(normalizedQuery));
 }
 
-export default function CategoryProductsClient({ category, products, allProducts, settings }: { category: PublicEnabledCategory; products: StoredProduct[]; allProducts: StoredProduct[]; settings: SiteSettings }) {
+export default function CategoryProductsClient({ category, products, settings }: { category: PublicEnabledCategory; products: StoredProduct[]; settings: SiteSettings }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useState<number[]>([]);
@@ -84,7 +84,7 @@ export default function CategoryProductsClient({ category, products, allProducts
 
   return <main id="main-content" tabIndex={-1} className="category-products-page" data-category={category} dir="rtl">
     <PublicTopBar settings={settings}/>
-    <header className="category-products-header"><div className="container"><Link className="collection-brand" href="/" aria-label="وكالة إسحاق العالمية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/categories">الفئات</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl products={allProducts}/><Link href="/?favorites=1" aria-label={`المفضلة، ${favorites.length} منتجات`}>المفضلة <b>{favorites.length}</b></Link></div></div></header>
+    <header className="category-products-header"><div className="container"><Link className="collection-brand" href="/" aria-label="وكالة إسحاق العالمية"><Image src="/brand/eshak-logo.png" alt="وكالة إسحاق العالمية" width={160} height={70} sizes="160px" loading="eager" fetchPriority="low" /></Link><nav aria-label="التنقل الرئيسي"><Link href="/">الرئيسية</Link><Link href="/categories">الفئات</Link><Link href="/printers">الطابعات</Link><Link href="/inks">الأحبار</Link><Link href="/papers">الأوراق</Link></nav><div className="collection-header-actions"><CartHeaderButton compact/><PublicSearchControl/><Link href="/?favorites=1" aria-label={`المفضلة، ${favorites.length} منتجات`}>المفضلة <b>{favorites.length}</b></Link></div></div></header>
     <section className="container category-products-content">
       <nav className="collection-breadcrumb" aria-label="مسار الصفحة"><Link href="/">الرئيسية</Link><span aria-hidden="true">/</span><b>{categoryLabels[category]}</b></nav>
       <div className="category-products-title"><div><span>مجموعة المنتجات</span><h1>{categoryLabels[category]}</h1></div></div>

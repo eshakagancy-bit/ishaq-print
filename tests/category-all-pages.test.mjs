@@ -8,10 +8,9 @@ test("the four public category index routes use one vertical list and category-o
     const page = await readFile(new URL(`../app/${category}/page.tsx`, import.meta.url), "utf8");
     const categoryId = category === "laser-inks" ? "laser_inks" : category;
     assert.match(page, new RegExp(`isPublicCategoryEnabled\\("${categoryId}"\\)`));
-    if (category === "laser-inks") assert.match(page, /isLaserInkCategory\(product\.category\)/);
-    else assert.match(page, new RegExp(`product\\.category === "${category}"`));
     assert.match(page, new RegExp(`category="${categoryId}"`));
-    assert.match(page, /getSiteData\(\)/);
+    assert.match(page, new RegExp(`getCategoryData\\("${categoryId}"\\)`));
+    assert.doesNotMatch(page, /getSiteData|allProducts=/);
   }
 });
 

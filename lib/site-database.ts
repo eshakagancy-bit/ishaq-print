@@ -17,7 +17,7 @@ export async function consumeAdminLoginAttempt(clientKey: string): Promise<Admin
   return { allowed: row.allowed, retryAfterSeconds: Number(row.retry_after_seconds) };
 }
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "./media-url";
-import { isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
+import { PRINTER_CATEGORIES, isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
 import {
   isHomeProductCategory,
   type HomeProductOrderItem,
@@ -30,6 +30,8 @@ import {
 import { normalizePaperSpecifications } from "../app/paper-specifications";
 import { normalizeInkSpecifications } from "../app/ink-specifications";
 import { isInkCategory } from "../app/laser-inks";
+import { PUBLIC_ENABLED_CATEGORIES, type PublicEnabledCategory } from "../app/public-categories";
+import type { PublicSearchProduct } from "../app/global-product-search";
 import {
   hasPrinterPageContent,
   normalizePrinterPageContent,
@@ -424,6 +426,127 @@ export type SiteData = {
   products: StoredProduct[];
 };
 
+const PRODUCT_SELECT = "*, product_models(*, product_model_variants(*))";
+const PRODUCT_SUMMARY_SELECT = "id,name,image,category,type,sort_order,images:specifications->images,paper_name:specifications->nameEn,paper_type:specifications->paperType";
+const SEARCH_SELECT = `${PRODUCT_SUMMARY_SELECT},family,description,ink_brand:specifications->brand,ink_type:specifications->inkType,product_models(id,model,part_number,compatibility,is_active,product_model_variants(id,color,part_number,is_active))`;
+
+function storedCategories(category: PublicEnabledCategory): string[] {
+  return category === "printers" ? ["printers", ...PRINTER_CATEGORIES.map(({ value }) => value)] : [category];
+}
+
+// Use the returned row count, not the requested range: PostgREST can cap a
+// range below our page size. An exact total also avoids an extra empty request.
+async function readAllPages<T>(
+  read: (from: number, to: number, count: boolean) => PromiseLike<{ data: T[] | null; count: number | null; error: DatabaseErrorLike | null }>,
+  errorMessage: string,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let total: number | null = null;
+  while (true) {
+    const page = await withDatabaseRetry(async () => {
+      const result = await read(rows.length, rows.length + 249, rows.length === 0);
+      databaseError(errorMessage, result.error);
+      return result;
+    });
+    if (total === null) total = page.count;
+    if (!page.data?.length) {
+      if (total !== null && rows.length < total) throw new Error(errorMessage);
+      return rows;
+    }
+    rows.push(...page.data);
+    if (total !== null && rows.length >= total) return rows;
+  }
+}
+
+export async function getSiteSettings() {
+  return withDatabaseRetry(async () => {
+    const result = await getSupabaseAdmin().from("site_settings").select("payload").eq("id", 1).maybeSingle();
+    databaseError("تعذر تحميل إعدادات الموقع", result.error);
+    return normalizeSiteSettingsMedia({
+      ...defaultSiteSettings,
+      ...((result.data?.payload ?? {}) as Partial<SiteSettings>),
+    });
+  });
+}
+
+async function getProducts(categories?: string[], homeOrder = false) {
+  const rows = await readAllPages<ProductRow>((from, to, count) => {
+    let query = getSupabaseAdmin().from("products").select(PRODUCT_SELECT, count ? { count: "exact" } : undefined);
+    if (categories) query = query.in("category", categories);
+    if (homeOrder) query = query.order("home_display_order", { ascending: true, nullsFirst: false });
+    return query.order("sort_order").order("id").range(from, to);
+  }, "تعذر تحميل المنتجات");
+  return rows.map(productFromRow);
+}
+
+export async function getCategoryData(category: PublicEnabledCategory): Promise<SiteData> {
+  const [settings, products] = await Promise.all([getSiteSettings(), getProducts(storedCategories(category))]);
+  return { settings, products };
+}
+
+export async function getProductSummaries(category: "printers" | "papers" | "laser_inks", excludedId?: number) {
+  type SummaryRow = Pick<ProductRow, "id" | "name" | "image" | "category" | "type" | "sort_order"> & {
+    images: unknown;
+    paper_name: unknown;
+    paper_type: unknown;
+  };
+  const rows = await readAllPages<SummaryRow>((from, to, count) => {
+    let query = getSupabaseAdmin().from("products").select(PRODUCT_SUMMARY_SELECT, count ? { count: "exact" } : undefined)
+      .in("category", storedCategories(category));
+    if (excludedId !== undefined) query = query.neq("id", excludedId);
+    return query.order("sort_order").order("id").range(from, to);
+  }, "تعذر تحميل ملخصات المنتجات");
+  return rows.map((row) => {
+    const name = normalizeProductBrandName(row.name);
+    const paper = category === "papers" ? normalizePaperSpecifications({
+      images: row.images, nameEn: row.paper_name, paperType: row.paper_type,
+    }) : undefined;
+    const ink = category === "laser_inks" ? normalizeInkSpecifications({ images: row.images }) : undefined;
+    return {
+      id: Number(row.id), name, category, type: row.type,
+      image: ink?.images[0] ? normalizeStoredMediaUrl(ink.images[0]) : normalizeStoredMediaUrl(row.image),
+      printerCategory: category === "printers" ? resolvePrinterCategory(row.category, name) : undefined,
+      images: paper?.images, paperSpecifications: paper,
+    };
+  });
+}
+
+export async function getPublicSearchProducts(): Promise<PublicSearchProduct[]> {
+  type SearchRow = Pick<ProductRow, "id" | "name" | "image" | "category" | "type" | "family" | "description"> & {
+    images: unknown; paper_name: unknown; paper_type: unknown; ink_brand: unknown; ink_type: unknown;
+    product_models?: (Pick<ProductModelRow, "id" | "model" | "part_number" | "compatibility" | "is_active"> & {
+      product_model_variants?: Pick<ProductModelVariantRow, "id" | "color" | "part_number" | "is_active">[];
+    })[];
+  };
+  const rows = await readAllPages<SearchRow>((from, to, count) => getSupabaseAdmin().from("products")
+    .select(SEARCH_SELECT, count ? { count: "exact" } : undefined)
+    .in("category", PUBLIC_ENABLED_CATEGORIES.flatMap(storedCategories))
+    .eq("product_models.is_active", true)
+    .eq("product_models.product_model_variants.is_active", true)
+    .order("sort_order").order("id").range(from, to), "تعذر تحميل فهرس البحث");
+  return rows.map((row) => {
+    const name = normalizeProductBrandName(row.name);
+    const printerCategory = isPrinterCategory(row.category) ? row.category : undefined;
+    const category = printerCategory ? "printers" : row.category;
+    const ink = isInkCategory(category) ? normalizeInkSpecifications({ images: row.images, brand: row.ink_brand, inkType: row.ink_type }) : undefined;
+    const paper = category === "papers" ? normalizePaperSpecifications({ nameEn: row.paper_name, paperType: row.paper_type }) : undefined;
+    return {
+      id: Number(row.id), name, category, family: row.family, type: row.type, description: row.description,
+      image: normalizeStoredMediaUrl(ink?.images[0] || row.image),
+      printerCategory: category === "printers" ? resolvePrinterCategory(printerCategory, name) : undefined,
+      inkSpecifications: ink && { brand: ink.brand, inkType: ink.inkType },
+      paperSpecifications: paper && { nameEn: paper.nameEn, paperType: paper.paperType },
+      models: row.product_models?.map((model) => ({
+        id: Number(model.id), model: model.model, partNumber: model.part_number || undefined,
+        compatibility: model.compatibility || undefined, isActive: model.is_active,
+        variants: model.product_model_variants?.map((variant) => ({
+          id: Number(variant.id), color: variant.color, partNumber: variant.part_number, isActive: variant.is_active,
+        })),
+      })),
+    };
+  });
+}
+
 export type HeroData = {
   slides: HeroSlide[];
   settings: HeroSettings;
@@ -453,70 +576,33 @@ export async function ensureSiteDefaults(force = false) {
 }
 
 export async function getSiteData(): Promise<SiteData> {
-  return withDatabaseRetry(async () => {
-    const client = getSupabaseAdmin();
-    const [settingsResult, productsResult] = await Promise.all([
-      client.from("site_settings").select("payload").eq("id", 1).maybeSingle(),
-      client.from("products").select("*, product_models(*, product_model_variants(*))").order("sort_order", { ascending: true }).order("id", { ascending: true }),
-    ]);
-    databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
-    databaseError("تعذر تحميل المنتجات", productsResult.error);
-
-    return {
-      settings: normalizeSiteSettingsMedia({
-        ...defaultSiteSettings,
-        ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
-      }),
-      products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
-    };
-  });
+  const [settings, products] = await Promise.all([getSiteSettings(), getProducts()]);
+  return { settings, products };
 }
 
 export async function getSitemapProducts() {
-  return withDatabaseRetry(async () => {
-    const result = await getSupabaseAdmin()
-      .from("products")
-      .select("id,name,category,updated_at")
-      .order("id", { ascending: true });
-    databaseError("تعذر تحميل منتجات خريطة الموقع", result.error);
-
-    return ((result.data ?? []) as SitemapProductRow[]).map((row) => ({
-      id: Number(row.id),
-      name: normalizeProductBrandName(row.name),
-      category: isPrinterCategory(row.category) ? "printers" : row.category,
-      updatedAt: row.updated_at || undefined,
-    }));
-  });
+  const rows = await readAllPages<SitemapProductRow>((from, to, count) => getSupabaseAdmin()
+    .from("products")
+    .select("id,name,category,updated_at", count ? { count: "exact" } : undefined)
+    .order("id").range(from, to), "تعذر تحميل منتجات خريطة الموقع");
+  return rows.map((row) => ({
+    id: Number(row.id),
+    name: normalizeProductBrandName(row.name),
+    category: isPrinterCategory(row.category) ? "printers" : row.category,
+    updatedAt: row.updated_at || undefined,
+  }));
 }
 
 export async function getHomeData(): Promise<SiteData> {
-  return withDatabaseRetry(async () => {
-    const client = getSupabaseAdmin();
-    const [settingsResult, productsResult] = await Promise.all([
-      client.from("site_settings").select("payload").eq("id", 1).maybeSingle(),
-      client.from("products").select("*, product_models(*, product_model_variants(*))")
-        .order("home_display_order", { ascending: true, nullsFirst: false })
-        .order("sort_order", { ascending: true })
-        .order("id", { ascending: true }),
-    ]);
-    databaseError("تعذر تحميل إعدادات الموقع", settingsResult.error);
-    databaseError("تعذر تحميل منتجات الصفحة الرئيسية", productsResult.error);
-
-    return {
-      settings: normalizeSiteSettingsMedia({
-        ...defaultSiteSettings,
-        ...((settingsResult.data?.payload ?? {}) as Partial<SiteSettings>),
-      }),
-      products: ((productsResult.data ?? []) as ProductRow[]).map(productFromRow),
-    };
-  });
+  const [settings, products] = await Promise.all([getSiteSettings(), getProducts(undefined, true)]);
+  return { settings, products };
 }
 
 export async function getProductById(id: number) {
   return withDatabaseRetry(async () => {
     const result = await getSupabaseAdmin()
       .from("products")
-      .select("*, product_models(*, product_model_variants(*))")
+      .select(PRODUCT_SELECT)
       .eq("id", id)
       .maybeSingle();
     databaseError("تعذر تحميل المنتج", result.error);

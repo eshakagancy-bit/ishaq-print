@@ -37,15 +37,15 @@ test("homepage renders the laser section dynamically after normal inks", async (
 test("homepage and category index use a real loaded laser product image", async () => {
   const [home, categories, links] = await Promise.all([read("app/home-client.tsx"), read("app/categories/page.tsx"), read("app/storefront-category-links.tsx")]);
   assert.match(home, /<StorefrontCategoryLinks products=\{products\}\/>/);
-  assert.match(categories, /<StorefrontCategoryLinks products=\{data\.products\}\/>/);
+  assert.match(categories, /<StorefrontCategoryLinks products=\{products\}\/>/);
   assert.match(links, /products\.find\(\(product\) => isLaserInkCategory\(product\.category\) && product\.image\.trim\(\)\)\?\.image/);
 });
 
 test("normal inks and laser inks collection routes filter independently", async () => {
   const [inks, laser] = await Promise.all([read("app/inks/page.tsx"), read("app/laser-inks/page.tsx")]);
-  assert.match(inks, /product\.category === "inks"/);
+  assert.match(inks, /getCategoryData\("inks"\)/);
   assert.doesNotMatch(inks, /isInkCategory\(product\.category\)/);
-  assert.match(laser, /isLaserInkCategory\(product\.category\)/);
+  assert.match(laser, /getCategoryData\("laser_inks"\)/);
   assert.match(laser, /category="laser_inks"/);
 });
 

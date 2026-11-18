@@ -102,7 +102,7 @@ test("homepage, admin API, and public category pages use the intended independen
   assert.match(admin, /HOME_PRODUCT_CATEGORIES\.map/);
 
   for (const categoryPage of categoryPages) {
-    assert.match(categoryPage, /getSiteData\(\)/);
+    assert.match(categoryPage, /getCategoryData\(/);
     assert.doesNotMatch(categoryPage, /getHomeData/);
   }
 

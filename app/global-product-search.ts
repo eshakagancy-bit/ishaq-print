@@ -1,5 +1,15 @@
 import { isInkCategory } from "./laser-inks-core.js";
-import type { ProductModel, ProductModelVariant } from "./site-defaults";
+import type { ProductModel, ProductModelVariant, StoredProduct } from "./site-defaults";
+
+export type SearchModelVariant = Pick<ProductModelVariant, "id" | "color" | "partNumber" | "isActive">;
+export type SearchModel = Pick<ProductModel, "id" | "model" | "partNumber" | "compatibility" | "isActive"> & {
+  variants?: SearchModelVariant[];
+};
+export type PublicSearchProduct = Pick<StoredProduct, "id" | "slug" | "name" | "category" | "image" | "family" | "type" | "description" | "printerCategory"> & {
+  paperSpecifications?: Pick<NonNullable<StoredProduct["paperSpecifications"]>, "nameEn" | "paperType">;
+  inkSpecifications?: Pick<NonNullable<StoredProduct["inkSpecifications"]>, "brand" | "inkType">;
+  models?: SearchModel[];
+};
 
 export type ProductSearchScope = "all" | "printers" | "inks" | "papers";
 
@@ -9,7 +19,7 @@ type SearchableProduct = {
 };
 
 type ModelSearchableProduct = SearchableProduct & {
-  models?: ProductModel[];
+  models?: SearchModel[];
 };
 
 export type ProductSearchMatchKind =
@@ -20,9 +30,9 @@ export type ProductSearchMatchKind =
   | "compatibility";
 
 export type ProductModelSearchMatch = {
-  model: ProductModel;
+  model: SearchModel;
   kinds: ProductSearchMatchKind[];
-  variants: ProductModelVariant[];
+  variants: SearchModelVariant[];
 };
 
 export type ProductSearchResult<T> = {

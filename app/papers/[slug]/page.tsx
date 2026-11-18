@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { cache } from "react";
 import Image from "../../storefront-image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getSiteData } from "../../../lib/site-database";
+import { getProductSummaries, getSiteSettings } from "../../../lib/site-database";
+import { getProductDetails } from "../../../lib/product-details-data";
 import { buildPaperSpecificationRows, getPaperAvailabilityLabel } from "../../paper-specifications";
 import ProductGallery from "../../product-gallery";
-import { defaultSiteSettings, type StoredProduct } from "../../site-defaults";
+import type { StoredProduct } from "../../site-defaults";
 import { getPaperSlug } from "../product-slug";
 import { isPublicCategoryEnabled } from "../../public-categories";
 import { publicMetadata } from "../../seo";
@@ -25,12 +25,7 @@ export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ slug: string }>; searchParams?: Promise<{ model?: string }> };
 
-const getPaperData = cache(async (slug: string) => {
-  if (!isPublicCategoryEnabled("papers")) return { product: undefined, papers: [], products: [], settings: defaultSiteSettings };
-  const data = await getSiteData();
-  const papers = data.products.filter((item) => item.category === "papers");
-  return { product: papers.find((item) => getPaperSlug(item) === slug), papers, products: data.products, settings: data.settings };
-});
+const getPaper = (slug: string) => isPublicCategoryEnabled("papers") ? getProductDetails("papers", slug) : null;
 
 function whatsappLink(product: StoredProduct) {
   const message = `مرحبًا مجموعة إسحاق العالمية، أريد معرفة السعر والتوفر للورق: ${product.name}.`;
@@ -39,7 +34,7 @@ function whatsappLink(product: StoredProduct) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const { product } = await getPaperData(slug);
+  const product = await getPaper(slug);
   const title = product?.paperSpecifications?.nameEn?.trim() || product?.name;
   return product ? publicMetadata({
     title: `${title} | وكالة إسحاق العالمية`,
@@ -52,8 +47,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function PaperDetailsPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
   const requestedModel = (await searchParams)?.model;
-  const { product, papers, products, settings } = await getPaperData(slug);
+  const product = await getPaper(slug);
   if (!product) notFound();
+  const [settings, papers] = await Promise.all([getSiteSettings(), getProductSummaries("papers", product.id)]);
 
   const title = product.paperSpecifications?.nameEn?.trim() || product.name;
   const rows = buildPaperSpecificationRows(product);
@@ -92,7 +88,7 @@ export default async function PaperDetailsPage({ params, searchParams }: PagePro
 
   return <><script {...jsonLdScriptProps(structuredData)} /><main id="main-content" tabIndex={-1} className="printer-details-page">
     <PublicTopBar settings={settings}/>
-    <header className="printer-details-header"><div className="container"><Link href="/papers" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl products={products} variant="icon"/></div></div></header>
+    <header className="printer-details-header"><div className="container"><Link href="/papers" className="printer-back-link">العودة إلى قسم الأوراق</Link><Link href="/" aria-label="الصفحة الرئيسية"><Image src="/brand/eshak-logo.png" alt="مجموعة إسحاق العالمية" width={170} height={74} sizes="170px" loading="eager" fetchPriority="low" /></Link><div className="detail-header-actions"><CartHeaderButton/><PublicSearchControl variant="icon"/></div></div></header>
     <section className="printer-hero"><div className="container">
       <nav className="product-details-breadcrumb" aria-label="مسار المنتج"><Link href="/">الرئيسية</Link><span>/</span><Link href="/papers">الأوراق</Link><span>/</span><b>{title}</b></nav>
       <div className="printer-hero-grid">{product.models?.some((model) => model.isActive) ? <ProductModelSelector models={product.models} requestedModel={requestedModel} productImage={images[0]} productName={title} /> : <ProductGallery images={images} alt={title} />}<div className="printer-summary">{product.badge?.trim() && <span className="modal-product-badge">{product.badge}</span>}{availabilityLabel && <span className="product-availability" data-availability>{availabilityLabel}</span>}<span className="product-family">الأوراق</span><h1 dir="ltr">{title}</h1>{product.description?.trim() && <p className="printer-summary-description">{product.description}</p>}<div className="product-detail-price"><small>السعر</small><strong>{productPriceLabel(product.price)}</strong></div>{rows.length > 0 && <dl className="printer-key-info">{rows.filter((row) => row.key !== "availability").slice(0, 6).map((row) => <div key={row.key}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl>}<div className="printer-actions"><AddToCartButton item={{ productType: "paper", productId: String(product.id), productName: title, productUrl: `/papers/${slug}`, image: images[0] || "/brand/eshak-logo.png" }} /><a className="primary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">اعرف السعر والتوفر</a><a className="secondary-btn" href={whatsappLink(product)} target="_blank" rel="noreferrer">تواصل مع المختص</a><ProductFavoriteButton productId={product.id} /><ProductShare productName={title} productUrl={`/papers/${slug}`} /><Link className="printer-page-back" href="/papers">العودة إلى قسم الأوراق</Link></div></div></div>

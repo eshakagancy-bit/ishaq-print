@@ -3,9 +3,8 @@
 import Image from "./storefront-image";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { searchProductResults, type ProductSearchScope } from "./global-product-search";
+import { searchProductResults, type ProductSearchScope, type PublicSearchProduct } from "./global-product-search";
 import { getProductDetailsHref } from "./product-details-href";
-import type { StoredProduct } from "./site-defaults";
 import { announceHeaderDrawer, HEADER_DRAWER_EVENT, type HeaderDrawerName } from "./order-cart-provider";
 import { isInkCategory, isLaserInkCategory } from "./laser-inks";
 import SearchResultModelMatches from "./search-result-model-matches";
@@ -16,11 +15,11 @@ function SearchIcon() {
 
 const productDetailsHref = getProductDetailsHref;
 
-function productDisplayName(product: StoredProduct) {
+function productDisplayName(product: PublicSearchProduct) {
   return product.category === "papers" ? product.paperSpecifications?.nameEn?.trim() || product.name : product.name;
 }
 
-function productCategoryLine(product: StoredProduct) {
+function productCategoryLine(product: PublicSearchProduct) {
   if (isInkCategory(product.category)) return "الأحبار";
   if (product.category === "papers") return "الأوراق";
   return "الطابعات";
@@ -29,11 +28,13 @@ function productCategoryLine(product: StoredProduct) {
 type GlobalSearchDrawerProps = {
   open: boolean;
   onClose: () => void;
-  products: StoredProduct[];
+  products: PublicSearchProduct[];
+  loadState?: "loading" | "error";
+  retry?: () => void;
   triggerRef: RefObject<HTMLElement | null>;
 };
 
-export function GlobalSearchDrawer({ open, onClose, products, triggerRef }: GlobalSearchDrawerProps) {
+export function GlobalSearchDrawer({ open, onClose, products, triggerRef, loadState, retry }: GlobalSearchDrawerProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchScope, setSearchScope] = useState<ProductSearchScope>("all");
   const panelRef = useRef<HTMLElement | null>(null);
@@ -93,7 +94,9 @@ export function GlobalSearchDrawer({ open, onClose, products, triggerRef }: Glob
       <label className="global-search-field" htmlFor="global-search-input"><span className="sr-only">البحث عن منتج</span><input ref={inputRef} id="global-search-input" type="search" dir="auto" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="ابحث عن منتج..." autoComplete="off"/><SearchIcon/>{searchQuery && <button type="button" onClick={() => setSearchQuery("")} aria-label="مسح البحث"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button>}</label>
     </div>
     <div className="search-drawer-results" aria-live="polite">
-      {!normalizedSearchQuery ? <div className="search-drawer-state"><SearchIcon/><p>ابدأ بالبحث عن منتج</p><span>ابحث بالاسم أو الموديل أو النوع.</span></div> : matchingProducts.length ? <><p className="search-result-count">{matchingProducts.length} {matchingProducts.length === 1 ? "نتيجة" : "نتائج"}</p><div className="search-results-list">{matchingProducts.map((result) => {
+      {loadState === "loading" ? <div className="search-drawer-state" role="status">جارٍ تحميل البحث…</div>
+        : loadState === "error" ? <div className="search-drawer-state" role="status"><p>تعذر تحميل البحث.</p><button type="button" onClick={retry}>إعادة المحاولة</button></div>
+        : !normalizedSearchQuery ? <div className="search-drawer-state"><SearchIcon/><p>ابدأ بالبحث عن منتج</p><span>ابحث بالاسم أو الموديل أو النوع.</span></div> : matchingProducts.length ? <><p className="search-result-count">{matchingProducts.length} {matchingProducts.length === 1 ? "نتيجة" : "نتائج"}</p><div className="search-results-list">{matchingProducts.map((result) => {
         const product = result.product;
         const href = productDetailsHref(product);
         const name = productDisplayName(product);
@@ -106,8 +109,13 @@ export function GlobalSearchDrawer({ open, onClose, products, triggerRef }: Glob
   </aside>;
 }
 
-export default function PublicSearchControl({ products, variant = "text" }: { products: StoredProduct[]; variant?: "text" | "icon" }) {
+const EMPTY_SEARCH: PublicSearchProduct[] = [];
+
+export default function PublicSearchControl({ variant = "text" }: { variant?: "text" | "icon" }) {
   const [open, setOpen] = useState(false);
+  const [products, setProducts] = useState(EMPTY_SEARCH);
+  const [loadState, setLoadState] = useState<"loading" | "error" | undefined>("loading");
+  const [attempt, setAttempt] = useState(0);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const close = useCallback(() => setOpen(false), []);
   useEffect(() => {
@@ -117,6 +125,23 @@ export default function PublicSearchControl({ products, variant = "text" }: { pr
     window.addEventListener(HEADER_DRAWER_EVENT, closeForAnotherDrawer);
     return () => window.removeEventListener(HEADER_DRAWER_EVENT, closeForAnotherDrawer);
   }, []);
-  const openSearch = () => { announceHeaderDrawer("search"); setOpen(true); };
-  return <><button ref={triggerRef} type="button" className={variant === "icon" ? "header-search-button" : "public-search-button"} onClick={openSearch} aria-label="فتح البحث" aria-controls="search-drawer" aria-expanded={open} aria-haspopup="dialog">{variant === "icon" ? <SearchIcon/> : "بحث"}</button><div className={open ? "menu-overlay open search-open" : "menu-overlay"} aria-hidden={!open} onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><GlobalSearchDrawer open={open} onClose={close} products={products} triggerRef={triggerRef}/></div></>;
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    fetch("/api/product-search", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Search unavailable");
+        const data: unknown = await response.json();
+        if (!Array.isArray(data)) throw new Error("Invalid search response");
+        if (!controller.signal.aborted) {
+          setProducts(data as PublicSearchProduct[]);
+          setLoadState(undefined);
+        }
+      })
+      .catch(() => { if (!controller.signal.aborted) setLoadState("error"); });
+    return () => controller.abort();
+  }, [open, attempt]);
+  const retry = () => { setLoadState("loading"); setAttempt((value) => value + 1); };
+  const openSearch = () => { announceHeaderDrawer("search"); setLoadState("loading"); setOpen(true); };
+  return <><button ref={triggerRef} type="button" className={variant === "icon" ? "header-search-button" : "public-search-button"} onClick={openSearch} aria-label="فتح البحث" aria-controls="search-drawer" aria-expanded={open} aria-haspopup="dialog">{variant === "icon" ? <SearchIcon/> : "بحث"}</button><div className={open ? "menu-overlay open search-open" : "menu-overlay"} aria-hidden={!open} onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><GlobalSearchDrawer open={open} onClose={close} products={products} triggerRef={triggerRef} loadState={loadState} retry={retry}/></div></>;
 }
