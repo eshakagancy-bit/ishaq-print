@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSiteSettings } from "../../../lib/site-database";
 import { getProductDetails } from "../../../lib/product-details-data";
+import { specialistWhatsappHref } from "../../contact-links";
 import { buildInkSpecificationRows } from "../../ink-specifications";
 import type { StoredProduct } from "../../site-defaults";
 import { isPublicCategoryEnabled } from "../../public-categories";
@@ -30,7 +31,7 @@ const getInk = (slug: string) => isPublicCategoryEnabled("inks") ? getProductDet
 
 function whatsappLink(product: StoredProduct) {
   const message = `مرحبًا وكالة إسحاق العالمية، أريد معرفة السعر والتوفر للحبر: ${product.name}.`;
-  return `https://wa.me/967778989866?text=${encodeURIComponent(message)}`;
+  return specialistWhatsappHref(isLaserInkCategory(product.category) ? "laser_inks" : "inks", message);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProductSummaries, getSiteSettings } from "../../../lib/site-database";
 import { getProductDetails } from "../../../lib/product-details-data";
+import { specialistWhatsappHref } from "../../contact-links";
 import { getPrinterCategoryLabel } from "../../printer-categories";
 import { buildQuickViewSpecificationRows } from "../../printer-specifications";
 import type { StoredProduct } from "../../site-defaults";
@@ -24,8 +25,6 @@ import { buildBreadcrumbStructuredData, buildProductStructuredData, jsonLdScript
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PRINTER_SPECIALIST_PHONE = "967778989866";
-
 type PageProps = {
   params: Promise<{ slug: string }>;
   searchParams?: Promise<{ model?: string }>;
@@ -37,7 +36,7 @@ function getWhatsappLink(product: StoredProduct, request: "quote" | "specialist"
   const message = request === "quote"
     ? `مرحبًا مجموعة إسحاق العالمية، أريد طلب عرض سعر للطابعة: ${product.name}.`
     : `مرحبًا مجموعة إسحاق العالمية، أريد التواصل مع المختص بخصوص الطابعة: ${product.name}.`;
-  return `https://wa.me/${PRINTER_SPECIALIST_PHONE}?text=${encodeURIComponent(message)}`;
+  return specialistWhatsappHref("printers", message);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

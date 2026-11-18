@@ -30,10 +30,8 @@ test("printers, papers and inks keep their specialist WhatsApp route and non-com
   for (const [index, category] of ["printers", "papers", "inks"].entries()) {
     assert.match(categoryTests[index], new RegExp(`category="${category}"`));
   }
-  assert.match(categoryClient, /https:\/\/wa\.me\/967778989866\?text=/);
-  for (const category of ["printers", "papers", "inks"]) {
-    assert.match(home, new RegExp(`${category}: "967778989866"`));
-  }
+  assert.match(categoryClient, /specialistWhatsappHref\(category,/);
+  assert.match(home, /specialistWhatsappHref\(categoryId, text\)/);
   assert.match(categoryClient, /className=\{favorites\.includes\(product\.id\) \? "heart active" : "heart"\}/);
   assert.match(categoryClient, />تفاصيل سريعة<\/span>/);
   assert.match(categoryClient, /detailsHref=\{`\/\$\{isInkCategory\(selected\.category\) \? "inks" : category\}\/\$\{productSlug\(selected\)\}`\}/);

@@ -4,7 +4,7 @@ import { getImageProps } from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { isPreoptimizedImageSource, normalizeMediaUrl } from "../lib/media-url";
-import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "./contact-links";
+import { normalizeYemenPhone, specialistWhatsappHref, yemenTelHref, yemenWhatsappHref } from "./contact-links";
 import PublicTopBar from "./public-topbar";
 import {
   HOME_PRINTER_LABELS,
@@ -299,25 +299,9 @@ function getHomeProductBrandLine(product: Product) {
   return product.family;
 }
 
-const categoryContacts: Record<CategoryId, string> = {
-  printers: "967778989866",
-  inks: "967778989866",
-  laser_inks: "967778989866",
-  papers: "967778989866",
-  laptops: "967772233043",
-  electronics: "967772233043",
-  cameras: "967772233043",
-  "money-machines": "967772233043",
-  networks: "967772233043",
-  "3d-printers": "967777000725",
-  "engraving-presses": "967777000725",
-  "advertising-machines": "967777000725",
-};
-
-const whatsapp = "967777000725";
 function generalWaLink(phone: string) {
   const text = "مرحبًا وكالة إسحاق العالمية، أريد المساعدة في اختيار المنتج المناسب.";
-  return yemenWhatsappHref(phone, text, whatsapp);
+  return yemenWhatsappHref(phone, text, defaultSiteSettings.generalWhatsapp);
 }
 
 function specialistWaLink(categoryId: CategoryId, product?: Product) {
@@ -325,7 +309,7 @@ function specialistWaLink(categoryId: CategoryId, product?: Product) {
   const text = product
     ? `مرحبًا وكالة إسحاق العالمية، أريد معرفة السعر والتوفر للمنتج: ${product.name} من قسم ${category.name}`
     : `مرحبًا وكالة إسحاق العالمية، أريد التواصل مع مختص في قسم ${category.name}`;
-  return yemenWhatsappHref(categoryContacts[categoryId], text);
+  return specialistWhatsappHref(categoryId, text);
 }
 
 export default function HomeClient({

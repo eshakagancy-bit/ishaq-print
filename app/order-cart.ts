@@ -1,4 +1,4 @@
-import { normalizeYemenPhone } from "./contact-links-core.js";
+import { normalizeYemenPhone, yemenWhatsappHref } from "./contact-links-core.js";
 
 export const ORDER_CART_STORAGE_KEY = "ishaq-order-cart-v1";
 export const ORDER_CART_STORAGE_VERSION = 1;
@@ -243,5 +243,5 @@ export function buildOrderMessage(items: CartItem[], origin: string) {
 }
 
 export function buildOrderWhatsAppUrl(items: CartItem[], origin: string) {
-  return `https://wa.me/${ORDER_CART_SALES_INTERNATIONAL}?text=${encodeURIComponent(buildOrderMessage(items, origin))}`;
+  return yemenWhatsappHref(ORDER_CART_SALES_NUMBER, buildOrderMessage(items, origin));
 }

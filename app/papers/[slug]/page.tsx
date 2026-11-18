@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProductSummaries, getSiteSettings } from "../../../lib/site-database";
 import { getProductDetails } from "../../../lib/product-details-data";
+import { specialistWhatsappHref } from "../../contact-links";
 import { buildPaperSpecificationRows, getPaperAvailabilityLabel } from "../../paper-specifications";
 import ProductGallery from "../../product-gallery";
 import type { StoredProduct } from "../../site-defaults";
@@ -29,7 +30,7 @@ const getPaper = (slug: string) => isPublicCategoryEnabled("papers") ? getProduc
 
 function whatsappLink(product: StoredProduct) {
   const message = `مرحبًا مجموعة إسحاق العالمية، أريد معرفة السعر والتوفر للورق: ${product.name}.`;
-  return `https://wa.me/967778989866?text=${encodeURIComponent(message)}`;
+  return specialistWhatsappHref("papers", message);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

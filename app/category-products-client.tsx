@@ -9,6 +9,7 @@ import InkImageCarousel from "./ink-image-carousel";
 import { buildPaperSpecificationRows, getPaperAvailabilityLabel } from "./paper-specifications";
 import { buildQuickViewSpecificationRows } from "./printer-specifications";
 import type { PublicEnabledCategory } from "./public-categories";
+import { specialistWhatsappHref } from "./contact-links";
 import type { SiteSettings, StoredProduct } from "./site-defaults";
 import { getInkSlug } from "./inks/product-slug";
 import { getPaperSlug } from "./papers/product-slug";
@@ -36,8 +37,8 @@ function displayName(product: StoredProduct) {
   return product.category === "papers" ? product.paperSpecifications?.nameEn?.trim() || product.name : product.name;
 }
 
-function whatsappLink(product: StoredProduct) {
-  return `https://wa.me/967778989866?text=${encodeURIComponent(`مرحبًا مجموعة إسحاق العالمية، أريد معرفة السعر والتوفر للمنتج: ${product.name}.`)}`;
+function whatsappLink(category: PublicEnabledCategory, product: StoredProduct) {
+  return specialistWhatsappHref(category, `مرحبًا مجموعة إسحاق العالمية، أريد معرفة السعر والتوفر للمنتج: ${product.name}.`);
 }
 
 function filterProductsByCurrentFields(products: StoredProduct[], normalizedQuery: string) {
@@ -101,6 +102,6 @@ export default function CategoryProductsClient({ category, products, settings }:
     </section>
     <StorefrontFooter settings={settings} />
     <CartDrawerOverlay/>
-    {selected && <QuickViewModal id={selected.id} title={displayName(selected)} categoryLabel={categoryLabels[category]} family={selected.family} badge={selected.badge} availabilityLabel={category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={isLaserInkCategory(selected.category) ? undefined : selected.price} images={selected.images?.length ? selected.images : selected.paperSpecifications?.images?.length ? selected.paperSpecifications.images : selected.inkSpecifications?.images?.length ? selected.inkSpecifications.images : [selected.image]} rows={selectedRows} detailsHref={`/${isInkCategory(selected.category) ? "inks" : category}/${productSlug(selected)}`} models={selected.models} whatsappHref={whatsappLink(selected)} whatsappLabel="اعرف السعر والتوفر" trigger={quickViewTrigger} onClose={closeQuickView} />}
+    {selected && <QuickViewModal id={selected.id} title={displayName(selected)} categoryLabel={categoryLabels[category]} family={selected.family} badge={selected.badge} availabilityLabel={category === "papers" ? getPaperAvailabilityLabel(selected) : null} description={selected.description} price={isLaserInkCategory(selected.category) ? undefined : selected.price} images={selected.images?.length ? selected.images : selected.paperSpecifications?.images?.length ? selected.paperSpecifications.images : selected.inkSpecifications?.images?.length ? selected.inkSpecifications.images : [selected.image]} rows={selectedRows} detailsHref={`/${isInkCategory(selected.category) ? "inks" : category}/${productSlug(selected)}`} models={selected.models} whatsappHref={whatsappLink(category, selected)} whatsappLabel="اعرف السعر والتوفر" trigger={quickViewTrigger} onClose={closeQuickView} />}
   </main>;
 }

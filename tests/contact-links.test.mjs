@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { normalizeYemenPhone, yemenTelHref, yemenWhatsappHref } from "../app/contact-links.ts";
+import { normalizeYemenPhone, specialistWhatsappHref, yemenTelHref, yemenWhatsappHref } from "../app/contact-links.ts";
 
 test("normalizes Yemen telephone and WhatsApp links without changing their messages", () => {
   assert.equal(normalizeYemenPhone("01472266"), "9671472266");
@@ -14,6 +14,16 @@ test("normalizes Yemen telephone and WhatsApp links without changing their messa
   assert.equal(`${whatsapp.origin}${whatsapp.pathname}`, "https://wa.me/967777000725");
   assert.equal(whatsapp.searchParams.get("text"), message);
   assert.doesNotMatch(whatsapp.pathname, /\+/);
+});
+
+test("all published product categories use the configured specialist and preserve the message", () => {
+  const message = "استفسار عن HP 305A — اللون: أسود & أزرق";
+  for (const category of ["printers", "papers", "inks", "laser_inks"]) {
+    const url = new URL(specialistWhatsappHref(category, message));
+    assert.equal(url.origin, "https://wa.me");
+    assert.equal(url.pathname, "/967778989866");
+    assert.equal(url.searchParams.get("text"), message);
+  }
 });
 
 test("keeps customer service, maintenance, sales and specialist numbers in their existing roles", async () => {
@@ -40,8 +50,12 @@ test("keeps customer service, maintenance, sales and specialist numbers in their
   assert.match(maintenance, /الصيانة 2", phone: "967781103838"/);
   assert.match(home, /maintenanceWhatsappHref\(contact\.phone\)/);
   assert.match(home, /yemenTelHref\(contact\.phone\)/);
-  assert.match(combined, /967778989866/);
-  assert.match(combined, /\?text=\$\{encodeURIComponent\(/);
+  assert.doesNotMatch(combined, /967778989866|wa\.me\/\d/);
+  assert.match(home, /specialistWhatsappHref\(categoryId, text\)/);
+  assert.match(categoryClient, /specialistWhatsappHref\(category,/);
+  assert.match(printer, /specialistWhatsappHref\("printers", message\)/);
+  assert.match(paper, /specialistWhatsappHref\("papers", message\)/);
+  assert.match(ink, /specialistWhatsappHref\(isLaserInkCategory\(product\.category\) \? "laser_inks" : "inks", message\)/);
 });
 
 test("labels every main contact channel without changing its linked role", async () => {
