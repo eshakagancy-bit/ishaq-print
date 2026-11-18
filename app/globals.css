@@ -697,6 +697,7 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .admin-access-card { width:min(500px,100%); padding:40px; border-radius:16px; background:#fff; text-align:center; box-shadow:0 24px 70px rgba(6,31,45,.12); }
 .admin-access-card h1 { margin-top:0; }
 .admin-access-card p { color:var(--muted); }
+.admin-access-card form>label { display:block; margin-bottom:6px; font-weight:700; }
 .admin-access-card a { display:inline-flex; margin-top:14px; padding:12px 18px; border-radius:8px; background:var(--navy); color:#fff; font-weight:800; }
 
 .real-admin-page { min-height:100vh; padding:0 0 70px; background:#f1f6f8; color:var(--ink); }
@@ -1354,6 +1355,10 @@ footer { background:#07121f; color:#c7d0d9; padding-top:50px; }
 .laser-model-variants-editor { margin-top:14px; padding:12px; border:1px solid #cfe2e7; border-radius:11px; display:grid; gap:10px; background:#fff; }
 .laser-model-variant-row { padding:12px; border:1px solid var(--line); border-radius:9px; display:grid; gap:10px; background:#fbfdfd; }
 .laser-ink-specifications-editor select:disabled { opacity:1; color:var(--navy); background:#f4f8f9; }
+@media (max-width:375px) {
+  .home-page .nav-wrap { grid-template-columns:auto minmax(0,1fr) auto; gap:6px; }
+  .home-page .nav-wrap>.brand { max-width:100%; }
+}
 @media (max-width:600px) {
   .product-model-chips { gap:4px; }
   .product-model-chips a,.product-model-chips span { min-height:28px; padding:4px 7px; font-size:10px; }
