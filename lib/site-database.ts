@@ -1,4 +1,21 @@
 import { getSupabaseAdmin } from "./supabase-server";
+import type { AdminLoginRateLimitResult } from "../app/site-defaults";
+
+// One atomic reservation, with no retries: retrying could consume two attempts.
+export async function consumeAdminLoginAttempt(clientKey: string): Promise<AdminLoginRateLimitResult> {
+  const { data, error } = await getSupabaseAdmin()
+    .rpc("consume_admin_login_attempt", { p_client_key: clientKey })
+    .abortSignal(AbortSignal.timeout(3000));
+  if (error || !Array.isArray(data) || data.length !== 1) throw new Error("Login rate limiter is unavailable");
+  const row: unknown = data[0];
+  if (!row || typeof row !== "object" || !("allowed" in row) || !("retry_after_seconds" in row)
+    || typeof row.allowed !== "boolean" || !Number.isSafeInteger(row.retry_after_seconds)
+    || Number(row.retry_after_seconds) < 0 || Number(row.retry_after_seconds) > 900
+    || (row.allowed ? row.retry_after_seconds !== 0 : Number(row.retry_after_seconds) < 1)) {
+    throw new Error("Invalid login rate limiter response");
+  }
+  return { allowed: row.allowed, retryAfterSeconds: Number(row.retry_after_seconds) };
+}
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "./media-url";
 import { PRINTER_CATEGORIES, isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
 import {

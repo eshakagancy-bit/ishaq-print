@@ -166,6 +166,18 @@ eshak-global-agency-vercel/
 
 ## 6. نظام المصادقة والأمان (Authentication & Security)
 
+### حماية محاولات الدخول
+
+- `/api/admin/login` يحجز محاولة قبل تحليل النموذج أو فحص كلمة المرور، عبر `consumeAdminLoginAttempt` في `lib/site-database.ts` وRPC `consume_admin_login_attempt`.
+- التخزين: جدول جديد `admin_login_attempts` مع RLS وسحب صلاحيات PUBLIC وanon وauthenticated. تنفيذ الدالة محصور في service_role، مع `search_path` فارغ وأسماء جداول مؤهلة.
+- السياسة ثابتة خادمياً: 5 محاولات لكل عميل خلال 15 دقيقة، و50 إجمالاً خلال 15 دقيقة للحساب الإداري الواحد. المحاولات الناجحة وغير الصالحة تُحسب أيضاً؛ النجاح لا يمسح العداد، والطلبات المرفوضة لا تمدد الحظر. النوافذ تبدأ من أول حجز، والحظر ينتهي عند نهاية النافذة. سقف الحساب يقلل الهجمات الموزعة لكنه قد يمنع المسؤول مؤقتاً تحت هجوم موزع؛ لا استثناء يتجاوز الحد بكلمة مرور صحيحة.
+- الحجز ذري داخل PostgreSQL. كل استدعاء يقفل صف `global` أولاً ثم صف العميل، فلا يمكن تجاوز الحد بطلبات متزامنة أو بتعدد نسخ Vercel. تُحذف حتى 100 حصة عميل منتهية ضمن الاستدعاء، مع فهرس انتهاء؛ لا مهام Cron أو بنية خارجية جديدة.
+- `lib/admin-login-rate-limit.ts` يستخدم `x-vercel-forwarded-for` فقط حين يكون متغير التشغيل `VERCEL=1`، وفق ضمان Vercel لترويسات الدخول: https://vercel.com/docs/headers/request-headers#x-vercel-forwarded-for . لا تُستخدم `x-forwarded-for` أو `x-real-ip` أو بيانات المستخدم لتحديد الحصة. خارج Vercel أو عند غياب/فساد الترويسة، تُستخدم حصة مشتركة محافظة؛ خلف بروكسي خارجي قد يشترك المستخدمون في حصة واحدة.
+- تُجمع IPv6 ضمن /64 لمنع تدوير عناوين الخصوصية. قاعدة البيانات لا تستقبل IP خاماً؛ تستقبل HMAC-SHA256 باستخدام ADMIN_SESSION_SECRET الموجود أو ADMIN_PASSWORD كبديل متوافق مع سياسة توقيع الجلسات. لا حاجة لمتغير جديد. تدوير السر يغير حصص العملاء، لكن الحصة الإجمالية تبقى.
+- تجاوز الحد: 429 مع Retry-After (ثوانٍ) وno-store. تعطل/غياب RPC أو إعدادات Supabase أو السر، أو رد غير صالح: 503 عام مع Retry-After=60؛ لا بديل في الذاكرة ولا إعادة محاولة للحجز ولا إصدار جلسة في هذه الحالة. طلبات Origin غير الموثوقة تُرفض قبل استعلام قاعدة البيانات.
+- Production Supabase: migration `supabase/migrations/20261117090000_admin_login_rate_limit.sql` was applied and its RPC permissions were verified. Apply and verify the standalone migration before deploying the login route in any other environment. The same SQL is included in `supabase/setup.sql` for new databases; do not run the full setup on an existing database.
+- اختبارات العقد والمسار: `tests/admin-login-rate-limit.test.mjs`. اختبار PostgreSQL الحقيقي: `tests/admin-login-rate-limit-postgres.test.mjs`، يتطلب psql وقاعدة محلية فارغة مؤقتة باسم يبدأ بـishaq_limiter_test مع الترحيل مطبقاً يدوياً، ومتغير ADMIN_LOGIN_TEST_DATABASE_URL الخاص بالاختبار فقط. يرفض عناوين الإنتاج. الاختبار اختياري ويتخطى التنفيذ إن لم يُضبط؛ لا تُفسر اختبارات العقد بمحاكاة التخزين على أنها إثبات اختبار PostgreSQL الحقيقي.
+
 - **مسار لوحة التحكم:** `/admin`
 - **آلية الدخول:** التحقق من مطابقة `ADMIN_PASSWORD` (بمقارنة مشفرة بـ Constant-time تمنع التخمين).
 - **إدارة الجلسة:**

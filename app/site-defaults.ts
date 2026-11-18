@@ -5,6 +5,8 @@ import type { InkSpecifications } from "./ink-specifications";
 import type { PrinterPageContent } from "./printer-page-content";
 import type { LaserInkColorMode } from "./laser-inks";
 
+export type AdminLoginRateLimitResult = { allowed: boolean; retryAfterSeconds: number };
+
 export type SiteSettings = {
   logoImage: string;
   featureEyebrow: string;

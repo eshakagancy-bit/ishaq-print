@@ -1,4 +1,6 @@
 import { categoryImageDefinitions } from "../../site-defaults";
+// Admin login rate limits are server-controlled RPC policy, not site settings.
+// Deliberately keep limiter tables/limits out of every client payload allowlist.
 import { isPrinterCategory } from "../../printer-categories";
 import { LASER_INK_CATEGORY, LASER_INK_COLOR_MODES, LASER_INK_TYPE } from "../../laser-inks";
 import {
