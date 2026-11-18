@@ -93,7 +93,8 @@ test("homepage, admin API, and public category pages use the intended independen
 
   assert.match(homePage, /getHomeData\(\)/);
   assert.match(database, /\.order\("home_display_order", \{ ascending: true, nullsFirst: false \}\)/);
-  assert.match(database, /Math\.max\(\.\.\.currentOrders\)[\s\S]*?\+ 1/);
+  const saveSql = await readFile(new URL("../supabase/migrations/20261118090000_save_product_with_models.sql", import.meta.url), "utf8");
+  assert.match(saveSql, /coalesce\(max\(coalesce\(p\.home_display_order, 0\)\), -1\) \+ 1/);
   assert.match(adminRoute, /requireAdminApi/);
   assert.match(adminRoute, /revalidatePath\("\/"\)/);
   assert.match(admin, /ترتيب الواجهة الرئيسية/);

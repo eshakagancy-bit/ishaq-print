@@ -130,7 +130,9 @@ test("database and API load variants in one nested query and preserve model ids 
     readFile(new URL("../app/api/site/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(database, /product_models\(\*, product_model_variants\(\*\)\)/);
-  assert.match(database, /rpc\("sync_product_models"/);
+  const saveSql = await readFile(new URL("../supabase/migrations/20261118090000_save_product_with_models.sql", import.meta.url), "utf8");
+  assert.match(database, /rpc\("save_product_with_models"/);
+  assert.match(saveSql, /perform public\.sync_product_models\(saved\.id, p_models\)/);
   assert.match(database, /id: model\.id/);
   assert.match(route, /variants: Array\.isArray\(model\.variants\)/);
   assert.match(route, /isLaserInkCategory\(category\) \? undefined/);

@@ -531,6 +531,10 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
 
   const saveProductDraft = async (event: FormEvent) => {
     event.preventDefault();
+    if (editingId !== null && !Array.isArray(productForm.models)) {
+      setStatus("تعذر تحميل قائمة موديلات المنتج. حدّث القائمة قبل الحفظ.");
+      return;
+    }
     if (productForm.category === "printers" && !isPrinterCategory(productForm.printerCategory)) {
       const message = "يرجى اختيار فئة الطابعة قبل إضافة المنتج.";
       setPrinterCategoryError(message);
@@ -541,7 +545,8 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       setStatus("الوصف يتجاوز الحد الأقصى المسموح وهو 160 حرفاً.");
       return;
     }
-    const modelNames = (productForm.models ?? []).map((model) => model.model.trim().toLocaleLowerCase());
+    const models = productForm.models ?? [];
+    const modelNames = models.map((model) => model.model.trim().toLocaleLowerCase());
     if (modelNames.some((name) => !name) || new Set(modelNames).size !== modelNames.length) {
       setStatus("يجب إدخال اسم فريد لكل موديل داخل المنتج.");
       return;
@@ -559,7 +564,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
         setStatus("أكمل العلامة التجارية ونوع الحبر وعدد الألوان لأحبار الليزر.");
         return;
       }
-      const invalidLaserModel = (productForm.models ?? []).find((model) => specifications.colorMode === "black"
+      const invalidLaserModel = models.find((model) => specifications.colorMode === "black"
         ? !model.partNumber?.trim()
         : !(model.variants?.length));
       if (invalidLaserModel) {
@@ -572,6 +577,7 @@ export default function AdminDashboard({ userName, signOutPath }: { userName: st
       : undefined;
     const next = {
       ...productForm,
+      models,
       badge: productForm.category === "printers" ? undefined : productForm.badge,
       id: editingId ?? Date.now(),
       image: inkImages?.[0] ?? productForm.image,

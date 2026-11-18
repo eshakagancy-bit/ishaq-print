@@ -178,7 +178,7 @@ function normalizeProduct(value: unknown, index: number): StoredProduct | null {
           };
         }) : [],
       };
-    }) : [],
+    }) : undefined,
   };
 }
 
@@ -226,7 +226,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const invalid = validationResponse(error);
     if (invalid) return invalid;
-    return Response.json({ error: error instanceof Error ? error.message : "تعذر إضافة المنتج" }, { status: 500 });
+    return Response.json({ error: "تعذر تأكيد إضافة المنتج وموديلاته. حدّث قائمة المنتجات قبل إعادة المحاولة." }, { status: 500 });
   }
 }
 
@@ -234,7 +234,7 @@ export async function PATCH(request: Request) {
   if (!await requireAdminApi(request)) return Response.json({ error: ADMIN_UNAUTHORIZED_MESSAGE }, { status: 403 });
 
   try {
-    const payload = validateProductPayload(await request.json());
+    const payload = validateProductPayload(await request.json(), { requireModels: true });
     const product = normalizeProduct(payload.product, 0);
     if (!product) return Response.json({ error: "بيانات المنتج غير صالحة" }, { status: 400 });
     if (isInkCategory(product.category)) {
@@ -248,7 +248,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     const invalid = validationResponse(error);
     if (invalid) return invalid;
-    return Response.json({ error: error instanceof Error ? error.message : "تعذر حفظ المنتج" }, { status: 500 });
+    return Response.json({ error: "تعذر تأكيد حفظ المنتج وموديلاته. حدّث قائمة المنتجات قبل إعادة المحاولة." }, { status: 500 });
   }
 }
 

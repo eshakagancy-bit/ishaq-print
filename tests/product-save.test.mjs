@@ -54,9 +54,7 @@ test("the single-product save path updates only the matching id and preserves nu
   ]);
   const updateProductSource = database.match(/export async function updateProduct[\s\S]+?\n}\n/)?.[0] ?? "";
 
-  assert.match(updateProductSource, /\.from\("products"\)/);
-  assert.match(updateProductSource, /\.update\(/);
-  assert.match(updateProductSource, /\.eq\("id", product\.id\)/);
+  assert.match(updateProductSource, /saveProductWithModels\(product, false\)/);
   assert.doesNotMatch(updateProductSource, /\.delete\(/);
   assert.doesNotMatch(updateProductSource, /replaceSiteData/);
   assert.match(database, /printer_page_content:[\s\S]+?\? product\.printerPageContent[\s\S]+?: null/);
@@ -107,7 +105,7 @@ test("daily product CRUD uses row-scoped insert, update and delete without repla
   const createSource = database.match(/export async function createProduct[\s\S]+?\n}\n/)?.[0] ?? "";
   const deleteSource = database.match(/export async function removeProduct[\s\S]+?\n}\n/)?.[0] ?? "";
 
-  assert.match(createSource, /\.insert\(productToRow\(/);
+  assert.match(createSource, /saveProductWithModels\(product, true\)/);
   assert.doesNotMatch(createSource, /replaceSiteData|\.update\(|\.delete\(/);
   assert.match(deleteSource, /\.delete\(\)/);
   assert.match(deleteSource, /\.eq\("id", id\)/);

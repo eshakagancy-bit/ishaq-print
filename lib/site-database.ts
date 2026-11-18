@@ -17,7 +17,7 @@ export async function consumeAdminLoginAttempt(clientKey: string): Promise<Admin
   return { allowed: row.allowed, retryAfterSeconds: Number(row.retry_after_seconds) };
 }
 import { DEFAULT_SUPABASE_STORAGE_BUCKET, normalizeMediaUrl } from "./media-url";
-import { PRINTER_CATEGORIES, isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
+import { isPrinterCategory, resolvePrinterCategory } from "../app/printer-categories";
 import {
   isHomeProductCategory,
   type HomeProductOrderItem,
@@ -29,7 +29,7 @@ import {
 } from "../app/printer-specifications";
 import { normalizePaperSpecifications } from "../app/paper-specifications";
 import { normalizeInkSpecifications } from "../app/ink-specifications";
-import { isInkCategory, isLaserInkCategory } from "../app/laser-inks";
+import { isInkCategory } from "../app/laser-inks";
 import {
   hasPrinterPageContent,
   normalizePrinterPageContent,
@@ -241,10 +241,9 @@ function normalizeSiteSettingsMedia(settings: SiteSettings): SiteSettings {
   };
 }
 
-function productModelToRow(model: ProductModel, productId: number) {
+function productModelToRow(model: ProductModel) {
   return {
     id: model.id,
-    product_id: productId,
     model: model.model.trim(),
     part_number: model.partNumber?.trim() || null,
     color: model.color?.trim() || null,
@@ -256,7 +255,6 @@ function productModelToRow(model: ProductModel, productId: number) {
     is_active: model.isActive,
     variants: (model.variants ?? []).map((variant) => ({
       id: variant.id,
-      product_model_id: model.id,
       color: variant.color.trim(),
       part_number: variant.partNumber.trim(),
       availability: variant.availability,
@@ -360,14 +358,6 @@ function productFromRow(row: ProductRow): StoredProduct {
     homeDisplayOrder: row.home_display_order ?? undefined,
     models: (row.product_models ?? []).map(productModelFromRow),
   };
-}
-
-async function saveProductModels(product: StoredProduct) {
-  const result = await getSupabaseAdmin().rpc("sync_product_models", {
-    p_product_id: product.id,
-    p_models: (product.models ?? []).map((model) => productModelToRow(model, product.id)),
-  });
-  databaseError("تعذر حفظ موديلات المنتج", result.error);
 }
 
 function heroSlideToRow(slide: Omit<HeroSlide, "id"> | HeroSlide) {
@@ -586,57 +576,30 @@ export async function saveSiteSettings(settings: SiteSettings) {
   });
 }
 
-export async function updateProduct(product: StoredProduct) {
-  const client = getSupabaseAdmin();
+async function saveProductWithModels(product: StoredProduct, create: boolean) {
+  const models = product.models === undefined && create ? [] : product.models;
+  if (!Array.isArray(models)) throw new Error("يجب إرسال قائمة موديلات المنتج عند التعديل");
   const row = productToRow(product, product.sortOrder ?? 0);
-  const updates = product.category === "printers"
-    ? Object.fromEntries(Object.entries(row).filter(([key]) => key !== "badge"))
-    : row;
-  const result = await client
-    .from("products")
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", product.id)
-    .select("*")
-    .maybeSingle();
-  databaseError("تعذر حفظ المنتج", result.error);
-  if (!result.data) throw new Error("تعذر العثور على المنتج أثناء الحفظ");
-  await saveProductModels(product);
-  return { ...productFromRow(result.data as ProductRow), models: product.models ?? [] };
+  const result = await getSupabaseAdmin().rpc("save_product_with_models", {
+    p_product: {
+      ...row,
+      badge: product.category === "printers" ? null : row.badge,
+      home_display_order: create ? product.homeDisplayOrder ?? null : row.home_display_order,
+    },
+    p_models: models.map(productModelToRow),
+    p_create: create,
+  });
+  databaseError("تعذر حفظ المنتج وموديلاته", result.error);
+  if (!result.data) throw new Error("لم يُرجع الحفظ بيانات المنتج");
+  return productFromRow(result.data as ProductRow);
+}
+
+export async function updateProduct(product: StoredProduct) {
+  return saveProductWithModels(product, false);
 }
 
 export async function createProduct(product: StoredProduct) {
-  const client = getSupabaseAdmin();
-  let homeDisplayOrder = product.homeDisplayOrder;
-  if ((isHomeProductCategory(product.category) || isLaserInkCategory(product.category)) && homeDisplayOrder === undefined) {
-    const databaseCategories = product.category === "printers"
-      ? ["printers", ...PRINTER_CATEGORIES.map((category) => category.value)]
-      : isLaserInkCategory(product.category) ? ["inks", "laser_inks"] : [product.category];
-    const orderResult = await client
-      .from("products")
-      .select("home_display_order")
-      .in("category", databaseCategories);
-    databaseError("تعذر تحديد نهاية ترتيب قسم المنتج", orderResult.error);
-    const currentOrders = (orderResult.data ?? [])
-      .map((row) => Number(row.home_display_order))
-      .filter((order) => Number.isSafeInteger(order) && order >= 0);
-    homeDisplayOrder = (currentOrders.length ? Math.max(...currentOrders) : -1) + 1;
-  }
-  const result = await client
-    .from("products")
-    .insert(productToRow({
-      ...product,
-      badge: product.category === "printers" ? undefined : product.badge,
-      homeDisplayOrder,
-    }, product.sortOrder ?? 0))
-    .select("*")
-    .single();
-  databaseError("تعذر إضافة المنتج", result.error);
-  const createdProduct = { ...product, id: Number(result.data.id) };
-  await saveProductModels(createdProduct);
-  return { ...productFromRow(result.data as ProductRow), models: createdProduct.models ?? [] };
+  return saveProductWithModels(product, true);
 }
 
 export async function saveHomeProductOrder(items: HomeProductOrderItem[]) {

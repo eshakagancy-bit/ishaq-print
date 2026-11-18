@@ -160,6 +160,8 @@ eshak-global-agency-vercel/
 - `replace_site_data(p_settings jsonb, p_products jsonb)`
 - `set_home_product_order(p_items jsonb)`
 - `sync_product_models(p_product_id bigint, p_models jsonb)`
+- `save_product_with_models(p_product jsonb, p_models jsonb, p_create boolean)`: يحفظ المنتج وموديلاته وألوانه في معاملة واحدة ويعيد المعرّفات المحفوظة. التنفيذ عبر `service_role` فقط من أدوار التطبيق، ومسارا إضافة المنتج وتعديله يحتفظان بتحقق الإدارة. طُبّق الترحيل `20261118090000_save_product_with_models.sql` في Supabase الإنتاجي وتحقّقنا من توقيع الدالة وصلاحياتها. في البيئات الأخرى، يجب تطبيق الترحيل والتحقق منه قبل نشر التطبيق.
+  - طلب تعديل المنتج (`PATCH /api/site`) يتطلب مصفوفة `models` كاملة حتى إن لم تتغير. القائمة الفارغة تعني المسح الصريح؛ حذف الحقل أو إرساله بقيمة غير صالحة يُرفض قبل الوصول لقاعدة البيانات.
 - `replace_product_models(p_product_id bigint, p_models jsonb)`
 
 ---

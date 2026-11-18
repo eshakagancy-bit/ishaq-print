@@ -97,7 +97,7 @@ function validatePageContent(value: unknown, label: string) {
   }
 }
 
-export function validateProductPayload(value: unknown) {
+export function validateProductPayload(value: unknown, { requireModels = false } = {}) {
   const wrapper = strictObject(value, ["product"], "طلب المنتج");
   const product = strictObject(wrapper.product, productKeys, "المنتج");
   positiveInteger(product.id, "معرّف المنتج");
@@ -128,11 +128,15 @@ export function validateProductPayload(value: unknown) {
   }
   validatePageContent(product.printerPageContent, "محتوى صفحة الطابعة");
   validatePageContent(product.paperPageContent, "محتوى صفحة الورق");
+  if (requireModels && (!Object.hasOwn(product, "models") || !Array.isArray(product.models))) {
+    throw new AdminValidationError("يجب إرسال قائمة موديلات المنتج عند التعديل");
+  }
   if (product.models !== undefined) {
     if (!Array.isArray(product.models) || product.models.length > 100) throw new AdminValidationError("موديلات المنتج غير صالحة");
     const names = new Set<string>();
     product.models.forEach((model, index) => {
       const entry = strictObject(model, productModelKeys, `موديل المنتج ${index + 1}`);
+      if (entry.id !== undefined) positiveInteger(entry.id, "معرّف الموديل");
       const name = requiredString(entry.model, "اسم الموديل", 120).toLocaleLowerCase();
       if (names.has(name)) throw new AdminValidationError("لا يمكن تكرار نفس الموديل داخل المنتج");
       names.add(name);
@@ -147,6 +151,7 @@ export function validateProductPayload(value: unknown) {
       const colors = new Set<string>();
       variants.forEach((variant, variantIndex) => {
         const variantEntry = strictObject(variant, productModelVariantKeys, `لون الموديل ${variantIndex + 1}`);
+        if (variantEntry.id !== undefined) positiveInteger(variantEntry.id, "معرّف لون الموديل");
         const color = requiredString(variantEntry.color, "لون الموديل", 80).toLocaleLowerCase();
         if (colors.has(color)) throw new AdminValidationError("لا يمكن تكرار اللون داخل نفس الموديل");
         colors.add(color);
